@@ -1,0 +1,54 @@
+{
+    "summary": [
+        {
+            "id_test": "77725698",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://chat.botika.online/IpTW41B?newMessage=chat%20started&attachment=false&auth=JiQSg8PEZ%2FLCT964dTazyOuehjLUbzKxJUmXjMk9AJgB2tKyrbEy2IfktoPYa4BpTDryrmQb%2BtVE9sX0NlfpDmcVu48%3D&header=hidden&history=false",
+            "page_name": "DEV LGI Health",
+            "browser_name": "Google Chrome",
+            "date_test": "Wednesday, 24 September 2025",
+            "start_time_test": "15:21:34",
+            "total_title": 228,
+            "total_question": 228,
+            "success": 0,
+            "failed": 2,
+            "end_time_test": "15:23:11",
+            "duration": "00:01:37"
+        }
+    ],
+    "chart": [
+        {
+            "ACC PENJAMINAN": "00:00:12"
+        },
+        {
+            "ACC PENJAMINAN": "00:00:28"
+        }
+    ],
+    "data": [
+        {
+            "no": 1,
+            "title": "ACC PENJAMINAN",
+            "question": "apakah operasi ini bisa di covee asuransi?",
+            "response_kb": "Bapak/Ibu PESERTA TEST 04, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "Silakan pilih bahasa / Please choose the languageB. IndonesiaEnglish",
+            "status": "failed",
+            "duration": "00:00:10",
+            "image_capture": "77725698\\apakah operasi ini bisa di covee asuransi.png",
+            "skor": 0.0,
+            "explanation": "Actual output hanya menampilkan pilihan bahasa dan tidak memberikan informasi yang relevan sama sekali dengan expected output yang berisi detail penjaminan dari LippoInsurance."
+        },
+        {
+            "no": 2,
+            "title": "ACC PENJAMINAN",
+            "question": "apakah seluruh tindakan operasi ditanggung?",
+            "response_kb": "Bapak/Ibu PESERTA TEST 04, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "Silakan pilih bahasa / Please choose the languageB. IndonesiaEnglish",
+            "status": "failed",
+            "duration": "00:00:26",
+            "image_capture": "77725698\\apakah seluruh tindakan operasi ditanggung.png",
+            "skor": 0.0,
+            "explanation": "Actual output hanya menampilkan pilihan bahasa dan tidak memberikan informasi yang relevan sama sekali dengan expected output yang berisi detail penjaminan dari LippoInsurance."
+        }
+    ]
+}

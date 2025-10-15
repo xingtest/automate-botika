@@ -1,0 +1,39 @@
+{
+    "summary": [
+        {
+            "id_test": "a2606b61",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "Instagram DM (@ahmadnurbrasta2.2)",
+            "page_name": "Instagram Test",
+            "browser_name": "Instagrapi",
+            "date_test": "Wednesday, 24 September 2025",
+            "start_time_test": "16:21:53",
+            "total_title": 2,
+            "total_question": 2,
+            "success": 0,
+            "failed": 1,
+            "end_time_test": "16:24:33",
+            "duration": "00:02:40"
+        }
+    ],
+    "chart": [
+        {
+            "Asuransi Jiwa": "00:01:10"
+        }
+    ],
+    "data": [
+        {
+            "no": 1,
+            "title": "Asuransi Jiwa",
+            "question": "Apa itu asuransi jiwa",
+            "response_kb": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis. Karakteristik utama asuransi jiwa adalah pemberian manfaat berupa uang pertanggungan kepada ahli waris jika pemegang polis berpulang. Apabila pemegang polis masih hidup dalam jangka waktu yang ditentukan, mereka akan mendapatkan manfaat dalam bentuk nilai tunai.Manfaat dan perlindungan yang diberikan asuransi jiwa berupa uang pertanggungan yang bisa digunakan untuk memenuhi kebutuhan sehari-hari.",
+            "response_llm": "Error: Tidak ada balasan dari bot setelah menunggu.",
+            "status": "failed",
+            "duration": "00:01:07",
+            "image_capture": null,
+            "skor": 0.0,
+            "explanation": "Actual output tidak relevan sama sekali karena melaporkan error dan tidak memberikan informasi apapun mengenai asuransi jiwa, sehingga tidak ada kesamaan makna dengan expected output."
+        }
+    ]
+}

@@ -1,0 +1,69 @@
+{
+    "summary": [
+        {
+            "id_test": "33f9d9b2",
+            "tester_name": "Dirga",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://www.facebook.com/messages/t/114552848299710",
+            "page_name": "Facebook Test",
+            "browser_name": "Selenium",
+            "date_test": "Wednesday, 24 September 2025",
+            "start_time_test": "11:34:54",
+            "total_title": 3,
+            "total_question": 3,
+            "success": 2,
+            "failed": 1,
+            "end_time_test": "11:40:14",
+            "duration": "00:05:20"
+        }
+    ],
+    "chart": [
+        {
+            "Asuransi Jiwa": "00:01:40"
+        },
+        {
+            "Asuransi Kesehatan": "00:01:40"
+        },
+        {
+            "Asuransi Pendidikan": "00:01:40"
+        }
+    ],
+    "data": [
+        {
+            "no": 1,
+            "title": "Asuransi Jiwa",
+            "question": "Apa itu asuransi jiwa",
+            "response_kb": "Asuransi jiwa adalah produk keuangan yang memberikan perlindungan finansial kepada ahli waris jika pemegang polis meninggal dunia.",
+            "response_llm": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.",
+            "status": "pass",
+            "duration": "00:01:37",
+            "image_capture": "33f9d9b2\\Apa itu asuransi jiwa.png",
+            "skor": 0.8,
+            "explanation": "Actual output relevan dan menjelaskan fungsi asuransi jiwa, namun tidak secara spesifik menyebutkan 'asuransi jiwa' seperti pada expected output, melainkan 'jenis asuransi ini'."
+        },
+        {
+            "no": 2,
+            "title": "Asuransi Kesehatan",
+            "question": "Apa itu asuransi kesehatan",
+            "response_kb": "Asuransi kesehatan adalah jenis asuransi yang menanggung biaya medis dan bedah.",
+            "response_llm": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.",
+            "status": "failed",
+            "duration": "00:01:37",
+            "image_capture": "33f9d9b2\\Apa itu asuransi kesehatan.png",
+            "skor": 0.7,
+            "explanation": "Actual output relevan karena menjelaskan fungsi asuransi kesehatan, namun kurang spesifik dibandingkan expected output yang menyebutkan cakupan biaya medis dan bedah secara eksplisit."
+        },
+        {
+            "no": 3,
+            "title": "Asuransi Pendidikan",
+            "question": "Apa itu asuransi pendidikan",
+            "response_kb": "Asuransi pendidikan adalah produk yang dirancang untuk membantu orang tua merencanakan dan membiayai pendidikan anak-anak mereka.",
+            "response_llm": "Asuransi pendidikan merupakan jenis asuransi yang berguna untuk memberikan proteksi dan perencanaan masa depan pendidikan anak.",
+            "status": "pass",
+            "duration": "00:01:37",
+            "image_capture": "33f9d9b2\\Apa itu asuransi pendidikan.png",
+            "skor": 0.9,
+            "explanation": "Actual output sangat mirip dan relevan dengan expected output, hanya saja expected output lebih spesifik menyebutkan 'merencanakan dan membiayai' sementara actual output menggunakan 'proteksi dan perencanaan masa depan'."
+        }
+    ]
+}

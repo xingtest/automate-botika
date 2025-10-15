@@ -1,0 +1,173 @@
+{
+    "summary": [
+        {
+            "id_test": "dc1bd901",
+            "tester_name": "Ahmad Nur Brasta",
+            "url": "https://chat.botika.online/tpUyiey",
+            "page_name": "Ahmad Nur Brasta",
+            "browser_name": "Google Chrome",
+            "date_test": "Thursday, 05 June 2025",
+            "start_time_test": "10:47:13",
+            "total_title": 10,
+            "total_question": 10,
+            "success": 8,
+            "failed": 2,
+            "duration": "00:05:17",
+            "end_time_test": "10:52:31"
+        }
+    ],
+    "chart": [
+        {
+            "Asuransi Jiwa": "00:00:22"
+        },
+        {
+            "Asuransi Kesehatan": "00:00:20"
+        },
+        {
+            "Asuransi Pendidikan": "00:00:18"
+        },
+        {
+            "Asuransi Kendaraan": "00:00:19"
+        },
+        {
+            "Pengertian KPR": "00:00:13"
+        },
+        {
+            "KPR Non Subsidi": "00:00:19"
+        },
+        {
+            "KPR Bersubsidi": "00:00:19"
+        },
+        {
+            "KPR Syariah": "00:00:18"
+        },
+        {
+            "KPR Refinancing": "00:00:18"
+        },
+        {
+            "Skema Singkat Pengajuan KPR": "00:00:27"
+        }
+    ],
+    "data": [
+        {
+            "no": "1",
+            "title": "Asuransi Jiwa",
+            "question": "Apa itu asuransi jiwa",
+            "response_kb": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis. Karakteristik utama asuransi jiwa adalah pemberian manfaat berupa uang pertanggungan kepada ahli waris jika pemegang polis berpulang. Apabila pemegang polis masih hidup dalam jangka waktu yang ditentukan, mereka akan mendapatkan manfaat dalam bentuk nilai tunai.Manfaat dan perlindungan yang diberikan asuransi jiwa berupa uang pertanggungan yang bisa digunakan untuk memenuhi kebutuhan sehari-hari.",
+            "response_llm": "Asuransi jiwa adalah jenis asuransi yang memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.Jika pemegang polis berpulang, ahli waris akan menerima uang pertanggungan. Jika pemegang polis masih hidup setelah jangka waktu tertentu, mereka bisa mendapatkan manfaat dalam bentuk nilai tunai.Jadi, asuransi jiwa membantu memenuhi kebutuhan sehari-hari keluarga yang ditinggalkan. Ada lagi yang ingin Anda tahu?",
+            "status": "pass",
+            "duration": "00:00:17",
+            "image_capture": "screenshoot/2025-06-05/dc1bd901/Apa itu asuransi jiwa.png",
+            "skor": 0.9,
+            "explanation": "Output mencakup semua poin utama expected, tetapi ada sedikit perbedaan dalam struktur kalimat dan penambahan pertanyaan di akhir."
+        },
+        {
+            "no": "2",
+            "title": "Asuransi Kesehatan",
+            "question": "Apa itu asuransi kesehatan",
+            "response_kb": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan. Asuransi ini berguna ketika nasabah menjalani rawat inap, operasi, maupun bentuk perawatan lainnya yang dilakukan di rumah sakit. Asuransi kesehatan sangat penting untuk dimiliki karena bisa melindungi aset atau keuangan nasabah pada saat melakukan pengobatan dengan biaya yang tidak sedikit.",
+            "response_llm": "Asuransi kesehatan adalah jenis asuransi yang memberikan perlindungan finansial saat mengalami masalah kesehatan.Asuransi ini berguna untuk biaya rawat inap, operasi, dan perawatan lainnya di rumah sakit.Penting untuk melindungi aset dan keuangan saat harus berobat. Ada yang ingin Anda tanyakan lebih lanjut?",
+            "status": "pass",
+            "duration": "00:00:16",
+            "image_capture": "screenshoot/2025-06-05/dc1bd901/Apa itu asuransi kesehatan.png",
+            "skor": 0.85,
+            "explanation": "Output mostly correct but missing detail on the importance of protecting assets and finances during medical treatment."
+        },
+        {
+            "no": "3",
+            "title": "Asuransi Pendidikan",
+            "question": "Apa itu asuransi pendidikan",
+            "response_kb": "Asuransi pendidikan merupakan jenis asuransi yang berguna untuk memberikan proteksi dan perencanaan masa depan pendidikan anak. Orang tua harus memiliki asuransi pendidikan karena biaya pendidikan terus mengalami peningkatan dari waktu ke waktu. Asuransi pendidikan bermanfaat dalam memberikan kepastian terhadap masa depan si buah hati.",
+            "response_llm": "Asuransi pendidikan adalah asuransi yang memberikan proteksi dan perencanaan untuk masa depan pendidikan anak.Ini penting karena biaya pendidikan terus meningkat. Ada yang ingin Anda tanyakan lebih lanjut?",
+            "status": "failed",
+            "duration": "00:00:14",
+            "image_capture": "screenshoot/2025-06-05/dc1bd901/Apa itu asuransi pendidikan.png",
+            "skor": 0.75,
+            "explanation": "Output mostly correct but missing detail on the importance of providing certainty for the child's future."
+        },
+        {
+            "no": "4",
+            "title": "Asuransi Kendaraan",
+            "question": "Apa itu asuransi kendaraan",
+            "response_kb": "Asuransi kendaraan yang berguna sebagai bentuk perlindungan finansial terhadap kendaraan bermotor yang dimiliki. Setiap pemilik kendaraan bermotor, baik individu maupun lembaga, membutuhkan asuransi untuk kendaraan bermotor karena biaya perbaikan akibat kerusakan atau kehilangan kendaraan memakan jumlah yang tidak sedikit.",
+            "response_llm": "Asuransi kendaraan adalah perlindungan finansial untuk kendaraan bermotor. Ini penting untuk menutupi biaya perbaikan atau kehilangan kendaraan. Ada yang ingin Anda tanyakan lebih lanjut?",
+            "status": "pass",
+            "duration": "00:00:14",
+            "image_capture": "screenshoot/2025-06-05/dc1bd901/Apa itu asuransi kendaraan.png",
+            "skor": 0.85,
+            "explanation": "Output mostly correct but missing detail on the need for insurance for both individuals and institutions."
+        },
+        {
+            "no": "5",
+            "title": "Pengertian KPR",
+            "question": "jelasin dong apa yang dimaksud dengan KPR itu?",
+            "response_kb": "Kredit Pemilikan Rumah atau KPR adalah salah satu cara untuk mencicil rumah dalam jangka waktu dan bunga tertentu. Melalui KPR, masyarakat bisa membeli rumah tanpa uang tunai sejumlah harga bangunan tersebut. Sebab, yang perlu disiapkan hanyalah dana untuk down payment atau DP rumah saja. Selanjutnya, sisa biaya yang sudah termasuk bunga akan diangsur setiap bulan selama jangka waktu yang telah ditetapkan.",
+            "response_llm": "Apakah Anda ingin terhubung dengan Live Agent?YaTidak",
+            "status": "failed",
+            "duration": "00:00:08",
+            "image_capture": "screenshoot/2025-06-05/dc1bd901/jelasin dong apa yang dimaksud dengan KPR itu.png",
+            "skor": 0.0,
+            "explanation": "Actual output tidak relevan dengan expected output."
+        },
+        {
+            "no": "6",
+            "title": "KPR Non Subsidi",
+            "question": "info dan jelasin dong terkait KPR non subsidi itu apa",
+            "response_kb": "KPR Non Subsidi adalah salah satu jenis kredit rumah yang ditawarkan oleh bank umum tanpa campur tangan pemerintah. Seluruh biaya merupakan hasil dari kebijakan bank. Di mana suku bunga KPR Non Subsidi biasanya mengacu pada BI",
+            "response_llm": "KPR Non Subsidi adalah jenis kredit pemilikan rumah yang ditawarkan oleh bank tanpa campur tangan pemerintah. Semua biaya ditentukan oleh kebijakan bank, dan suku bunga biasanya mengikuti ketentuan dari Bank Indonesia.Kalau ada yang ingin ditanyakan lebih lanjut, silakan!",
+            "status": "pass",
+            "duration": "00:00:16",
+            "image_capture": "screenshoot/2025-06-05/dc1bd901/info dan jelasin dong terkait KPR non subsidi itu apa.png",
+            "skor": 0.95,
+            "explanation": "Output is mostly correct but slightly less detailed on the interest rate reference."
+        },
+        {
+            "no": "7",
+            "title": "KPR Bersubsidi",
+            "question": "kalo KPR bersubsidi itu apa sih",
+            "response_kb": "KPR Bersubsidi adalah kreditan rumah yang merupakan bentuk bantuan dari pemerintah. Bantuan tersebut berupa pengurangan uang muka hingga suku bunga.Kredit pemilikan rumah bersubsidi diberikan kepada pekerja berpenghasilan rendah dan belum memiliki hunian sendiri. Kredit rumah bersubsidi berikut hanya bisa digunakan maksimal untuk rumah tipe 36 dengan harga maksimal 120 juta rupiah.Suku bunganya yakni sekitar 7,25% flat dan sudah mencakup asuransi jiwa, kebakaran, maupun asuransi kredit.",
+            "response_llm": "KPR Bersubsidi adalah kredit pemilikan rumah yang diberikan oleh pemerintah untuk membantu pekerja berpenghasilan rendah. Ini termasuk pengurangan uang muka dan suku bunga yang lebih rendah, sekitar 7,25% flat. KPR ini hanya bisa digunakan untuk rumah tipe 36 dengan harga maksimal 120 juta rupiah.",
+            "status": "pass",
+            "duration": "00:00:15",
+            "image_capture": "screenshoot/2025-06-05/dc1bd901/kalo KPR bersubsidi itu apa sih.png",
+            "skor": 0.85,
+            "explanation": "Output mostly correct but missing detail on asuransi jiwa, kebakaran, dan asuransi kredit."
+        },
+        {
+            "no": "8",
+            "title": "KPR Syariah",
+            "question": "ada gak sih kpr yang tidak menganut sistem bunga?",
+            "response_kb": "KPR Syariah adalah jenis kredit pemilikan rumah dengan prinsip-prinsip ajaran agama Islam sehingga tidak menganut sistem bunga, melainkan bagi hasil atau nisbah.",
+            "response_llm": "Ada! Itu namanya KPR Syariah. KPR ini mengikuti prinsip-prinsip ajaran Islam, jadi tidak menggunakan sistem bunga. Sebagai gantinya, KPR Syariah menggunakan sistem bagi hasil atau nisbah.",
+            "status": "pass",
+            "duration": "00:00:14",
+            "image_capture": "screenshoot/2025-06-05/dc1bd901/ada gak sih kpr yang tidak menganut sistem bunga.png",
+            "skor": 0.95,
+            "explanation": "Output is mostly correct and relevant, but slightly less detailed than expected."
+        },
+        {
+            "no": "9",
+            "title": "KPR Refinancing",
+            "question": "aku baru denger nih ada kpr refinancing, itu apaan sih?",
+            "response_kb": "KPR refinancing sedikit berbeda dengan jenis kreditan rumah lainnya. KPR refinancing merupakan sebuah produk pinjaman di mana rumah yang dibeli dijadikan jaminan untuk pinjaman pribadi.",
+            "response_llm": "KPR refinancing adalah produk pinjaman di mana rumah yang sudah dibeli dijadikan jaminan untuk mendapatkan pinjaman pribadi. Jadi, Anda bisa memanfaatkan nilai rumah untuk mendapatkan dana tambahan.",
+            "status": "pass",
+            "duration": "00:00:13",
+            "image_capture": "screenshoot/2025-06-05/dc1bd901/aku baru denger nih ada kpr refinancing itu apaan sih.png",
+            "skor": 0.95,
+            "explanation": "Output mostly correct but missing detail on \"KPR refinancing sedikit berbeda dengan jenis kreditan rumah lainnya.\""
+        },
+        {
+            "no": "10",
+            "title": "Skema Singkat Pengajuan KPR",
+            "question": "gimana sih skema atau alur dari pengajuan KPR itu, aku mau banget punya rumah nih",
+            "response_kb": "Skema Singkat Pengajuan KPR1. Penjual terpercaya menjual sebuah rumah seharga A dengan luas tanah X.2. Pembeli tertarik dengan bangunan rumah tersebut dan melakukan perundingan mengenai besar DP dan dokumen resmi kepemilikan rumah seperti sertifikat rumah.3. Pembeli membayar DP kepada penjual rumah.4. Penjual menyerahkan sertifikat rumah kepada pembeli.5. Pembeli mengajukan KPR ke bank dan menjadikan sertifikat rumah sebagai jaminannya.6. Bank melakukan pengecekan riwayat keuangan pembeli sebagai debitur.7. Bank menyetujui pengajuan KPR.8. Pembeli mengisi data-data pengajuan KPR berupa jangka waktu pembayaran, DP, harga rumah, luas tanah, dan pemilihan tipe bunga.9. Bank dan pembeli menyepakati hasil pengajuan KPR.10. Bank memberikan dana pinjaman kepada pembeli untuk melunasi biaya rumah.11. Pembeli membayar lunas biaya rumah kepada penjual rumah.12. Pembeli setiap bulan mulai mencicil dana pinjaman yang diberikan oleh bank sampai jangka waktu yang telah ditetapkan.",
+            "response_llm": "Berikut skema singkat pengajuan KPR:1. Penjual terpercaya menjual rumah seharga A dengan luas tanah X.2. Pembeli melakukan perundingan mengenai DP dan dokumen resmi seperti sertifikat rumah.3. Pembeli membayar DP kepada penjual.4. Penjual menyerahkan sertifikat rumah kepada pembeli.5. Pembeli mengajukan KPR ke bank dengan sertifikat sebagai jaminan.6. Bank cek riwayat keuangan pembeli.7. Bank menyetujui pengajuan KPR.8. Pembeli mengisi data pengajuan KPR (jangka waktu, DP, harga rumah, dll).9. Bank dan pembeli menyepakati hasil pengajuan KPR.10. Bank memberikan dana pinjaman untuk melunasi biaya rumah.11. Pembeli membayar lunas biaya rumah kepada penjual.12. Pembeli mulai mencicil pinjaman setiap bulan sampai jangka waktu yang ditetapkan.Semoga membantu!",
+            "status": "pass",
+            "duration": "00:00:22",
+            "image_capture": "screenshoot/2025-06-05/dc1bd901/gimana sih skema atau alur dari pengajuan KPR itu aku mau banget punya rumah nih.png",
+            "skor": 0.95,
+            "explanation": "Output mencakup semua poin penting dengan sedikit perbedaan urutan dan penyederhanaan kata."
+        }
+    ]
+}

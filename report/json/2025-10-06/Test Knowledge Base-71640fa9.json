@@ -1,0 +1,54 @@
+{
+    "summary": [
+        {
+            "id_test": "71640fa9",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://client.botika.online/virtual-avatar-luna/",
+            "page_name": "Virtual Avatar Luna",
+            "browser_name": "Google Chrome",
+            "date_test": "Monday, 06 October 2025",
+            "start_time_test": "13:55:34",
+            "total_title": 2,
+            "total_question": 2,
+            "success": 1,
+            "failed": 1,
+            "end_time_test": "13:56:30",
+            "duration": "00:00:55"
+        }
+    ],
+    "chart": [
+        {
+            "tanya sapa": "00:00:11"
+        },
+        {
+            "wisata jogja": "00:00:11"
+        }
+    ],
+    "data": [
+        {
+            "no": 1,
+            "title": "tanya sapa",
+            "question": "siapa kamu?",
+            "response_kb": "Halo! Saya Luna, asisten virtual dari Botika yang siap membantu Anda dengan informasi terkait pariwisata. Apakah ada yang bisa saya bantu hari ini?",
+            "response_llm": "Hai selamat siang. Saya Luna Asisten Virtual dari PT Botika Teknologi Indonesia. Ada yang bisa saya bantu?13:55siapa kamu?13:56Halo! Saya Luna, asisten virtual dari Botika yang siap membantu Anda mendapatkan informasi terkait pariwisata. Apakah ada yang bisa saya bantu hari ini?13:56",
+            "status": "pass",
+            "duration": "00:00:09",
+            "image_capture": "71640fa9\\siapa kamu.png",
+            "skor": 0.9,
+            "explanation": "Actual output sangat mirip dengan expected output, hanya saja ada sedikit perbedaan dalam penyebutan nama perusahaan dan penambahan waktu percakapan yang tidak relevan. Namun, inti pesan dan informasi yang disampaikan sama."
+        },
+        {
+            "no": 2,
+            "title": "wisata jogja",
+            "question": "apa rekomendasi wisata di jogja",
+            "response_kb": "Di Yogyakarta, Anda bisa mengunjungi Situs Warungboto, yang juga dikenal sebagai Pesanggrahan Rejowinangun. Tempat ini menawarkan pengalaman wisata sejarah dengan nuansa Jawa kuno. Selain itu, Pantai Parangtritis adalah destinasi ikonik di Jogja yang menawarkan berbagai aktivitas seperti naik delman, ATV, dan jeep. Apakah ada tempat lain yang ingin Anda ketahui?",
+            "response_llm": "apa rekomendasi wisata di jogja",
+            "status": "failed",
+            "duration": "00:00:09",
+            "image_capture": "71640fa9\\apa rekomendasi wisata di jogja.png",
+            "skor": 0.0,
+            "explanation": "Actual output hanya berupa pertanyaan yang sama dengan prompt awal, tidak memberikan rekomendasi wisata apapun seperti yang diharapkan."
+        }
+    ]
+}

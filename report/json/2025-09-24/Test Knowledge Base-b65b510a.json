@@ -1,0 +1,129 @@
+{
+    "summary": [
+        {
+            "id_test": "b65b510a",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://chat.botika.online/IpTW41B?newMessage=chat%20started&attachment=false&auth=JiQSg8PEZ%2FLCT964dTazyOuehjLUbzKxJUmXjMk9AJgB2tKyrbEy2IfktoPYa4BpTDryrmQb%2BtVE9sX0NlfpDmcVu48%3D&header=hidden&history=false",
+            "page_name": "DEV LGI Health",
+            "browser_name": "Google Chrome",
+            "date_test": "Wednesday, 24 September 2025",
+            "start_time_test": "14:55:17",
+            "total_title": 228,
+            "total_question": 228,
+            "success": 0,
+            "failed": 7,
+            "end_time_test": "14:57:41",
+            "duration": "00:02:24"
+        }
+    ],
+    "chart": [
+        {
+            "ACC PENJAMINAN": "00:00:12"
+        },
+        {
+            "ACC PENJAMINAN": "00:00:07"
+        },
+        {
+            "ACC PENJAMINAN": "00:00:08"
+        },
+        {
+            "ACC PENJAMINAN": "00:00:12"
+        },
+        {
+            "ACC PENJAMINAN": "00:00:19"
+        },
+        {
+            "ACC PENJAMINAN": "00:00:09"
+        },
+        {
+            "ACC PENJAMINAN": "00:00:10"
+        }
+    ],
+    "data": [
+        {
+            "no": 1,
+            "title": "ACC PENJAMINAN",
+            "question": "apakah operasi ini bisa di covee asuransi?",
+            "response_kb": "Bapak/Ibu PESERTA TEST 04, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "",
+            "status": "failed",
+            "duration": "00:00:09",
+            "image_capture": "b65b510a\\apakah operasi ini bisa di covee asuransi.png",
+            "skor": 0.0,
+            "explanation": "Actual output kosong, tidak ada informasi sama sekali yang sesuai dengan expected output."
+        },
+        {
+            "no": 2,
+            "title": "ACC PENJAMINAN",
+            "question": "apakah seluruh tindakan operasi ditanggung?",
+            "response_kb": "Bapak/Ibu PESERTA TEST 04, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "",
+            "status": "failed",
+            "duration": "00:00:05",
+            "image_capture": "b65b510a\\apakah seluruh tindakan operasi ditanggung.png",
+            "skor": 0.0,
+            "explanation": "Actual output kosong, tidak ada informasi sama sekali yang sesuai dengan expected output."
+        },
+        {
+            "no": 3,
+            "title": "ACC PENJAMINAN",
+            "question": "operasi apa saja yang dijaminkan?",
+            "response_kb": "Bapak/Ibu PESERTA TEST 04, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "Terjadi kendala teknis. Mohon diulangi kembali atau silakan menghubungi Contact Center 1500563 (24 jam)",
+            "status": "failed",
+            "duration": "00:00:06",
+            "image_capture": "b65b510a\\operasi apa saja yang dijaminkan.png",
+            "skor": 0.0,
+            "explanation": "Actual output sangat berbeda konteks dari expected output karena menyampaikan pesan kendala teknis dan meminta pengulangan, bukan memberikan informasi penjaminan atau kontak alternatif seperti yang diharapkan."
+        },
+        {
+            "no": 4,
+            "title": "ACC PENJAMINAN",
+            "question": "untuk tindakan operasi apakah dicover penuh?",
+            "response_kb": "Bapak/Ibu PESERTA TEST 04, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "",
+            "status": "failed",
+            "duration": "00:00:09",
+            "image_capture": "b65b510a\\untuk tindakan operasi apakah dicover penuh.png",
+            "skor": 0.0,
+            "explanation": "Actual output kosong, tidak ada informasi sama sekali yang sesuai dengan expected output."
+        },
+        {
+            "no": 5,
+            "title": "ACC PENJAMINAN",
+            "question": "bbrp tahun ini saya ruting kontrol diabetes setiap bbrp bulan sekali ke internist di rs puri indah. di tahun 2024, terakhir kontrol di bulan oktober dan dijadwalkan utk lab test ulang di januari 2025. tapi ketika saya akan lab test di rs puri, ternyata sejak 2025 meditap sudah tidak bisa cashless di rs puri indah, hingga saat itu saya batal lab test. akhirnya saya baru sempat test lab di tgl 17 april di prodia, lalu saya kontrol internist di rs. puri di bulan mei. lalu saya lakukan proses reimburse. biaya dokter dan obat di bulan mei dicover, tapi ternyata klaim biaya lab di prodia ditolak, dengan alasan perlu diagnosa/tanda tanagn dokter. bagaimana supaya biaya tes sebelum kontrol tersebut bisa dicover?mengingat selama ini bisa dicover (di tahun 2024 dan sebelumnya memang dengan skema cashless di rs puri indah). selain itu saya juga tidak ada formulir rawat jalan untuk kontrol terakhir di bln oktober (lagi2 karena cashless, jadi formulirnya di sistem rs puri)",
+            "response_kb": "Bapak/Ibu PESERTA TEST 04, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "Terjadi kendala teknis. Mohon diulangi kembali atau silakan menghubungi Contact Center 1500563 (24 jam)Terjadi kendala teknis. Mohon diulangi kembali atau silakan menghubungi Contact Center 1500563 (24 jam)",
+            "status": "failed",
+            "duration": "00:00:16",
+            "image_capture": "b65b510a\\bbrp tahun ini saya ruting kontrol diabetes setiap...png",
+            "skor": 0.0,
+            "explanation": "Actual output sangat berbeda konteks dari expected output karena menyampaikan pesan kendala teknis, bukan informasi penjaminan atau kontak layanan pelanggan seperti yang diharapkan."
+        },
+        {
+            "no": 6,
+            "title": "ACC PENJAMINAN",
+            "question": "kontrol rutin diabetes apakah dicover?",
+            "response_kb": "Bapak/Ibu PESERTA TEST 04, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "Terjadi kendala teknis. Mohon diulangi kembali atau silakan menghubungi Contact Center 1500563 (24 jam)",
+            "status": "failed",
+            "duration": "00:00:06",
+            "image_capture": "b65b510a\\kontrol rutin diabetes apakah dicover.png",
+            "skor": 0.0,
+            "explanation": "Actual output sangat berbeda konteks dari expected output karena menyampaikan pesan kendala teknis dan meminta pengulangan, bukan memberikan informasi penjaminan atau kontak alternatif seperti yang diharapkan."
+        },
+        {
+            "no": 7,
+            "title": "ACC PENJAMINAN",
+            "question": "apakah pemeriksaan rutin terkait diabetes dijamin?",
+            "response_kb": "Bapak/Ibu PESERTA TEST 04, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "Terjadi kendala teknis. Mohon diulangi kembali atau silakan menghubungi Contact Center 1500563 (24 jam)",
+            "status": "failed",
+            "duration": "00:00:07",
+            "image_capture": "b65b510a\\apakah pemeriksaan rutin terkait diabetes dijamin.png",
+            "skor": 0.0,
+            "explanation": "Actual output sangat berbeda konteks dari expected output karena menyampaikan pesan kendala teknis dan meminta pengulangan, bukan memberikan informasi penjaminan atau kontak alternatif seperti yang diharapkan."
+        }
+    ]
+}

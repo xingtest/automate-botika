@@ -1,0 +1,54 @@
+{
+    "summary": [
+        {
+            "id_test": "6dad955a",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://client.botika.online/virtual-avatar-luna/",
+            "page_name": "Virtual Avatar Luna",
+            "browser_name": "Google Chrome",
+            "date_test": "Monday, 06 October 2025",
+            "start_time_test": "13:41:57",
+            "total_title": 2,
+            "total_question": 2,
+            "success": 0,
+            "failed": 2,
+            "end_time_test": "13:42:50",
+            "duration": "00:00:53"
+        }
+    ],
+    "chart": [
+        {
+            "Test Sapaan": "00:00:11"
+        },
+        {
+            "Test Kemampuan": "00:00:11"
+        }
+    ],
+    "data": [
+        {
+            "no": "1",
+            "title": "Test Sapaan",
+            "question": "siapa kamu?",
+            "response_kb": "Nama saya Erva",
+            "response_llm": "Hai selamat siang. Saya Luna Asisten Virtual dari PT Botika Teknologi Indonesia. Ada yang bisa saya bantu?13:42siapa kamu?13:42Halo! Saya Luna, asisten virtual dari Botika yang siap membantu Anda mendapatkan informasi terkait pariwisata. Apakah ada yang bisa saya bantu hari ini?13:42",
+            "status": "failed",
+            "duration": "00:00:09",
+            "image_capture": "6dad955a\\siapa kamu.png",
+            "skor": 0.0,
+            "explanation": "Actual output tidak relevan sama sekali dengan expected output. Expected output adalah \\"
+        },
+        {
+            "no": "2",
+            "title": "Test Kemampuan",
+            "question": "kamu bisa apa aja?",
+            "response_kb": "Saya di sini untuk membantu",
+            "response_llm": "Hai selamat siang. Saya Luna Asisten Virtual dari PT Botika Teknologi Indonesia. Ada yang bisa saya bantu?13:42siapa kamu?13:42Halo! Saya Luna, asisten virtual dari Botika yang siap membantu Anda mendapatkan informasi terkait pariwisata. Apakah ada yang bisa saya bantu hari ini?13:42kamu bisa apa aja?13:42Saya bisa membantu Anda dengan informasi terkait pariwisata, seperti panduan liburan, rekomendasi kuliner, tips wisata, dan informasi lainnya yang berhubungan dengan perjalanan. Apakah ada yang ingin Anda ketahui lebih lanjut?13:42",
+            "status": "failed",
+            "duration": "00:00:09",
+            "image_capture": "6dad955a\\kamu bisa apa aja.png",
+            "skor": 0.2,
+            "explanation": "Actual output tidak relevan dengan expected output. Expected output adalah 'Saya di sini untuk membantu', sedangkan actual output berisi perkenalan diri sebagai asisten virtual dan menawarkan bantuan terkait pariwisata."
+        }
+    ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "webchat",
+  "version": "1.0.0",
+  "description": "Webchat Automation Testing is an automated testing process aimed at verifying webchat interactions, ensuring optimal functionality and performance, while freeing manual testing for efficiency and accuracy.",
+  "main": "index.js",
+  "scripts": {
+    "test": "python main.py"
+  },
+  "author": "okinr.testcase",
+  "license": "ISC"
+}

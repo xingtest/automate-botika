@@ -1,0 +1,54 @@
+{
+    "summary": [
+        {
+            "id_test": "d91da67c",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://client.botika.online/virtual-avatar-pln-icon/?mode=wake-word",
+            "page_name": "Virtual Avatar Erva",
+            "browser_name": "Google Chrome",
+            "date_test": "Monday, 06 October 2025",
+            "start_time_test": "04:39:32",
+            "total_title": 2,
+            "total_question": 2,
+            "success": 0,
+            "failed": 2,
+            "end_time_test": "04:40:01",
+            "duration": "00:00:28"
+        }
+    ],
+    "chart": [
+        {
+            "Test Sapaan": "00:00:04"
+        },
+        {
+            "Test Kemampuan": "00:00:04"
+        }
+    ],
+    "data": [
+        {
+            "no": "1",
+            "title": "Test Sapaan",
+            "question": "siapa kamu?",
+            "response_kb": "Nama saya Erva",
+            "response_llm": "Error: Message: element not interactable  (Session info: chrome=141.0.7390.54); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementnotinteractableexceptionStacktrace:#0 0x55a3608be33a <unknown>#1 0x55a36033c52e <unknown>#2 0x55a36038893b <unknown>#3 0x55a360386cfd <unknown>#4 0x55a3603b47e2 <unknown>#5 0x55a3603824d7 <unknown>#6 0x55a3603b49ae <unknown>#7 0x55a3603da4b8 <unknown>#8 0x55a3603b45b3 <unknown>#9 0x55a360380cc2 <unknown>#10 0x55a360381981 <unknown>#11 0x55a360880ba8 <unknown>#12 0x55a360884a17 <unknown>#13 0x55a3608680c9 <unknown>#14 0x55a3608855c5 <unknown>#15 0x55a36084d90f <unknown>#16 0x55a3608aa898 <unknown>#17 0x55a3608aaa73 <unknown>#18 0x55a3608bd2d3 <unknown>#19 0x7f0f480abaa4 <unknown>#20 0x7f0f48138c3c <unknown>",
+            "status": "failed",
+            "duration": "00:00:02",
+            "image_capture": "d91da67c/error_siapa kamu.png",
+            "skor": 0.0,
+            "explanation": "Actual output adalah pesan error teknis yang sama sekali tidak relevan dengan expected output yang berupa sebuah nama."
+        },
+        {
+            "no": "2",
+            "title": "Test Kemampuan",
+            "question": "kamu bisa apa aja?",
+            "response_kb": "Saya di sini untuk membantu",
+            "response_llm": "Error: Message: element not interactable  (Session info: chrome=141.0.7390.54); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementnotinteractableexceptionStacktrace:#0 0x55a3608be33a <unknown>#1 0x55a36033c52e <unknown>#2 0x55a36038893b <unknown>#3 0x55a360386cfd <unknown>#4 0x55a3603b47e2 <unknown>#5 0x55a3603824d7 <unknown>#6 0x55a3603b49ae <unknown>#7 0x55a3603da4b8 <unknown>#8 0x55a3603b45b3 <unknown>#9 0x55a360380cc2 <unknown>#10 0x55a360381981 <unknown>#11 0x55a360880ba8 <unknown>#12 0x55a360884a17 <unknown>#13 0x55a3608680c9 <unknown>#14 0x55a3608855c5 <unknown>#15 0x55a36084d90f <unknown>#16 0x55a3608aa898 <unknown>#17 0x55a3608aaa73 <unknown>#18 0x55a3608bd2d3 <unknown>#19 0x7f0f480abaa4 <unknown>#20 0x7f0f48138c3c <unknown>",
+            "status": "failed",
+            "duration": "00:00:02",
+            "image_capture": "d91da67c/error_kamu bisa apa aja.png",
+            "skor": 0.0,
+            "explanation": "Actual output adalah pesan error teknis yang sama sekali tidak relevan dengan expected output yang merupakan kalimat sapaan. Perbedaan makna utama sangat signifikan."
+        }
+    ]
+}

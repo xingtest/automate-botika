@@ -1,0 +1,54 @@
+{
+    "summary": [
+        {
+            "id_test": "8645aece",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://client.botika.online/virtual-avatar-luna/",
+            "page_name": "Virtual Avatar Luna",
+            "browser_name": "Google Chrome",
+            "date_test": "Monday, 06 October 2025",
+            "start_time_test": "05:07:23",
+            "total_title": 2,
+            "total_question": 2,
+            "success": 0,
+            "failed": 2,
+            "end_time_test": "05:09:37",
+            "duration": "00:02:14"
+        }
+    ],
+    "chart": [
+        {
+            "Test Sapaan": "00:00:56"
+        },
+        {
+            "Test Kemampuan": "00:00:56"
+        }
+    ],
+    "data": [
+        {
+            "no": "1",
+            "title": "Test Sapaan",
+            "question": "siapa kamu?",
+            "response_kb": "Nama saya Erva",
+            "response_llm": "Error: Tidak ada balasan dari bot.",
+            "status": "failed",
+            "duration": "00:00:54",
+            "image_capture": "8645aece/siapa kamu.png",
+            "skor": 0.0,
+            "explanation": "Actual output adalah pesan error yang menunjukkan tidak ada balasan dari bot, sehingga sangat berbeda dan tidak relevan dengan expected output yang seharusnya berisi nama 'Erva'."
+        },
+        {
+            "no": "2",
+            "title": "Test Kemampuan",
+            "question": "kamu bisa apa aja?",
+            "response_kb": "Saya di sini untuk membantu",
+            "response_llm": "Error: Tidak ada balasan dari bot.",
+            "status": "failed",
+            "duration": "00:00:54",
+            "image_capture": "8645aece/kamu bisa apa aja.png",
+            "skor": 0.0,
+            "explanation": "Actual output 'Error: Tidak ada balasan dari bot.' sangat berbeda dan tidak relevan dengan expected output 'Saya di sini untuk membantu'. Tidak ada kesamaan makna atau informasi yang disampaikan."
+        }
+    ]
+}

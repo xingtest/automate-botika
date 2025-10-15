@@ -1,0 +1,54 @@
+{
+    "summary": [
+        {
+            "id_test": "643914f5",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://chat.botika.online/IpTW41B?newMessage=chat%20Started&attachment=false&auth=JiQSg8PEZ\\/LCT964dQ2T4cettwvgUwCNA2je\\/7IwTt1T2tyosLUo2IKo78S8aYRlHGKx7ycV&header=hidden",
+            "page_name": "DEV LGI Health",
+            "browser_name": "Google Chrome",
+            "date_test": "Wednesday, 24 September 2025",
+            "start_time_test": "14:39:37",
+            "total_title": 228,
+            "total_question": 228,
+            "success": 0,
+            "failed": 2,
+            "end_time_test": "14:40:44",
+            "duration": "00:01:06"
+        }
+    ],
+    "chart": [
+        {
+            "ACC PENJAMINAN": "00:00:08"
+        },
+        {
+            "ACC PENJAMINAN": "00:00:14"
+        }
+    ],
+    "data": [
+        {
+            "no": 1,
+            "title": "ACC PENJAMINAN",
+            "question": "apakah operasi ini bisa di covee asuransi?",
+            "response_kb": "Bapak/Ibu KEZIA EXHAUDIA MATITAPUTTY, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "",
+            "status": "failed",
+            "duration": "00:00:05",
+            "image_capture": "643914f5\\apakah operasi ini bisa di covee asuransi.png",
+            "skor": 0.0,
+            "explanation": "Actual output kosong, tidak ada informasi yang relevan sama sekali dengan expected output."
+        },
+        {
+            "no": 2,
+            "title": "ACC PENJAMINAN",
+            "question": "apakah seluruh tindakan operasi ditanggung?",
+            "response_kb": "Bapak/Ibu KEZIA EXHAUDIA MATITAPUTTY, Pada dasarnya LippoInsurance tidak menghalangi tindakan yang akan peserta jalani selama perawatan.Apabila terdapat kendala penjaminan, silahkan arahkan pihak RS menghubungi Tim Penjaminan Kami di nomor 1500563 ext 3Atau silahkan Bapak/Ibu menghubungi Contact Center dengan mengetik CS untuk informasi lebih lanjut.",
+            "response_llm": "Terjadi kendala teknis. Mohon diulangi kembali atau silakan menghubungi Contact Center 1500563 (24 jam)",
+            "status": "failed",
+            "duration": "00:00:11",
+            "image_capture": "643914f5\\apakah seluruh tindakan operasi ditanggung.png",
+            "skor": 0.0,
+            "explanation": "Actual output tidak relevan sama sekali dengan expected output karena menyampaikan pesan kendala teknis dan tidak memberikan informasi yang diharapkan mengenai LippoInsurance."
+        }
+    ]
+}

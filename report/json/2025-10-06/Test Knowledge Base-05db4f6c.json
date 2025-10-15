@@ -1,0 +1,54 @@
+{
+    "summary": [
+        {
+            "id_test": "05db4f6c",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://client.botika.online/virtual-avatar-luna/",
+            "page_name": "Virtual Avatar Luna",
+            "browser_name": "Google Chrome",
+            "date_test": "Monday, 06 October 2025",
+            "start_time_test": "04:58:49",
+            "total_title": 2,
+            "total_question": 2,
+            "success": 0,
+            "failed": 2,
+            "end_time_test": "05:00:00",
+            "duration": "00:01:10"
+        }
+    ],
+    "chart": [
+        {
+            "Test Sapaan": "00:00:24"
+        },
+        {
+            "Test Kemampuan": "00:00:24"
+        }
+    ],
+    "data": [
+        {
+            "no": "1",
+            "title": "Test Sapaan",
+            "question": "siapa kamu?",
+            "response_kb": "Nama saya Erva",
+            "response_llm": "Error: Message: Stacktrace:#0 0x557cb8d7b33a <unknown>#1 0x557cb87f96e6 <unknown>#2 0x557cb884b854 <unknown>#3 0x557cb884baf1 <unknown>#4 0x557cb889a024 <unknown>#5 0x557cb887180d <unknown>#6 0x557cb88974b8 <unknown>#7 0x557cb88715b3 <unknown>#8 0x557cb883dcc2 <unknown>#9 0x557cb883e981 <unknown>#10 0x557cb8d3dba8 <unknown>#11 0x557cb8d41a17 <unknown>#12 0x557cb8d250c9 <unknown>#13 0x557cb8d425c5 <unknown>#14 0x557cb8d0a90f <unknown>#15 0x557cb8d67898 <unknown>#16 0x557cb8d67a73 <unknown>#17 0x557cb8d7a2d3 <unknown>#18 0x7fba29a84aa4 <unknown>#19 0x7fba29b11c3c <unknown>",
+            "status": "failed",
+            "duration": "00:00:22",
+            "image_capture": "05db4f6c/error_siapa kamu.png",
+            "skor": 0.0,
+            "explanation": "Actual output adalah pesan error yang sama sekali tidak relevan dengan expected output yang seharusnya berupa nama 'Erva'."
+        },
+        {
+            "no": "2",
+            "title": "Test Kemampuan",
+            "question": "kamu bisa apa aja?",
+            "response_kb": "Saya di sini untuk membantu",
+            "response_llm": "Error: Message: Stacktrace:#0 0x557cb8d7b33a <unknown>#1 0x557cb87f96e6 <unknown>#2 0x557cb884b854 <unknown>#3 0x557cb884baf1 <unknown>#4 0x557cb889a024 <unknown>#5 0x557cb887180d <unknown>#6 0x557cb88974b8 <unknown>#7 0x557cb88715b3 <unknown>#8 0x557cb883dcc2 <unknown>#9 0x557cb883e981 <unknown>#10 0x557cb8d3dba8 <unknown>#11 0x557cb8d41a17 <unknown>#12 0x557cb8d250c9 <unknown>#13 0x557cb8d425c5 <unknown>#14 0x557cb8d0a90f <unknown>#15 0x557cb8d67898 <unknown>#16 0x557cb8d67a73 <unknown>#17 0x557cb8d7a2d3 <unknown>#18 0x7fba29a84aa4 <unknown>#19 0x7fba29b11c3c <unknown>",
+            "status": "failed",
+            "duration": "00:00:22",
+            "image_capture": "05db4f6c/error_kamu bisa apa aja.png",
+            "skor": 0.0,
+            "explanation": "Actual output adalah pesan error teknis yang sama sekali tidak relevan dengan expected output yang merupakan kalimat sapaan."
+        }
+    ]
+}

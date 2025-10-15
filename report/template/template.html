@@ -1,0 +1,1195 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class', // Enable class-based dark mode
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            'brand-primary': '#2563EB', // Blue 600
+            'brand-primary-hover': '#1D4ED8', // Blue 700
+            'brand-secondary': '#059669', // Emerald 600 (Success)
+            'brand-danger': '#DC2626', // Red 600 (Fail)
+            'brand-warning': '#F59E0B', // Amber 500
+            'brand-info': '#0EA5E9', // Sky 500 (Total Intent)
+            'brand-teal': '#14B8A6', // Teal 500 (Total Sample Text)
+            
+            // Light mode content colors (default)
+            'content-primary': '#111827', // Gray 900
+            'content-secondary': '#374151', // Gray 700
+            'content-tertiary': '#6B7280', // Gray 500
+            
+            // Light mode border colors (default)
+            'border-primary': '#D1D5DB', // Gray 300
+            'border-secondary': '#E5E7EB', // Gray 200
+
+            // Light mode background colors (default)
+            'bg-primary': '#FFFFFF', // White
+            'bg-secondary': '#F9FAFB', // Gray 50
+            'bg-muted': '#F3F4F6', // Gray 100
+            'bg-page': '#E5E7EB', // Gray 200
+
+            'icon-default': '#4B5563', // Gray 600
+
+            'amber-600': '#D97706',
+            'amber-700': '#B45309',
+            'orange-50': '#FFF7ED',
+            'orange-100': '#FFEDD5',
+
+            // Dark mode specific colors (can be overridden by CSS vars if needed)
+            dark: {
+                'content-primary': '#F9FAFB', // Gray 50
+                'content-secondary': '#D1D5DB', // Gray 300
+                'content-tertiary': '#9CA3AF', // Gray 400
+
+                'border-primary': '#4B5563', // Gray 600
+                'border-secondary': '#374151', // Gray 700
+                
+                'bg-primary': '#1F2937', // Gray 800
+                'bg-secondary': '#374151', // Gray 700
+                'bg-muted': '#4B5563', // Gray 600
+                'bg-page': '#111827', // Gray 900
+                'icon-default': '#9CA3AF', // Gray 400
+            }
+          },
+          borderRadius: {
+            '3xl': '1.5rem',
+            '2xl': '1rem', 
+            'xl': '0.75rem',
+            'lg': '0.5rem',
+          },
+          boxShadow: {
+            'xl': '0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.07)',
+            'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          }
+        }
+      }
+    }
+  </script>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/client": "https://esm.sh/react-dom@^19.1.0/client",
+    "recharts": "https://esm.sh/recharts@^2.15.3",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react/": "https://esm.sh/react@^19.1.0/"
+  }
+}
+</script>
+<style>
+  :root {
+    --content-primary: #111827; --content-secondary: #374151; --content-tertiary: #6B7280;
+    --border-primary: #D1D5DB; --border-secondary: #E5E7EB;
+    --bg-primary: #FFFFFF; --bg-secondary: #F9FAFB; --bg-muted: #F3F4F6; --bg-page: #E5E7EB;
+    --icon-default: #4B5563;
+    --card-pattern-color: rgba(0,0,0,0.015);
+
+    /* Chart specific CSS variables for light mode */
+    --chart-tick-color: #6B7280; /* content-tertiary */
+    --chart-grid-color: #E5E7EB; /* border-secondary */
+    --chart-tooltip-bg: #FFFFFF; /* bg-primary */
+    --chart-tooltip-border: #D1D5DB; /* border-primary */
+    --chart-legend-text-color: #374151; /* content-secondary */
+    --chart-area-stroke-color: #F59E0B; /* brand-warning */
+    --chart-area-fill-stop-1-color: #F59E0B;
+    --chart-area-fill-stop-2-color: #FEF3C7; /* Lighter amber */
+  }
+
+  html.dark {
+    --content-primary: #F9FAFB; --content-secondary: #D1D5DB; --content-tertiary: #9CA3AF;
+    --border-primary: #4B5563; --border-secondary: #374151;
+    --bg-primary: #1F2937; --bg-secondary: #374151; --bg-muted: #4B5563; --bg-page: #111827;
+    --icon-default: #9CA3AF;
+    --card-pattern-color: rgba(255,255,255,0.02);
+
+    /* Chart specific CSS variables for dark mode */
+    --chart-tick-color: #9CA3AF; /* content-tertiary dark */
+    --chart-grid-color: #374151; /* border-secondary dark */
+    --chart-tooltip-bg: #1F2937; /* bg-primary dark */
+    --chart-tooltip-border: #4B5563; /* border-primary dark */
+    --chart-legend-text-color: #D1D5DB; /* content-secondary dark */
+    /* --chart-area-stroke-color: #F59E0B; // brand-warning usually fine */
+    /* --chart-area-fill-stop-1-color: #F59E0B; */
+    /* --chart-area-fill-stop-2-color: #D97706; // Darker amber for dark fill */
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-page);
+    color: var(--content-primary);
+    transition-property: background-color, color;
+    transition-duration: 300ms;
+  }
+  .recharts-default-legend {
+    padding-bottom: 10px !important;
+  }
+  .recharts-tooltip-wrapper {
+    outline: none !important;
+    z-index: 1000;
+    background-color: var(--chart-tooltip-bg) !important;
+    border-color: var(--chart-tooltip-border) !important;
+    @apply !rounded-lg !shadow-lg;
+  }
+  .recharts-tooltip-label {
+     color: var(--content-primary) !important;
+     @apply !font-semibold;
+  }
+  .recharts-cartesian-axis-tick-value {
+    fill: var(--chart-tick-color) !important;
+  }
+   .recharts-legend-item-text {
+    color: var(--chart-legend-text-color) !important;
+  }
+
+  .table-cell-truncate {
+    max-width: 160px; 
+    white-space: normal; 
+    overflow-wrap: break-word; 
+    word-wrap: break-word; 
+    word-break: break-word; 
+  }
+  
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background-color: var(--bg-muted);
+    @apply rounded-full;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border-primary);
+    @apply rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--content-tertiary);
+  }
+
+  .recharts-responsive-container {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .card-bg-pattern {
+    background-image: linear-gradient(45deg, var(--card-pattern-color) 25%, transparent 25%, transparent 50%, var(--card-pattern-color) 50%, var(--card-pattern-color) 75%, transparent 75%, transparent);
+    background-size: 25px 25px;
+  }
+  .shadow-none-temp {
+    box-shadow: none !important;
+  }
+  /* Utility classes for applying CSS variables if Tailwind dark: prefixes are not enough */
+  .bg-primary-themed { background-color: var(--bg-primary); }
+  .bg-secondary-themed { background-color: var(--bg-secondary); }
+  .bg-muted-themed { background-color: var(--bg-muted); }
+  .text-content-primary-themed { color: var(--content-primary); }
+  .text-content-secondary-themed { color: var(--content-secondary); }
+  .text-content-tertiary-themed { color: var(--content-tertiary); }
+  .border-primary-themed { border-color: var(--border-primary); }
+  .border-secondary-themed { border-color: var(--border-secondary); }
+
+  .table-header-themed { background-color: #D97706; }
+  .table-row-odd-themed { background-color: var(--orange-50); } /* Orange-50 from config */
+  .table-row-hover-themed:hover { background-color: var(--orange-100); } /* Orange-100 from config */
+
+  html.dark .table-header-themed { background-color: #382815; } /* Darker amber for dark mode header */
+  html.dark .table-row-odd-themed { background-color: #1f232c; } /* Dark orange for dark mode odd rows */
+  html.dark .table-row-hover-themed:hover { background-color: 1e1830; } /* Darker orange for dark mode hover */
+
+  .legend-box {
+    width: 25px;
+    height: 8px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+
+</style>
+</head>
+<body>
+  <div id="dashboard-container" class="min-h-screen p-4 sm:p-6 lg:p-8">
+    <header class="mb-8 flex flex-col sm:flex-row justify-between items-center">
+      <h1 id="main-title" class="text-4xl font-bold text-content-primary-themed mb-4 sm:mb-0">Hello, Champ!</h1>
+      <div class="flex items-center space-x-2">
+        <button id="theme-toggle-button" class="p-1.5 rounded-md text-content-tertiary-themed hover:text-brand-primary hover:bg-secondary-themed transition-colors" aria-label="Toggle theme">
+          <!-- Theme icon will be injected by JS -->
+        </button>
+        <button id="manual-refresh-button" class="p-1.5 rounded-md text-content-tertiary-themed hover:text-brand-primary hover:bg-secondary-themed transition-colors" aria-label="Refresh dashboard">
+          <!-- RefreshIcon will be injected by JS -->
+        </button>
+        <span id="last-updated-text" class="text-sm text-content-secondary-themed">Last updated: Just now</span>
+          <!-- CogIcon will be injected by JS -->
+        </span>
+      </div>
+    </header>
+
+    <div id="stat-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
+      <div class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern">
+        <div class="flex justify-between items-start mb-3">
+          <h3 class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">Success</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <p class="text-4xl font-bold text-content-primary-themed">{{ summary[0].success }}</p>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-brand-secondary group-hover:scale-105 transition-transform duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #059669;"></div>
+      </div>
+      <div class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern">
+        <div class="flex justify-between items-start mb-3">
+          <h3 class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">Failed</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <p class="text-4xl font-bold text-content-primary-themed">{{ summary[0].failed }}</p>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-brand-danger group-hover:scale-105 transition-transform duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #DC2626;"></div>
+      </div>
+      <div class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern">
+        <div class="flex justify-between items-start mb-3">
+          <h3 class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">Total Topic</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <p class="text-4xl font-bold text-content-primary-themed">{{ summary[0].total_title }}</p>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-brand-info group-hover:scale-105 transition-transform duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" /></svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #0EA5E9;"></div>
+      </div>
+      <div class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern">
+        <div class="flex justify-between items-start mb-3">
+          <h3 class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">Total Question</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <p class="text-4xl font-bold text-content-primary-themed">{{ summary[0].total_question }}</p>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-brand-teal group-hover:scale-105 transition-transform duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3.543-3.091a9.117 9.117 0 01-1.255 0H8.25c-.836 0-1.598-.574-1.899-1.385A5.964 5.964 0 016 11.75a5.96 5.96 0 013.355-5.337m8.208 2.258V7.579a5.962 5.962 0 00-5.902-5.903h-3.299c-.122.213-.248.431-.38.654a5.962 5.962 0 01-1.15 2.431A5.97 5.97 0 014.5 11.75c0 .599.081 1.17.236 1.708a5.991 5.991 0 011.263 3.388c.118.42.279.829.47 1.213a5.962 5.962 0 001.995 2.542h9.621c.748 0 1.385-.544 1.385-1.218V16.58c.41-.187.774-.418 1.08-.693A5.971 5.971 0 0022.5 11.75c0-.847-.173-1.652-.492-2.388z" /></svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #14B8A6;"></div>
+      </div>
+      <div class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern">
+        <div class="flex justify-between items-start mb-3">
+          <h3 class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">Duration</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <p class="text-4xl font-bold text-content-primary-themed">{{ summary[0].duration }}</p>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-brand-warning group-hover:scale-105 transition-transform duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #F59E0B;"></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div class="lg:col-span-3 h-full">
+        <div id="activities-panel-card" class="bg-primary-themed p-6 rounded-3xl shadow-xl h-full flex flex-col">
+          <div class="flex justify-between items-center mb-4">
+            <h2 id="activities-title" class="text-2xl font-semibold text-content-primary-themed flex items-center">Activities</h2>
+          </div>
+          <div id="activities-panel-content" class="space-y-1 flex-grow">
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">Test ID</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words flex items-center ml-1">
+                <span class="cursor-pointer hover:text-brand-primary hover:underline" data-copy-text="TEST-001" data-copy-type="Test ID">{{ summary[0].id_test }}</span>
+                <button data-copy-text="{{ summary[0].id_test }}" data-copy-type="Test ID" class="ml-2 text-content-tertiary-themed hover:text-brand-primary copy-button opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Copy Test ID">
+                  <!-- ClipboardIcon -->
+                </button>
+              </span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">Tester Name</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].tester_name }}</span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">Date</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].date_test }}</span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">AI Evaluation</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].ai_evaluation }}</span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">Browser</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].browser_name }}</span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">URL</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">
+                <a href="{{ summary[0].url }}" target="_blank" rel="noopener noreferrer" class="text-brand-primary hover:underline">{{ summary[0].url }}</a>
+              </span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">Start Time</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].start_time_test }}</span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">End Time</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].end_time_test }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-2 h-full min-h-[380px]">
+         <div id="analytics-chart-container" 
+              data-chart-data='[{"name":"Pass","value":{{ summary[0].success }},"color":"#059669"},{"name":"Failed","value":{{ summary[0].failed }},"color":"#DC2626"}]'
+              data-intent-sample-chart-data='[{"name":"Total Topic","value":{{ summary[0].total_title }},"color":"#0EA5E9"},{"name":"Total Question","value":{{ summary[0].total_question }},"color":"#14B8A6"}]'>
+
+            <!-- Analytics chart React component will render here. -->
+         </div>
+      </div>
+      
+      <div id="trend-intent-card-container" class="bg-primary-themed p-6 rounded-3xl shadow-xl flex flex-col h-full lg:col-span-7">
+        <div class="flex justify-between items-center mb-4">
+          <h2 id="trend-intent-title" class="text-2xl font-semibold text-content-primary-themed flex items-center">Trend Topic</h2>
+          <div class="flex items-center space-x-3">
+            <div class="relative">
+              <select id="trend-chart-type-select" class="appearance-none text-sm py-2 pl-3 pr-8 border border-primary-themed rounded-lg focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-colors bg-muted-themed">
+                <option value="spline">Spline</option>
+                <option value="line">Line</option>
+              </select>
+              <div id="trend-chart-select-icon" class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                 <!-- ChevronDownIcon will be injected by JS -->
+              </div>
+            </div>
+            <button id="download-trend-chart" class="p-2 rounded-md text-content-tertiary-themed hover:text-brand-primary hover:bg-secondary-themed transition-colors" aria-label="Download trend chart">
+              <!-- DownloadIcon will be injected by JS -->
+            </button>
+          </div>
+        </div>
+        <div id="trend-intent-chart-render-area" class="flex-grow min-h-[350px]">
+          <!-- Trend intent chart React component will render here -->
+        </div>
+      </div>
+    </div>
+
+    <div id="data-result-card" class="bg-primary-themed p-6 rounded-3xl shadow-xl mt-8">
+      <div class="flex justify-between items-center mb-4">
+        <h2 id="data-result-title" class="text-2xl font-semibold text-content-primary-themed">Data Result</h2>
+      </div>
+      <div class="bg-secondary-themed p-6 rounded-2xl mb-6 shadow-sm border border-secondary-themed">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+          <div>
+            <label for="search-data" class="block text-sm font-medium text-content-secondary-themed mb-1">Search:</label>
+            <div class="relative">
+              <div id="search-data-icon" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <!-- SearchIcon will be injected by JS -->
+              </div>
+              <input type="text" id="search-data" name="search-data" placeholder="Search across all fields..." class="w-full py-3 px-4 pl-10 border border-primary-themed rounded-lg shadow-sm focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary sm:text-sm transition-colors bg-muted-themed">
+              <button id="clear-search-data-btn" class="absolute inset-y-0 right-0 pr-3 flex items-center hidden text-content-tertiary-themed hover:text-brand-danger" aria-label="Clear search">
+                <!-- XCircleIcon will be injected by JS -->
+              </button>
+            </div>
+          </div>
+          <div>
+            <label for="filter-status" class="block text-sm font-medium text-content-secondary-themed mb-1">Filter by Status:</label>
+            <div class="relative">
+              <select id="filter-status" name="filter-status" class="appearance-none w-full py-3 px-4 pr-8 border border-primary-themed rounded-lg shadow-sm focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary sm:text-sm transition-colors bg-muted-themed">
+                <option value="">All Statuses</option>
+                <option value="pass">Pass</option>
+                <option value="failed">Failed</option>
+              </select>
+              <div id="filter-status-icon" class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                 <!-- ChevronDownIcon will be injected by JS -->
+              </div>
+            </div>
+          </div>
+          <div>
+            <label for="filter-intent" class="block text-sm font-medium text-content-secondary-themed mb-1">Filter by Topic:</label>
+            <div class="flex">
+              <div class="relative flex-grow">
+                  <select id="filter-intent" name="filter-intent" class="appearance-none w-full py-3 px-4 pr-8 border border-r-0 border-primary-themed rounded-l-lg shadow-sm focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary sm:text-sm transition-colors bg-muted-themed">
+                    <option value="">All Intents</option>
+                    <!-- Options will be populated by JS -->
+                  </select>
+                  <div id="filter-intent-icon" class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <!-- ChevronDownIcon will be injected by JS -->
+                  </div>
+              </div>
+              <button id="download-intent-csv-button" class="bg-amber-600 hover:bg-amber-700 text-white py-3 px-4 border border-l-0 border-amber-600 rounded-r-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 transition-colors flex items-center justify-center" aria-label="Download CSV for selected intent" disabled>
+                <!-- DownloadIcon will be injected by JS -->
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end mb-4">
+         <button id="download-all-data-csv" class="bg-brand-secondary hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg shadow-md flex items-center space-x-2 transition-colors duration-150 text-sm font-medium" aria-label="Download all data as CSV">
+          <!-- DownloadIcon will be injected by JS --> <span>Download All Data (CSV)</span>
+        </button>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-secondary-themed shadow-md">
+        <table class="min-w-full divide-y divide-secondary-themed">
+          <thead id="data-result-table-head" class="table-header-themed">
+            <tr>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Title</th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Question</th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Expected</th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Actual</th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Explanation</th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Image SS</th>
+              <th class="py-3.5 px-4 text-center text-xs font-semibold text-white uppercase tracking-wider">Skor</th>
+              <th class="py-3.5 px-4 text-center text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+              <th class="py-3.5 px-4 text-center text-xs font-semibold text-white uppercase tracking-wider">Duration</th>
+            </tr>
+          </thead>
+          <tbody id="data-result-table-body" class="bg-primary-themed divide-y divide-secondary-themed">
+              {% for test_item in test_data %}
+                <tr class="border-b border-secondary-themed table-row-hover-themed text-sm transition-colors table-row-odd-themed">
+                  <td class="py-4 px-2 w-[10%] text-content-primary-themed font-medium text-left">{{ test_item.title }}</td>
+                  <td class="py-4 px-2 w-[15%] text-content-primary-themed font-medium text-left">{{ test_item.question }}</td>
+                  <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">{{ test_item.response_kb }}</td>
+                  <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">{{ test_item.response_llm }}</td>
+                  <td class="py-4 px-2 w-[20%] text-content-primary-themed font-medium text-justify">{{ test_item.explanation }}</td>
+                  <td class="py-4 px-2 w-[15%] text-center">
+                    {% if test_item.image_capture %}
+                      <img class="thumbnail preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer" src="../../{{ test_item.image_capture }}">
+                      {% else %}
+                      <div class="w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400">
+                        No Screenshot Available
+                      </div>
+                      {% endif %}
+                  </td>
+                  <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">{{ test_item.skor }}</td>
+                  <td class="py-4 px-2 w-[8%] text-center">
+                    <span class="text-lg font-bold px-3 py-1 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100">
+                      {{ test_item.status }}
+                    </span>
+                  </td>
+                  <td class="py-4 px-2 w-[7%] text-content-primary-themed font-semibold text-lg text-center">{{ test_item.duration }}</td>
+                </tr>
+
+
+              {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="flex flex-col sm:flex-row justify-between items-center mt-6 text-sm">
+        <div class="flex items-center space-x-2 mb-3 sm:mb-0">
+            <label for="rows-per-page" class="text-content-secondary-themed">Rows per page:</label>
+            <div class="relative">
+                <select id="rows-per-page" class="appearance-none p-2 pr-7 border border-primary-themed rounded-md focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-xs transition-colors bg-muted-themed">
+                    <option value="10">10</option> <option value="20">20</option> <option value="30">30</option>
+                    <option value="50">50</option> <option value="100">100</option> <option value="300">300</option>
+                    <option value="1000">1000</option>
+                </select>
+                <div id="rows-per-page-icon" class="absolute inset-y-0 right-0 pr-1.5 flex items-center pointer-events-none">
+                    <!-- ChevronDownIcon will be injected by JS -->
+                </div>
+            </div>
+        </div>
+        <div id="data-result-pagination-info" class="text-content-secondary-themed mb-3 sm:mb-0"></div>
+        <div id="data-result-pagination-controls" class="flex items-center space-x-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="imageModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; justify-content:center; align-items:center;">
+    <div style="position:relative;">
+      <img id="modalImage" src="" 
+          style="max-width:90vw; max-height:90vh; border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.6); opacity:0; transition:opacity 0.3s ease;">
+      <button id="closeModal" 
+              style="position:absolute; top:-15px; right:-15px; background:#fff; border:none; border-radius:50%; font-size:20px; padding:5px 10px; cursor:pointer;">x</button>
+    </div>
+  </div>
+
+  <footer class="text-center py-8 text-sm text-content-tertiary-themed">
+    copyright@okinr All reserved
+  </footer>
+
+  <script type="module">
+    import React from 'react';
+    import ReactDOM from 'react-dom/client';
+    import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+    import html2canvas from 'html2canvas';
+    
+    const ClipboardIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 4.625a1.125 1.125 0 01-1.125 1.125H11.25a1.125 1.125 0 01-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125h1.5c.621 0 1.125.504 1.125 1.125v1.5z" /></svg>`;
+    const CheckIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>`;
+    const DownloadIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>`;
+    const SearchIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>`;
+    const ChevronDownIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="${className}"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.23 8.29a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>`;
+    const ChevronLeftIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="${className}"><path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-.992 1.113l-4.25-4a.75.75 0 010-1.113l4.25-4a.75.75 0 011.082.02z" clip-rule="evenodd" /></svg>`;
+    const ChevronRightIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="${className}"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 11.992-1.113l4.25 4a.75.75 0 010 1.113l-4.25 4a.75.75 0 01-1.082-.02z" clip-rule="evenodd" /></svg>`;
+    const XCircleIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+    const CogIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m18 0h-1.5m-15.036-7.126L4.25 3.374m15.5 1.5L19.75 3.374m0 17.252l-1.25-1.501M3.75 19.126l1.25-1.5m12.036-7.126A7.5 7.5 0 0012 4.5v3.75m0 3.75a7.5 7.5 0 005.25-2.066m-5.25 2.066A7.5 7.5 0 0012 19.5v-3.75m0-3.75a7.5 7.5 0 00-5.25 2.066m5.25-2.066A7.5 7.5 0 0012 4.5M3 12a9 9 0 1118 0 9 9 0 01-18 0z" /></svg>`;
+    const RefreshIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.992v4.992c0 .001 0 .001 0 .002Z" /></svg>`;
+    const SunIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" /></svg>`;
+    const MoonIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /></svg>`;
+    
+    let masterTableData = []; 
+    let currentDataResultTableData = []; 
+    let paginatedData = [];
+    let currentTrendChartType = 'spline'; 
+
+    
+    // const trendIntentChartSourceData = [
+    //     { "Intent Alpha": "00:00:20" }, { "Intent Beta": "00:00:14" }, { "Intent Gamma": "00:00:18" },
+    //     { "Intent Delta": "00:00:22" }, { "Intent Epsilon": "00:00:11" }, { "Intent Zeta": "00:00:30" },
+    //     { "Intent Eta": "00:00:13" }, { "Intent Theta": "00:00:25" }, { "Intent Iota": "00:02:05" }, // 125s
+    //     { "Intent Kappa": "00:00:17" }, { "Intent Lambda": "00:00:19" }, { "Intent Mu": "00:00:21" },
+    //     { "Intent Nu": "00:00:28" }, { "Intent Xi": "00:01:48" }, { "Intent Omicron": "00:00:26" } // 108s
+    // ];
+    const trendIntentChartSourceData = {{ chart | tojson | safe }};
+    // --- THEME MANAGEMENT ---
+    let currentTheme = localStorage.getItem('theme') || 'light';
+    const themeToggleButton = document.getElementById('theme-toggle-button');
+
+    function applyTheme(theme) {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        if(themeToggleButton) themeToggleButton.innerHTML = SunIcon('w-5 h-5');
+      } else {
+        document.documentElement.classList.remove('dark');
+        if(themeToggleButton) themeToggleButton.innerHTML = MoonIcon('w-5 h-5');
+      }
+    }
+
+    function toggleTheme() {
+      currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+      localStorage.setItem('theme', currentTheme);
+      applyTheme(currentTheme);
+      
+      // Re-render charts as their colors depend on CSS variables affected by theme
+      const processedTrendChartData = trendIntentChartSourceData.map(item => {
+          const key = Object.keys(item)[0];
+          return { name: key, duration: parseDurationToSeconds(item[key]) };
+      });
+      renderTrendIntentChart('trend-intent-chart-render-area', processedTrendChartData, currentTrendChartType);
+      
+      const analyticsChartDataContainer = document.getElementById('analytics-chart-container');
+      let passFailAnalyticsData = [];
+      if (analyticsChartDataContainer && analyticsChartDataContainer.dataset.chartData) {
+          try {
+              passFailAnalyticsData = JSON.parse(analyticsChartDataContainer.dataset.chartData);
+          } catch (e) { console.error("Failed to parse pass/fail analytics chart data:", e); }
+      }
+      renderAnalyticsChart('analytics-chart-container', passFailAnalyticsData);
+    }
+    
+    function initializeTheme() {
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (localStorage.getItem('theme')) {
+            currentTheme = localStorage.getItem('theme');
+        } else {
+            currentTheme = systemPrefersDark ? 'dark' : 'light';
+        }
+        applyTheme(currentTheme);
+        if(themeToggleButton) {
+            themeToggleButton.addEventListener('click', toggleTheme);
+        }
+    }
+
+
+    // --- HELPER FUNCTIONS ---
+    function debounce(func, delay) {
+      let timeout;
+      return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), delay);
+      };
+    }
+
+    function parseDurationToSeconds(timeStr) {
+        if (!timeStr || typeof timeStr !== 'string') return 0;
+        const parts = timeStr.split(':');
+        if (parts.length === 3) { // HH:MM:SS
+            const hours = parseInt(parts[0], 10) || 0;
+            const minutes = parseInt(parts[1], 10) || 0;
+            const seconds = parseInt(parts[2], 10) || 0;
+            return (hours * 3600) + (minutes * 60) + seconds;
+        } else if (parts.length === 2) { // MM:SS
+            const minutes = parseInt(parts[0], 10) || 0;
+            const seconds = parseInt(parts[1], 10) || 0;
+            return (minutes * 60) + seconds;
+        } else if (parts.length === 1) { // SS
+            return parseInt(parts[0], 10) || 0;
+        }
+        return 0;
+    }
+    
+    // --- DATA TABLE VARIABLES & FUNCTIONS ---
+    let dtSearchTerm = '';
+    let dtStatusFilter = '';
+    let dtIntentFilter = '';
+    let dtCurrentPage = 1;
+    let dtRowsPerPage = 10;
+
+    function loadMasterTableDataFromHTML() {
+        const tableBody = document.getElementById('data-result-table-body');
+        if (!tableBody) return;
+        masterTableData = []; 
+        const rows = tableBody.querySelectorAll('tr');
+        rows.forEach((row, index) => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length === 9) { 
+                masterTableData.push({
+                    id: (index + 1).toString(), 
+                    title: cells[0].textContent?.trim() || '',
+                    question: cells[1].textContent?.trim() || '',
+                    expected: cells[2].textContent?.trim() || '',
+                    actual: cells[3].textContent?.trim() || '',
+                    explanation: cells[4].textContent?.trim() || '',
+                    imageSrc: cells[5].querySelector('img')?.src || '',
+                    skor: cells[6].textContent?.trim() || '',
+                    status: cells[7].querySelector('span')?.textContent?.trim().toLowerCase() || '',
+                    duration: cells[8].textContent?.trim() || ''
+                });
+            }
+        });
+    }
+
+
+    function applyDataTableFiltersAndPagination() {
+        let filteredData = [...masterTableData]; 
+        const searchInput = document.getElementById('search-data');
+        const clearSearchBtn = document.getElementById('clear-search-data-btn');
+
+        if (dtSearchTerm) {
+            const lowerSearchTerm = dtSearchTerm.toLowerCase();
+            filteredData = filteredData.filter(row =>
+                Object.values(row).some(value => 
+                    String(value).toLowerCase().includes(lowerSearchTerm)
+                )
+            );
+            if(clearSearchBtn) clearSearchBtn.classList.remove('hidden');
+        } else {
+            if(clearSearchBtn) clearSearchBtn.classList.add('hidden');
+        }
+
+        if (dtStatusFilter) {
+            filteredData = filteredData.filter(row => row.status === dtStatusFilter);
+        }
+
+        if (dtIntentFilter) {
+            filteredData = filteredData.filter(row => row.title === dtIntentFilter);
+        }
+        
+        currentDataResultTableData = filteredData; 
+
+        const startIndex = (dtCurrentPage - 1) * dtRowsPerPage;
+        const endIndex = startIndex + dtRowsPerPage;
+        paginatedData = filteredData.slice(startIndex, endIndex);
+
+        renderDataResultTableContent(paginatedData, currentDataResultTableData.length);
+        updateIntentCsvButtonState();
+    }
+    
+    function renderDataResultTableContent(dataToRender, totalFilteredItems) {
+        const tableBody = document.getElementById('data-result-table-body');
+        if (!tableBody) return;
+
+        const tableRowsHTML = dataToRender.map(row => `
+            <tr class="border-b border-secondary-themed table-row-hover-themed text-sm transition-colors table-row-odd-themed ${dataToRender.indexOf(row) % 2 !== 0 ? '' : 'table-row-odd-themed'}">
+            <td class="py-4 px-2 w-[10%] text-content-primary-themed  text-left">${row.title || '-'}</td>
+            <td class="py-4 px-2 w-[10%] text-content-primary-themed  text-left">${row.question || '-'}</td>
+            <td class="py-4 px-2 w-[25%] text-content-primary-themed  text-justify">${row.expected || '-'}</td>
+            <td class="py-4 px-2 w-[25%] text-content-primary-themed  text-justify">${row.actual || '-'}</td>
+            <td class="py-4 px-2 w-[20%] text-content-primary-themed  text-justify">${row.explanation || '-'}</td>
+            <td class="py-4 px-2 w-[15%] text-center">
+              ${row.imageSrc 
+                ? `<img src="${row.imageSrc}" 
+                        alt="Screenshot for ${row.title}" 
+                        class="preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer" />` 
+                : '<span>No Image</span>'}
+            </td>
+            <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">${row.skor || '-'}</td>
+           <td class="py-4 px-2 w-[8%] text-center">
+              <span class="px-3 py-1 rounded-full text-lg font-semibold ${row.status === 'pass' ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}">
+                  ${row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : '-'}
+              </span>
+          </td>
+            <td class="py-4 px-4 text-center text-content-primary-themed text-lg font-semibold">${row.duration || '-'}</td>
+            </tr>
+        `).join('');
+        tableBody.innerHTML = tableRowsHTML || `<tr><td colspan="9" class="text-center py-12 text-content-tertiary-themed">No data matching your criteria.</td></tr>`;
+        
+        renderPaginationControls(totalFilteredItems);
+    }
+
+    function renderPaginationControls(totalItems) {
+        const paginationControlsContainer = document.getElementById('data-result-pagination-controls');
+        const paginationInfoContainer = document.getElementById('data-result-pagination-info');
+        if (!paginationControlsContainer || !paginationInfoContainer) return;
+
+        const totalPages = Math.ceil(totalItems / dtRowsPerPage);
+        dtCurrentPage = Math.max(1, Math.min(dtCurrentPage, totalPages || 1));
+
+        const startItem = totalItems > 0 ? (dtCurrentPage - 1) * dtRowsPerPage + 1 : 0;
+        const endItem = Math.min(dtCurrentPage * dtRowsPerPage, totalItems);
+        paginationInfoContainer.innerHTML = `Showing ${startItem}-${endItem} of ${totalItems} results`;
+
+        let paginationHTML = `
+            <button id="prev-page-btn" class="p-2 rounded-md hover:bg-secondary-themed disabled:opacity-50 disabled:cursor-not-allowed transition-colors" ${dtCurrentPage === 1 ? 'disabled' : ''}>
+                ${ChevronLeftIcon('w-5 h-5 text-content-tertiary-themed')}
+            </button>
+            <span class="text-sm text-content-secondary-themed px-2">Page ${dtCurrentPage} of ${totalPages || 1}</span>
+            <button id="next-page-btn" class="p-2 rounded-md hover:bg-secondary-themed disabled:opacity-50 disabled:cursor-not-allowed transition-colors" ${dtCurrentPage === totalPages || totalItems === 0 ? 'disabled' : ''}>
+                ${ChevronRightIcon('w-5 h-5 text-content-tertiary-themed')}
+            </button>
+        `;
+        paginationControlsContainer.innerHTML = paginationHTML;
+
+        document.getElementById('prev-page-btn')?.addEventListener('click', () => {
+            if (dtCurrentPage > 1) {
+                dtCurrentPage--;
+                applyDataTableFiltersAndPagination();
+            }
+        });
+        document.getElementById('next-page-btn')?.addEventListener('click', () => {
+            if (dtCurrentPage < totalPages) {
+                dtCurrentPage++;
+                applyDataTableFiltersAndPagination();
+            }
+        });
+    }
+    
+    function populateIntentFilterOptions() {
+      const intentFilterSelect = document.getElementById('filter-intent');
+      if (!intentFilterSelect) return;
+
+      const uniqueIntents = [...new Set(masterTableData.map(item => item.title))];
+      let optionsHTML = '<option value="">All Topic</option>';
+      optionsHTML += uniqueIntents.map(title => `<option value="${title}">${title}</option>`).join('');
+      intentFilterSelect.innerHTML = optionsHTML;
+    }
+
+    function setupDataResultTableEventListeners() {
+        const searchInput = document.getElementById('search-data');
+        const clearSearchBtn = document.getElementById('clear-search-data-btn');
+
+        searchInput?.addEventListener('input', debounce((e) => {
+            dtSearchTerm = e.target.value;
+            dtCurrentPage = 1;
+            applyDataTableFiltersAndPagination();
+        }, 300));
+        
+        clearSearchBtn?.addEventListener('click', () => {
+            if(searchInput) searchInput.value = '';
+            dtSearchTerm = '';
+            dtCurrentPage = 1;
+            applyDataTableFiltersAndPagination();
+        });
+
+        document.getElementById('filter-status')?.addEventListener('change', (e) => {
+            dtStatusFilter = e.target.value;
+            dtCurrentPage = 1;
+            applyDataTableFiltersAndPagination();
+        });
+
+        document.getElementById('filter-intent')?.addEventListener('change', (e) => {
+            dtIntentFilter = e.target.value;
+            dtCurrentPage = 1;
+            applyDataTableFiltersAndPagination();
+        });
+        
+        document.getElementById('rows-per-page')?.addEventListener('change', (e) => {
+            dtRowsPerPage = parseInt(e.target.value, 10);
+            dtCurrentPage = 1;
+            applyDataTableFiltersAndPagination();
+        });
+
+        document.getElementById('download-intent-csv-button')?.addEventListener('click', () => {
+            if (dtIntentFilter) {
+                const dataToDownload = masterTableData.filter(row => row.title === dtIntentFilter);
+                downloadCSV(dataToDownload, `intent_data_${dtIntentFilter.replace(/\s+/g, '_')}.csv`);
+            }
+        });
+        document.getElementById('download-all-data-csv')?.addEventListener('click', () => {
+            downloadCSV(masterTableData, `all_dashboard_data.csv`);
+        });
+    }
+    
+    function updateIntentCsvButtonState() {
+        const downloadBtn = document.getElementById('download-intent-csv-button');
+        if(downloadBtn) {
+            downloadBtn.disabled = !dtIntentFilter;
+        }
+    }
+
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    const closeModal = document.getElementById('closeModal');
+
+    // Buka gambar
+    document.addEventListener('click', function (e) {
+      if (e.target.classList.contains('preview-image')) {
+        modalImage.src = e.target.src;
+        modal.style.display = 'flex';
+        setTimeout(() => modalImage.style.opacity = '1', 10);
+      }
+    });
+
+    // Tutup dengan tombol X
+    closeModal.addEventListener('click', function () {
+      modalImage.style.opacity = '0';
+      setTimeout(() => {
+        modal.style.display = 'none';
+        modalImage.src = '';
+      }, 300);
+    });
+
+    // Tutup kalau klik di luar gambar
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) {
+        modalImage.style.opacity = '0';
+        setTimeout(() => {
+          modal.style.display = 'none';
+          modalImage.src = '';
+        }, 300);
+      }
+    });
+
+
+    // --- CHART RENDERING FUNCTIONS ---
+    const formatYAxisTick = (tick) => { 
+      const minutes = Math.floor(tick / 60);
+      const seconds = tick % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; 
+    };
+    
+    const getChartColors = () => {
+        const rootStyle = getComputedStyle(document.documentElement);
+        return {
+            tickColor: rootStyle.getPropertyValue('--chart-tick-color').trim(),
+            gridColor: rootStyle.getPropertyValue('--chart-grid-color').trim(),
+            tooltipBg: rootStyle.getPropertyValue('--chart-tooltip-bg').trim(),
+            tooltipBorder: rootStyle.getPropertyValue('--chart-tooltip-border').trim(),
+            legendTextColor: rootStyle.getPropertyValue('--chart-legend-text-color').trim(),
+            areaStrokeColor: rootStyle.getPropertyValue('--chart-area-stroke-color').trim(),
+            areaFillStop1Color: rootStyle.getPropertyValue('--chart-area-fill-stop-1-color').trim(),
+            areaFillStop2Color: rootStyle.getPropertyValue('--chart-area-fill-stop-2-color').trim(),
+        };
+    };
+
+    function renderTrendIntentChart(targetContainerId, data, chartType = 'spline') {
+      const container = document.getElementById(targetContainerId);
+      if (!container || !data) {
+          if(container) container.innerHTML = "<p class='text-content-tertiary-themed p-4 text-center'>Trend chart data unavailable.</p>";
+          return;
+      }
+      const root = ReactDOM.createRoot(container);
+      const chartColors = getChartColors();
+      
+      let areaType = "monotone"; 
+      let fillOpacityVal = 1;
+      let areaDot = { r: 5, strokeWidth: 2, fill: chartColors.areaStrokeColor, stroke: chartColors.tooltipBg }; // Use tooltipBg as stroke
+
+      if (chartType === 'line') {
+          areaType = "linear";
+          fillOpacityVal = 0.2; 
+          areaDot = { r: 4, strokeWidth: 2, fill: chartColors.areaStrokeColor, stroke: chartColors.tooltipBg };
+      }
+      
+      const chartElement = React.createElement(ResponsiveContainer, { width: '100%', height: '100%' },
+        React.createElement(AreaChart, { data, margin: { top: 5, right: 20, left: 0, bottom: 20 } },
+        React.createElement('defs', null,
+          React.createElement('linearGradient', { id: 'colorDuration', x1: '0', y1: '0', x2: '0', y2: '1' },
+            React.createElement('stop', { offset: '5%', stopColor: chartColors.areaFillStop1Color, stopOpacity: chartType === 'line' ? 0.4 : 0.6 }),
+            React.createElement('stop', { offset: '95%', stopColor: chartColors.areaFillStop2Color, stopOpacity: chartType === 'line' ? 0.1 : 0.2 })
+          )
+        ),
+        React.createElement(CartesianGrid, { strokeDasharray: '3 3', vertical: false, stroke: chartColors.gridColor }),
+        React.createElement(XAxis, { 
+            dataKey: 'name', 
+            tick: { fontSize: 11, fill: chartColors.tickColor, angle: -35, textAnchor: 'end' }, 
+            axisLine: { stroke: chartColors.gridColor }, 
+            tickLine: { stroke: chartColors.gridColor }, 
+            interval: 0, 
+            dy: 5 
+        }),
+        React.createElement(YAxis, { tickFormatter: formatYAxisTick, domain: [0, 'dataMax + 2'], tick: { fontSize: 11, fill: chartColors.tickColor }, axisLine: { stroke: chartColors.gridColor }, tickLine: { stroke: chartColors.gridColor } }),
+        React.createElement(Tooltip, {
+          contentStyle: { backgroundColor: chartColors.tooltipBg, borderRadius: '0.5rem', borderColor: chartColors.tooltipBorder, boxShadow: tailwind.config.theme.extend.boxShadow.lg },
+          labelStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--content-primary').trim(), fontWeight: '600', marginBottom: '4px' },
+          itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--content-secondary').trim() },
+          formatter: (value) => [formatYAxisTick(value), 'Duration'],
+        }),
+        React.createElement(Legend, { verticalAlign: 'top', align: 'right', height: 36, iconType: 'rect', wrapperStyle: { fontSize: '12px', paddingBottom: '10px' }, payload: [{ value: 'Duration (sec)', type: 'rect', id: 'ID01', color: chartColors.areaStrokeColor }] }),
+        React.createElement(Area, { type: areaType, dataKey: 'duration', stroke: chartColors.areaStrokeColor, fillOpacity: fillOpacityVal, fill: 'url(#colorDuration)', strokeWidth: 2.5, activeDot: { r: 7 }, dot: areaDot })
+        )
+      );
+      root.render(chartElement);
+    }
+
+    function renderAnalyticsChart(wrapperContainerId, passFailDataFromAttr) {
+      const wrapperContainer = document.getElementById(wrapperContainerId); 
+      if (!wrapperContainer) return;
+      
+      const chartCardContentId = 'analytics-chart-card-content'; 
+      const chartDivId = 'analytics-pie-chart-div';
+      const chartSummaryTextId = 'analytics-summary-text';
+      
+      // Ambil dan parse data chart dari attribute HTML
+      const intentSampleTextData = JSON.parse(wrapperContainer.getAttribute("data-intent-sample-chart-data"));
+
+      // Total untuk display text
+      const totalIntent = intentSampleTextData.find(d => d.name === "Total Topic")?.value || 0;
+      const totalSampleText = intentSampleTextData.find(d => d.name === "Total Question")?.value || 0;
+      const totalPassFail = passFailDataFromAttr.reduce((sum, d) => sum + (d.value || 0), 0);
+
+
+      // const staticTotalIntent = 23;
+      // const staticTotalSampleText = 32;
+      // Jumlah pass dan failed
+      const staticTotalPassFail = (passFailDataFromAttr.find(d => d.name === "Pass")?.value || 0) + (passFailDataFromAttr.find(d => d.name === "Failed")?.value || 0);
+
+      // const intentSampleTextData = [
+      //   { name: 'Total Intent', value: staticTotalIntent, color: tailwind.config.theme.extend.colors['brand-info'] },
+      //   { name: 'Total Sample Text', value: staticTotalSampleText, color: tailwind.config.theme.extend.colors['brand-teal'] }
+      // ];
+      
+      wrapperContainer.innerHTML = `
+        <div id="${chartCardContentId}" class="bg-primary-themed p-6 rounded-3xl shadow-xl h-full flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold text-content-primary-themed">Analytics</h2>
+                <button id="download-analytics-chart" 
+                        class="p-2 rounded-md text-content-tertiary-themed hover:text-brand-primary hover:bg-secondary-themed transition-colors" 
+                        aria-label="Download analytics chart">
+                    ${DownloadIcon('w-6 h-6')}
+                </button>
+            </div>
+           <div class="flex-grow flex flex-col items-center justify-center mt-2">
+            <div class="flex-grow flex flex-col items-center justify-center mt-2">
+            <div id="${chartDivId}" style="position: relative; width: 190px; height: 190px;"></div>
+            <div id="${chartSummaryTextId}" class="mt-4 space-y-3 w-[220px]">
+              <div class="flex items-center space-x-2">
+                <span class="legend-box bg-blue-500"></span>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Topic: <b>{{ summary[0].total_title }}</b></div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="legend-box bg-teal-500"></span>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Question: <b>{{ summary[0].total_question }}</b></div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="legend-box bg-green-600"></span>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Pass: <b>{{ summary[0].success }}</b></div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="legend-box bg-red-600"></span>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Failed: <b>{{ summary[0].failed }}</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      const chartActualContainer = document.getElementById(chartDivId); 
+      if (!chartActualContainer) return;
+
+      const root = ReactDOM.createRoot(chartActualContainer);
+      const chartColors = getChartColors();
+
+      const pieChartElement = React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
+        React.createElement(PieChart, null,
+          React.createElement(Pie, {
+            data: passFailDataFromAttr, cx: "50%", cy: "50%", 
+            innerRadius: 40, outerRadius: 60, 
+            paddingAngle: passFailDataFromAttr.some(d => d.value > 0) ? (passFailDataFromAttr.filter(d => d.value > 0).length > 1 ? 5 : 0) : 0,
+            dataKey: "value", labelLine: false,
+          },
+          passFailDataFromAttr.map((entry, index) => React.createElement(Cell, { key: `cell-passfail-${index}`, fill: entry.color, stroke: 'none', style:{outline: 'none'} }))
+          ),
+          React.createElement(Pie, {
+            data: intentSampleTextData, cx: "50%", cy: "50%",
+            innerRadius: 65, outerRadius: 85, 
+            paddingAngle: intentSampleTextData.some(d => d.value > 0) ? (intentSampleTextData.filter(d => d.value > 0).length > 1 ? 5 : 0) : 0,
+            dataKey: "value", labelLine: false,
+            isAnimationActive: true 
+          },
+            intentSampleTextData.map((entry, index) => React.createElement(Cell, { key: `cell-intentsample-${index}`, fill: entry.color, stroke: 'none', style:{outline: 'none'} }))
+          ),
+          React.createElement(Tooltip, {
+              contentStyle: { backgroundColor: chartColors.tooltipBg, borderRadius: '0.5rem', borderColor: chartColors.tooltipBorder, boxShadow: tailwind.config.theme.extend.boxShadow.lg },
+              labelStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--content-primary').trim(), fontWeight: '600' },
+              itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--content-secondary').trim() }
+          })
+        )
+      );
+      root.render(pieChartElement);
+       
+      document.getElementById('download-analytics-chart')?.addEventListener('click', () => downloadChartAsImage(chartCardContentId, 'analytics-chart.png'));
+    }
+    
+    // --- UTILITY FUNCTIONS ---
+    function downloadChartAsImage(elementId, filename) {
+        const chartElement = document.getElementById(elementId);
+        if (chartElement) {
+            const elementsWithShadows = chartElement.querySelectorAll('.shadow-xl, .shadow-lg');
+            elementsWithShadows.forEach(el => el.classList.add('shadow-none-temp'));
+            const currentBgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim();
+            
+            html2canvas(chartElement, { 
+                useCORS: true, 
+                logging: false, 
+                backgroundColor: currentBgColor, 
+                scale: 2 
+            }).then(canvas => {
+                const image = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.href = image;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                elementsWithShadows.forEach(el => el.classList.remove('shadow-none-temp')); 
+            }).catch(err => {
+                console.error('Error downloading chart:', err);
+                elementsWithShadows.forEach(el => el.classList.remove('shadow-none-temp')); 
+            });
+        } else {
+            console.error('Chart element not found for download:', elementId);
+        }
+    }
+    
+    function downloadCSV(data, filename) {
+        if (!data || data.length === 0) {
+            console.warn("No data to download.");
+            return;
+        }
+        const explicitHeaders = ['title', 'question', 'expected', 'actual', 'imageSrc', 'skor', 'explanation', 'status', 'duration'];
+
+        const csvRows = [
+            explicitHeaders.join(','), 
+            ...data.map(row => 
+                explicitHeaders.map(header => {
+                    let cell = row[header] === undefined || row[header] === null ? '' : String(row[header]);
+                    if (typeof cell === 'string') {
+                        if (cell.includes('"') || cell.includes(',') || cell.includes('\n')) {
+                            cell = `"${cell.replace(/"/g, '""')}"`;
+                        }
+                    }
+                    return cell;
+                }).join(',')
+            )
+        ];
+        const csvString = csvRows.join('\n');
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+    
+    function injectIcons() {
+      const iconMappings = {
+        'manual-refresh-button': RefreshIcon('w-5 h-5'),
+        'settings-icon-container': CogIcon('w-6 h-6'),
+        'trend-chart-select-icon': ChevronDownIcon('w-4 h-4 text-content-tertiary-themed'),
+        'download-trend-chart': DownloadIcon('w-6 h-6'),
+        'search-data-icon': SearchIcon('w-5 h-5 text-content-tertiary-themed'),
+        'clear-search-data-btn': XCircleIcon('w-5 h-5'),
+        'filter-status-icon': ChevronDownIcon('w-5 h-5 text-content-tertiary-themed'),
+        'filter-intent-icon': ChevronDownIcon('w-5 h-5 text-content-tertiary-themed'),
+        'download-intent-csv-button': DownloadIcon('w-5 h-5'),
+        'download-all-data-csv': DownloadIcon('w-5 h-5'), 
+        'rows-per-page-icon': ChevronDownIcon('w-4 h-4 text-content-tertiary-themed'),
+      };
+      
+      // Inject copy icons specifically
+      document.querySelectorAll('.copy-button').forEach(button => {
+        button.innerHTML = ClipboardIcon('w-4 h-4');
+      });
+
+      for (const id in iconMappings) {
+        const container = document.getElementById(id);
+        if (container) {
+          if (id === 'download-all-data-csv') { 
+              const textSpan = container.querySelector('span');
+              container.innerHTML = iconMappings[id] + ' ' + (textSpan ? textSpan.outerHTML : '<span>Download All Data (CSV)</span>');
+          } else if (id === 'download-analytics-chart') { 
+             // Dynamic content
+          } else {
+            container.innerHTML = iconMappings[id];
+          }
+        }
+      }
+    }
+
+    // --- MAIN DASHBOARD RENDERING LOGIC ---
+    function renderDashboard() {
+      initializeTheme(); // Initialize theme first
+      injectIcons(); 
+      loadMasterTableDataFromHTML(); 
+
+      const processedTrendChartData = trendIntentChartSourceData.map(item => {
+          const key = Object.keys(item)[0];
+          return {
+              name: key,
+              duration: parseDurationToSeconds(item[key])
+          };
+      });
+      renderTrendIntentChart('trend-intent-chart-render-area', processedTrendChartData, currentTrendChartType);
+      
+      const analyticsChartDataContainer = document.getElementById('analytics-chart-container'); 
+      let passFailAnalyticsData = [];
+       if (analyticsChartDataContainer && analyticsChartDataContainer.dataset.chartData) {
+          try {
+              passFailAnalyticsData = JSON.parse(analyticsChartDataContainer.dataset.chartData);
+          } catch (e) {
+              console.error("Failed to parse pass/fail analytics chart data from HTML attribute:", e);
+              if(analyticsChartDataContainer) analyticsChartDataContainer.innerHTML = "<p class='text-content-tertiary-themed p-4 text-center'>Error loading analytics chart data.</p>";
+          }
+      }
+      renderAnalyticsChart('analytics-chart-container', passFailAnalyticsData); 
+
+      populateIntentFilterOptions();
+      applyDataTableFiltersAndPagination(); 
+      setupDataResultTableEventListeners();
+
+      document.getElementById('manual-refresh-button')?.addEventListener('click', () => {
+        window.location.reload(); 
+      });
+      document.getElementById('download-trend-chart')?.addEventListener('click', () => downloadChartAsImage('trend-intent-card-container', 'trend-intent-chart.png'));
+      document.getElementById('trend-chart-type-select')?.addEventListener('change', (e) => {
+          currentTrendChartType = e.target.value;
+          const currentProcessedTrendData = trendIntentChartSourceData.map(item => {
+             const key = Object.keys(item)[0];
+             return { name: key, duration: parseDurationToSeconds(item[key]) };
+          });
+          renderTrendIntentChart('trend-intent-chart-render-area', currentProcessedTrendData, currentTrendChartType);
+      });
+      
+      document.getElementById('dashboard-container').addEventListener('click', (event) => {
+        const copyButton = event.target.closest('.copy-button[data-copy-text]');
+        if (copyButton) {
+          const textToCopy = copyButton.dataset.copyText;
+          if (textToCopy) {
+            navigator.clipboard.writeText(textToCopy)
+              .then(() => {
+                const originalIconHTML = ClipboardIcon('w-4 h-4'); // Keep original clipboard icon
+                copyButton.innerHTML = CheckIcon('w-4 h-4 text-green-500');
+                copyButton.disabled = true;
+                setTimeout(() => { 
+                    copyButton.innerHTML = originalIconHTML;
+                    copyButton.disabled = false;
+                }, 2000);
+              })
+              .catch(err => console.error(`Failed to copy: `, err));
+          }
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', renderDashboard);
+  </script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{
+    "summary": [
+        {
+            "id_test": "e8b32d69",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://client.botika.online/virtual-avatar-luna/",
+            "page_name": "Virtual Avatar Luna",
+            "browser_name": "Google Chrome",
+            "date_test": "Monday, 06 October 2025",
+            "start_time_test": "13:59:25",
+            "total_title": 2,
+            "total_question": 2,
+            "success": 2,
+            "failed": 0,
+            "end_time_test": "14:00:24",
+            "duration": "00:00:59"
+        }
+    ],
+    "chart": [
+        {
+            "tanya sapa": "00:00:14"
+        },
+        {
+            "wisata jogja": "00:00:14"
+        }
+    ],
+    "data": [
+        {
+            "no": 1,
+            "title": "tanya sapa",
+            "question": "siapa kamu?",
+            "response_kb": "Halo! Saya Luna, asisten virtual dari Botika yang siap membantu Anda dengan informasi terkait pariwisata. Apakah ada yang bisa saya bantu hari ini?",
+            "response_llm": "Saya Luna, asisten virtual dari Botika yang siap membantu Anda mendapatkan informasi terkait pariwisata dengan cepat dan akurat. Apakah ada yang bisa saya bantu terkait wisata atau liburan Anda?",
+            "status": "pass",
+            "duration": "00:00:12",
+            "image_capture": "e8b32d69\\siapa kamu.png",
+            "skor": 0.9,
+            "explanation": "Actual output sangat mirip dengan expected output, hanya saja ada sedikit penambahan kata pada bagian akhir yang tidak mengurangi makna utama. Namun, kata 'Halo!' di awal expected output tidak ada di actual output."
+        },
+        {
+            "no": 2,
+            "title": "wisata jogja",
+            "question": "apa rekomendasi wisata di jogja",
+            "response_kb": "Di Yogyakarta, Anda bisa mengunjungi Situs Warungboto, yang juga dikenal sebagai Pesanggrahan Rejowinangun. Tempat ini menawarkan pengalaman wisata sejarah dengan nuansa Jawa kuno. Selain itu, Pantai Parangtritis adalah destinasi ikonik di Jogja yang menawarkan berbagai aktivitas seperti naik delman, ATV, dan jeep. Apakah ada tempat lain yang ingin Anda ketahui?",
+            "response_llm": "Di Yogyakarta, Anda bisa mengunjungi Pantai Parangtritis untuk menikmati berbagai aktivitas seperti naik delman, ATV, atau jeep. Selain itu, ada juga Lava Tour Merapi di Sleman yang menawarkan pengalaman seru menyusuri lautan pasir sisa erupsi Merapi dengan jeep. Jika Anda tertarik dengan wisata sejarah, Situs Warungboto bisa menjadi pilihan yang menarik. Apakah ada yang ingin Anda ketahui lebih lanjut?",
+            "status": "pass",
+            "duration": "00:00:12",
+            "image_capture": "e8b32d69\\apa rekomendasi wisata di jogja.png",
+            "skor": 0.9,
+            "explanation": "Actual output menyebutkan semua tempat yang ada di expected output, yaitu Pantai Parangtritis dan Situs Warungboto. Namun, urutan penyebutan dan penambahan informasi mengenai Lava Tour Merapi sedikit mengubah fokus dari expected output yang lebih menekankan pada Situs Warungboto terlebih dahulu."
+        }
+    ]
+}

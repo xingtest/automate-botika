@@ -1,0 +1,54 @@
+{
+    "summary": [
+        {
+            "id_test": "3a666ddb",
+            "tester_name": "Cik",
+            "ai_evaluation": "GEMINI AI",
+            "url": "https://client.botika.online/virtual-avatar-pln-icon/?mode=wake-word",
+            "page_name": "Virtual Avatar Erva",
+            "browser_name": "Google Chrome",
+            "date_test": "Monday, 06 October 2025",
+            "start_time_test": "04:52:41",
+            "total_title": 2,
+            "total_question": 2,
+            "success": 0,
+            "failed": 2,
+            "end_time_test": "04:53:50",
+            "duration": "00:01:08"
+        }
+    ],
+    "chart": [
+        {
+            "Test Sapaan": "00:00:25"
+        },
+        {
+            "Test Kemampuan": "00:00:24"
+        }
+    ],
+    "data": [
+        {
+            "no": "1",
+            "title": "Test Sapaan",
+            "question": "siapa kamu?",
+            "response_kb": "Nama saya Erva",
+            "response_llm": "Error: Message: ",
+            "status": "failed",
+            "duration": "00:00:23",
+            "image_capture": "3a666ddb/error_siapa kamu.png",
+            "skor": 0.0,
+            "explanation": "Actual output adalah pesan error yang tidak relevan sama sekali dengan expected output yang seharusnya berisi nama 'Erva'."
+        },
+        {
+            "no": "2",
+            "title": "Test Kemampuan",
+            "question": "kamu bisa apa aja?",
+            "response_kb": "Saya di sini untuk membantu",
+            "response_llm": "Error: Message: ",
+            "status": "failed",
+            "duration": "00:00:23",
+            "image_capture": "3a666ddb/error_kamu bisa apa aja.png",
+            "skor": 0.0,
+            "explanation": "Actual output adalah pesan error yang tidak relevan sama sekali dengan expected output yang seharusnya adalah kalimat bantuan."
+        }
+    ]
+}
