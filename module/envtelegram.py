@@ -14,7 +14,14 @@ if not all([API_ID, API_HASH, SESSION_STRING]):
         raise ValueError("API_ID, API_HASH, atau TELEGRAM_SESSION tidak ditemukan. Pastikan sudah diatur di GitHub Secrets atau environment variables lokal.")
 
 # Inisialisasi client menggunakan StringSession
-client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) if all([API_ID, API_HASH, SESSION_STRING]) else None
+# Hanya inisialisasi jika semua kredensial valid dan tidak kosong
+client = None
+if all([API_ID, API_HASH, SESSION_STRING]) and SESSION_STRING.strip():
+    try:
+        client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+    except ValueError:
+        # Session string tidak valid, set client ke None
+        client = None
 
 async def send_message_to_bot(bot_username, text):
     """Mengirim pesan ke bot target."""

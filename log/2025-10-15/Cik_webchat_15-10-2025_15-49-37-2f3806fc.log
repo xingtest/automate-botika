@@ -1,0 +1,5 @@
+2025-10-15 15:49:40,399 - root - INFO - Function convert_excel_to_json executed successfully
+2025-10-15 15:49:41,910 - WDM - INFO - ====== WebDriver manager ======
+2025-10-15 15:49:46,988 - WDM - INFO - Get LATEST edgedriver version for Edge 141.0.3537
+2025-10-15 15:49:46,990 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): msedgedriver.azureedge.net:443
+2025-10-15 15:49:47,029 - root - INFO - Function write_end_time_summary executed successfully

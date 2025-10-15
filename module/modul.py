@@ -93,17 +93,24 @@ def read_browser(url, browser):
     
     browser = browser.lower()
     if browser == "chrome":
+        import tempfile
+        import os
+        
         chrome_options = ChromeOptions()
-        # chrome_options.add_argument('--headless')  # Commented out to show Chrome
+        chrome_options.add_argument('--headless=new')  # Headless mode
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument("--window-size=1920,1080")
-        chrome_options.add_argument("--start-maximized")  # Start maximized
+        chrome_options.add_argument('--disable-gpu')
         
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
-        driver.maximize_window()
-
-        browser_name = "Google Chrome"
+        # Gunakan user data directory temporary untuk menghindari konflik
+        temp_dir = tempfile.mkdtemp()
+        chrome_options.add_argument(f'--user-data-dir={temp_dir}')
+        chrome_options.add_argument('--remote-debugging-port=0')  # Use random port
+        chrome_options.add_argument("--window-size=1920,1080")
+        
+        service = ChromeService(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        browser_name = "Google Chrome (Headless)"
         
     elif browser == "edge":
         edge_options = EdgeOptions()
