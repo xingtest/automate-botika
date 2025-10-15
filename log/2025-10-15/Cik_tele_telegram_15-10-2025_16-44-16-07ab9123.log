@@ -1,0 +1,166 @@
+2025-10-15 16:44:20,029 - root - INFO - Function convert_excel_to_json executed successfully
+2025-10-15 16:44:20,030 - telethon.network.mtprotosender - INFO - Connecting to 91.108.56.177:443/TcpFull...
+2025-10-15 16:44:20,031 - telethon.network.mtprotosender - DEBUG - Connection attempt 1...
+2025-10-15 16:44:20,060 - telethon.network.mtprotosender - DEBUG - Connection success!
+2025-10-15 16:44:20,060 - telethon.network.mtprotosender - DEBUG - Starting send loop
+2025-10-15 16:44:20,060 - telethon.network.mtprotosender - DEBUG - Starting receive loop
+2025-10-15 16:44:20,060 - telethon.network.mtprotosender - INFO - Connection to 91.108.56.177:443/TcpFull complete!
+2025-10-15 16:44:20,061 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,061 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382094852880076 to InvokeWithLayerRequest (267afc11e80)
+2025-10-15 16:44:20,061 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 76 bytes for sending
+2025-10-15 16:44:20,062 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,062 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,062 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:20,094 - telethon.network.mtprotosender - DEBUG - Handling bad salt for message 7561382094852880076
+2025-10-15 16:44:20,095 - telethon.network.mtprotosender - DEBUG - 1 message(s) will be resent
+2025-10-15 16:44:20,095 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:20,095 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382094987012460 to InvokeWithLayerRequest (267afc11e80)
+2025-10-15 16:44:20,095 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 76 bytes for sending
+2025-10-15 16:44:20,096 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,096 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,096 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382094992508484 to MsgsAck (267afc12270)
+2025-10-15 16:44:20,096 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 36 bytes for sending
+2025-10-15 16:44:20,097 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,097 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,128 - telethon.network.mtprotosender - DEBUG - Handling container
+2025-10-15 16:44:20,128 - telethon.network.mtprotosender - DEBUG - Handling new session created
+2025-10-15 16:44:20,128 - telethon.network.mtprotosender - DEBUG - Handling acknowledge for [7561382094987012460]
+2025-10-15 16:44:20,129 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:20,146 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382094987012460
+2025-10-15 16:44:20,146 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:20,147 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382095194817140 to GetUsersRequest (267afc11d30)
+2025-10-15 16:44:20,147 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 32 bytes for sending
+2025-10-15 16:44:20,148 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,148 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,149 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382095202520920 to MsgsAck (267afb86c10)
+2025-10-15 16:44:20,149 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 60 bytes for sending
+2025-10-15 16:44:20,150 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,150 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,197 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382095194817140
+2025-10-15 16:44:20,198 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:20,198 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382095400801256 to GetStateRequest (267afc11d30)
+2025-10-15 16:44:20,198 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 20 bytes for sending
+2025-10-15 16:44:20,200 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,200 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,200 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382095407722068 to MsgsAck (267afc242b0)
+2025-10-15 16:44:20,200 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 36 bytes for sending
+2025-10-15 16:44:20,201 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,201 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,245 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382095400801256
+2025-10-15 16:44:20,246 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:20,246 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382095592477396 to GetDifferenceRequest (267afc11d30)
+2025-10-15 16:44:20,246 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 36 bytes for sending
+2025-10-15 16:44:20,247 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,248 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,248 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382095599355292 to MsgsAck (267afc24180)
+2025-10-15 16:44:20,248 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 36 bytes for sending
+2025-10-15 16:44:20,249 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,249 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,289 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382095592477396
+2025-10-15 16:44:20,290 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:20,290 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382095768413140 to GetUsersRequest (267afb865d0)
+2025-10-15 16:44:20,290 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 32 bytes for sending
+2025-10-15 16:44:20,291 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,291 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,291 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382095773261620 to MsgsAck (267afbc16d0)
+2025-10-15 16:44:20,291 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 36 bytes for sending
+2025-10-15 16:44:20,292 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:20,292 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:20,329 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382095768413140
+2025-10-15 16:44:20,330 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:20,330 - root - INFO - Function actions_telegram executed successfully
+2025-10-15 16:44:21,841 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382102265949444 to ResolveUsernameRequest (267afc11e80)
+2025-10-15 16:44:21,841 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 48 bytes for sending
+2025-10-15 16:44:21,842 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:21,842 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:21,842 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382102272050100 to MsgsAck (267afb52690)
+2025-10-15 16:44:21,842 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 36 bytes for sending
+2025-10-15 16:44:21,843 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:21,844 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:21,891 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382102265949444
+2025-10-15 16:44:21,891 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:21,892 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382102470752912 to SendMessageRequest (267afc11e80)
+2025-10-15 16:44:21,892 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 76 bytes for sending
+2025-10-15 16:44:21,893 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:21,893 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:21,893 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382102476543620 to MsgsAck (267afb52580)
+2025-10-15 16:44:21,894 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 36 bytes for sending
+2025-10-15 16:44:21,897 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:21,897 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:21,967 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382102470752912
+2025-10-15 16:44:21,968 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:23,715 - telethon.network.mtprotosender - DEBUG - Handling update Updates
+2025-10-15 16:44:23,715 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:30,015 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382137619273996 to SendMessageRequest (267afb86710)
+2025-10-15 16:44:30,016 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 84 bytes for sending
+2025-10-15 16:44:30,017 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:30,017 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:30,017 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382137626058436 to MsgsAck (267afbb1f50)
+2025-10-15 16:44:30,017 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 44 bytes for sending
+2025-10-15 16:44:30,018 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:30,019 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:30,019 - telethon.network.mtprotosender - DEBUG - Handling update UpdateShort
+2025-10-15 16:44:30,020 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:30,077 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382137619273996
+2025-10-15 16:44:30,078 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:31,022 - telethon.network.mtprotosender - DEBUG - Handling update Updates
+2025-10-15 16:44:31,022 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:45,089 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382202336688292 to GetHistoryRequest (267afa96f90)
+2025-10-15 16:44:45,089 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 72 bytes for sending
+2025-10-15 16:44:45,090 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:45,090 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:45,090 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382202344175588 to MsgsAck (267afbb1c50)
+2025-10-15 16:44:45,091 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 52 bytes for sending
+2025-10-15 16:44:45,092 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:45,092 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:45,138 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382202336688292
+2025-10-15 16:44:45,139 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:46,158 - root - INFO - Function respond_csv_correction executed successfully
+2025-10-15 16:44:46,164 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): generativelanguage.googleapis.com:443
+2025-10-15 16:44:47,337 - urllib3.connectionpool - DEBUG - https://generativelanguage.googleapis.com:443 "POST /v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=AIzaSyBr00LZZfAvgiBe4DFHGhRtGQIc4NPb4p0 HTTP/1.1" 200 None
+2025-10-15 16:44:47,365 - root - INFO - Function status executed successfully
+2025-10-15 16:44:47,367 - root - INFO - Function write_json_data_bot executed successfully
+2025-10-15 16:44:47,386 - root - INFO - Function calculate executed successfully
+2025-10-15 16:44:47,387 - root - INFO - Function write_json_data_summary executed successfully
+2025-10-15 16:44:47,422 - root - INFO - Function write_json_chart executed successfully
+2025-10-15 16:44:48,937 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382218616953032 to SendMessageRequest (267afb87d90)
+2025-10-15 16:44:48,938 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 88 bytes for sending
+2025-10-15 16:44:48,939 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:48,939 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:48,939 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382218624304908 to MsgsAck (267afbe6c60)
+2025-10-15 16:44:48,939 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 36 bytes for sending
+2025-10-15 16:44:48,941 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:44:48,941 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:44:48,942 - telethon.network.mtprotosender - DEBUG - Handling update UpdateShort
+2025-10-15 16:44:48,942 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:48,947 - telethon.network.mtprotosender - DEBUG - Handling update UpdateShort
+2025-10-15 16:44:48,947 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:49,044 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382218616953032
+2025-10-15 16:44:49,046 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:52,358 - telethon.network.mtprotosender - DEBUG - Handling update UpdateShort
+2025-10-15 16:44:52,358 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:44:55,299 - telethon.network.mtprotosender - DEBUG - Handling update UpdateShort
+2025-10-15 16:44:55,299 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:45:04,062 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382283833979780 to GetHistoryRequest (267afb85bd0)
+2025-10-15 16:45:04,062 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 72 bytes for sending
+2025-10-15 16:45:04,064 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:45:04,064 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:45:04,064 - telethon.extensions.messagepacker - DEBUG - Assigned msg_id = 7561382283843568020 to MsgsAck (267afbe6990)
+2025-10-15 16:45:04,064 - telethon.network.mtprotosender - DEBUG - Encrypting 1 message(s) in 68 bytes for sending
+2025-10-15 16:45:04,066 - telethon.network.mtprotosender - DEBUG - Encrypted messages put in a queue to be sent
+2025-10-15 16:45:04,066 - telethon.network.mtprotosender - DEBUG - Waiting for messages to send...
+2025-10-15 16:45:04,117 - telethon.network.mtprotosender - DEBUG - Handling RPC result for message 7561382283833979780
+2025-10-15 16:45:04,117 - telethon.network.mtprotosender - DEBUG - Receiving items from the network...
+2025-10-15 16:45:05,128 - root - INFO - Function respond_csv_correction executed successfully
+2025-10-15 16:45:05,132 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): generativelanguage.googleapis.com:443
+2025-10-15 16:45:06,294 - urllib3.connectionpool - DEBUG - https://generativelanguage.googleapis.com:443 "POST /v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=AIzaSyBr00LZZfAvgiBe4DFHGhRtGQIc4NPb4p0 HTTP/1.1" 200 None
+2025-10-15 16:45:06,297 - root - INFO - Function status executed successfully
+2025-10-15 16:45:06,323 - root - INFO - Function write_json_data_bot executed successfully
+2025-10-15 16:45:06,348 - root - INFO - Function calculate executed successfully
+2025-10-15 16:45:06,349 - root - INFO - Function write_json_data_summary executed successfully
+2025-10-15 16:45:06,384 - root - INFO - Function write_json_chart executed successfully
+2025-10-15 16:45:06,384 - telethon.network.mtprotosender - INFO - Disconnecting from 91.108.56.177:443/TcpFull...
+2025-10-15 16:45:06,385 - telethon.network.mtprotosender - DEBUG - Closing current connection...
+2025-10-15 16:45:06,385 - telethon.network.mtprotosender - DEBUG - Cancelling 0 pending message(s)...
+2025-10-15 16:45:06,385 - telethon.network.mtprotosender - INFO - Disconnection from 91.108.56.177:443/TcpFull complete!
+2025-10-15 16:45:06,396 - root - INFO - Function write_end_time_summary executed successfully

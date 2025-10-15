@@ -17,7 +17,7 @@ def initialize_instagram_api():
         return  # Already initialized
 
     cl = Client()
-    session_file = Path("session/session.json")
+    session_file = Path("session/session-instagram.json")
     session_file.parent.mkdir(exist_ok=True)
 
     if not session_file.exists():
@@ -26,11 +26,19 @@ def initialize_instagram_api():
     try:
         print(f"Attempting to log in using session file: {session_file}")
         cl.load_settings(session_file)
-        cl.login_by_sessionid(cl.sessionid)
-        cl.get_timeline_feed()
-        print(f"Successfully logged in as {cl.username}.")
-        cl.dump_settings(session_file)
-        print(f"Session state for {cl.username} has been refreshed and saved.")
+        
+        # Set delay to avoid rate limiting
+        cl.delay_range = [3, 7]
+        
+        try:
+            cl.login_by_sessionid(cl.sessionid)
+            cl.get_timeline_feed()
+            print(f"Successfully logged in as {cl.username}.")
+            cl.dump_settings(session_file)
+            print(f"Session state for {cl.username} has been refreshed and saved.")
+        except LoginRequired:
+            print("Session expired. Please generate a new session file.")
+            raise
     except Exception as e:
         print(f"An unexpected error occurred during session login: {e}")
         raise
