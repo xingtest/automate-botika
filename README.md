@@ -9,6 +9,7 @@ TypeScript + Playwright automation untuk testing chatbot.
 - ✅ Facebook
 - ✅ Instagram
 - ✅ DHAI
+- ✅ DHAI Wake-up Word (dengan TTS)
 
 ## Quick Start
 
@@ -31,10 +32,14 @@ npm start
 Edit `.env` untuk pilih platform:
 
 ```env
-PLATFORM=webchat     # atau: telegram, facebook, instagram, dhai
+PLATFORM=webchat     # atau: telegram, facebook, instagram, dhai, dhai-wakeup
 FILENAME=testdhai.json
 TESTER_NAME=Your Name
 TARGET_URL=https://your-url.com
+
+# Untuk DHAI Wake-up Word
+DHAI_WAKEUP_URL=https://your-dhai-url.com
+DHAI_WAKE_WORD=halo luna
 ```
 
 Lalu jalankan:

@@ -7,7 +7,13 @@
     "build": "tsc",
     "start": "npm run build && node dist/main.js",
     "test": "npm run start",
-    "test:python": "python main.py"
+    "test:python": "python main.py",
+    "test:webchat": "npm run build && node dist/main.js webchat",
+    "test:telegram": "npm run build && node dist/main.js telegram", 
+    "test:facebook": "npm run build && node dist/main.js facebook",
+    "test:instagram": "npm run build && node dist/main.js instagram",
+    "test:dhai": "npm run build && node dist/main.js dhai",
+    "test:dhai-wakeup": "npm run build && node dist/main.js dhai-wakeup"
   },
   "author": "okinr.testcase",
   "license": "ISC",

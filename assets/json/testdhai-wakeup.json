@@ -1,0 +1,32 @@
+[
+    {
+        "no": 1,
+        "title": "Sapaan dan Perkenalan",
+        "pertanyaan": "apa kabar",
+        "context": "Sapaan umum untuk memulai percakapan dengan asisten virtual"
+    },
+    {
+        "no": 2,
+        "title": "Informasi Cuaca",
+        "pertanyaan": "bagaimana cuaca hari ini",
+        "context": "Pertanyaan tentang kondisi cuaca terkini"
+    },
+    {
+        "no": 3,
+        "title": "Waktu dan Tanggal",
+        "pertanyaan": "jam berapa sekarang",
+        "context": "Pertanyaan tentang waktu saat ini"
+    },
+    {
+        "no": 4,
+        "title": "Bantuan Umum",
+        "pertanyaan": "bisa bantu apa saja",
+        "context": "Pertanyaan tentang kemampuan dan layanan yang tersedia"
+    },
+    {
+        "no": 5,
+        "title": "Informasi Produk",
+        "pertanyaan": "ceritakan tentang asuransi jiwa",
+        "context": "Pertanyaan tentang produk asuransi jiwa dan manfaatnya"
+    }
+]

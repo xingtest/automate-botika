@@ -8,6 +8,7 @@ import { TelegramPlatform } from './platforms/telegram';
 import { InstagramPlatform } from './platforms/instagram';
 import { FacebookPlatform } from './platforms/facebook';
 import { DhaiPlatform } from './platforms/dhai';
+import { DhaiWakeupPlatform } from './platforms/dhai-wakeup';
 import { PlatformConfig, TestData } from './types';
 
 dotenv.config();
@@ -170,6 +171,23 @@ async function main(): Promise<void> {
       console.log(`URL Pengujian: ${url}\n`);
       const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium');
       await DhaiPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName);
+      await Modul.closeBrowser(browser);
+
+    } else if (platform === 'dhai-wakeup') {
+      const url = process.env.DHAI_WAKEUP_URL || process.env.DHAI_TARGET_URL;
+      if (!url) {
+        console.error("Error: DHAI_WAKEUP_URL atau DHAI_TARGET_URL tidak diatur untuk platform 'dhai-wakeup'.");
+        Modul.testDone('Test Failed!');
+        return;
+      }
+
+      const wakeWord = process.env.DHAI_WAKE_WORD || 'halo luna';
+      console.log(`URL Pengujian: ${url}`);
+      console.log(`Wake Word: "${wakeWord}"\n`);
+
+      // Show browser for DHAI Wake-up Word (headless: false)
+      const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium', false);
+      await DhaiWakeupPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, wakeWord);
       await Modul.closeBrowser(browser);
 
     } else {

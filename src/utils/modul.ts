@@ -31,11 +31,11 @@ export class Modul {
 
   static todays(): { today: string; time: string } {
     const now = new Date();
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     };
     const today = now.toLocaleDateString('id-ID', options);
     const time = now.toLocaleTimeString('id-ID');
@@ -62,21 +62,80 @@ export class Modul {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
   }
 
-  static async readBrowser(url: string, browserType: string = 'chromium'): Promise<{ browser: Browser; context: BrowserContext; page: Page; title: string; browserName: string }> {
+  static async readBrowser(url: string, browserType: string = 'chromium', headless: boolean = true): Promise<{ browser: Browser; context: BrowserContext; page: Page; title: string; browserName: string }> {
     const title = `Choose ${browserType.toUpperCase()} as a main browser and open the URL`;
     this.showLoading(title);
 
+    // Optimized args for faster startup
+    let launchArgs: string[] = [
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-features=TranslateUI',
+      '--disable-ipc-flooding-protection'
+    ];
+
+    if (headless) {
+      // Headless mode - minimal args for CI/CD
+      launchArgs.push(
+        '--use-fake-ui-for-media-stream',
+        '--use-fake-device-for-media-stream',
+        '--autoplay-policy=no-user-gesture-required'
+      );
+    } else {
+      // Visible mode - optimized for speed
+      launchArgs.push(
+        '--use-fake-ui-for-media-stream',
+        '--autoplay-policy=no-user-gesture-required',
+        '--window-size=1400,900',
+        '--disable-infobars',
+        '--no-first-run',
+        '--disable-default-apps',
+        '--disable-popup-blocking',
+        '--disable-extensions',
+        '--disable-plugins'
+      );
+    }
+
+    // Optimized browser launch with faster timeouts
     const browser = await chromium.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+      channel: 'chrome', // Use installed Google Chrome for better microphone support
+      headless: headless,
+      args: launchArgs,
+      timeout: 30000, // Reduced from 90000 to 30000
+      slowMo: 0,
+      devtools: false
     });
 
     const context = await browser.newContext({
-      viewport: { width: 1920, height: 1080 }
+      viewport: headless ? { width: 1400, height: 900 } : null,
+      permissions: ['microphone', 'camera'],
+      ignoreHTTPSErrors: true,
+      bypassCSP: true
     });
 
     const page = await context.newPage();
-    await page.goto(url, { waitUntil: 'networkidle' });
+
+    // Optimized page loading with shorter timeouts
+    console.log('🌐 Loading page...');
+    try {
+      // Try fastest loading first
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      console.log('✅ Page loaded with domcontentloaded');
+    } catch (error) {
+      console.log('⚠️ Trying with load event...');
+      try {
+        await page.goto(url, { waitUntil: 'load', timeout: 20000 });
+        console.log('✅ Page loaded with load event');
+      } catch (secondError) {
+        console.log('⚠️ Trying with networkidle...');
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 25000 });
+        console.log('✅ Page loaded with networkidle');
+      }
+    }
+
     const pageTitle = await page.title();
 
     return {
@@ -84,7 +143,7 @@ export class Modul {
       context,
       page,
       title: pageTitle,
-      browserName: 'Chromium (Headless)'
+      browserName: headless ? 'Chrome (Headless)' : 'Chrome (Visible)'
     };
   }
 
