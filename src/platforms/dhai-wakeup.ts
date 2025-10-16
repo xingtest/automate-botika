@@ -70,6 +70,11 @@ export class DhaiWakeupPlatform {
       console.log('✅ Tombol "Tap to Start" diklik - microphone activated');
       await Modul.waitTime(3);
 
+      // Click second interaction button
+      const interactionButton = page.locator('button').nth(2);
+      await interactionButton.click();
+      console.log('Tombol interaksi kedua diklik.');
+
       // Get initial response length
       const initialBubbleMsg = await page.locator('#bubble-msg').textContent();
       if (initialBubbleMsg) {
