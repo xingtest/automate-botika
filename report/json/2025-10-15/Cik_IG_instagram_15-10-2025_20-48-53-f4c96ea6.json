@@ -1,0 +1,54 @@
+{
+    "summary": [
+        {
+            "id_test": "f4c96ea6",
+            "tester_name": "Cik IG",
+            "ai_evaluation": "GEMINI AI",
+            "url": "Instagram DM (@ahmadnurbrasta2.2)",
+            "page_name": "Instagram Test",
+            "browser_name": "Instagrapi",
+            "date_test": "Wednesday, 15 October 2025",
+            "start_time_test": "20:48:53",
+            "total_title": 2,
+            "total_question": 2,
+            "success": 0,
+            "failed": 2,
+            "end_time_test": "20:54:45",
+            "duration": "00:05:51"
+        }
+    ],
+    "chart": [
+        {
+            "Asuransi Jiwa": "00:01:25"
+        },
+        {
+            "Asuransi Kesehatan": "00:01:27"
+        }
+    ],
+    "data": [
+        {
+            "no": 1,
+            "title": "Asuransi Jiwa",
+            "question": "Apa itu asuransi jiwa",
+            "response_kb": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis. Karakteristik utama asuransi jiwa adalah pemberian manfaat berupa uang pertanggungan kepada ahli waris jika pemegang polis berpulang. Apabila pemegang polis masih hidup dalam jangka waktu yang ditentukan, mereka akan mendapatkan manfaat dalam bentuk nilai tunai.Manfaat dan perlindungan yang diberikan asuransi jiwa berupa uang pertanggungan yang bisa digunakan untuk memenuhi kebutuhan sehari-hari.",
+            "response_llm": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.",
+            "status": "failed",
+            "duration": "00:01:22",
+            "image_capture": null,
+            "skor": 0.5,
+            "explanation": "Actual output hanya mencakup sebagian kecil dari expected output, yaitu hanya pada kalimat pertama. Informasi mengenai karakteristik utama, manfaat uang pertanggungan, nilai tunai, dan kegunaan uang pertanggungan tidak disebutkan sama sekali."
+        },
+        {
+            "no": 2,
+            "title": "Asuransi Kesehatan",
+            "question": "Apa itu asuransi kesehatan",
+            "response_kb": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan. Asuransi ini berguna ketika nasabah menjalani rawat inap, operasi, maupun bentuk perawatan lainnya yang dilakukan di rumah sakit. Asuransi kesehatan sangat penting untuk dimiliki karena bisa melindungi aset atau keuangan nasabah pada saat melakukan pengobatan dengan biaya yang tidak sedikit.",
+            "response_llm": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.",
+            "status": "failed",
+            "duration": "00:01:25",
+            "image_capture": null,
+            "skor": 0.4,
+            "explanation": "Actual output hanya menyampaikan kalimat pertama dari expected output, sehingga informasi mengenai kegunaan dan pentingnya asuransi kesehatan tidak tercakup sama sekali."
+        }
+    ]
+}

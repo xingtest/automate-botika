@@ -1,0 +1,14 @@
+[
+    {
+        "no": 1,
+        "title": "Asuransi Jiwa",
+        "pertanyaan": "Apa itu asuransi jiwa",
+        "context": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis. Karakteristik utama asuransi jiwa adalah pemberian manfaat berupa uang pertanggungan kepada ahli waris jika pemegang polis berpulang. Apabila pemegang polis masih hidup dalam jangka waktu yang ditentukan, mereka akan mendapatkan manfaat dalam bentuk nilai tunai.Manfaat dan perlindungan yang diberikan asuransi jiwa berupa uang pertanggungan yang bisa digunakan untuk memenuhi kebutuhan sehari-hari.    "
+    },
+    {
+        "no": 2,
+        "title": "Asuransi Kesehatan",
+        "pertanyaan": "Apa itu asuransi kesehatan",
+        "context": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan. Asuransi ini berguna ketika nasabah menjalani rawat inap, operasi, maupun bentuk perawatan lainnya yang dilakukan di rumah sakit. Asuransi kesehatan sangat penting untuk dimiliki karena bisa melindungi aset atau keuangan nasabah pada saat melakukan pengobatan dengan biaya yang tidak sedikit."
+    }
+]
