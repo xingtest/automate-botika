@@ -3,6 +3,7 @@ import time
 import os
 import json
 from typing import Optional, Tuple, List, Dict, Any
+from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
@@ -11,119 +12,57 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
-from session_manager import (
-    save_session_cookies,
-    create_session_folder,
-    get_latest_session,
-    validate_session_cookies,
-    load_session_cookies
-)
 
 logger = logging.getLogger(__name__)
 
-def perform_manual_login() -> Tuple[str, str]:
+def check_session_exists() -> bool:
     """
-    Handle Facebook login with session reuse.
-
+    Check if Facebook session file exists.
+    
     Returns:
-        Tuple[str, str]: (session_folder_path, session_id)
+        True if session exists, False otherwise
     """
-    # First, check if we have an existing valid session
-    existing_session = get_latest_session()
+    session_file = Path("session/session-facebook.json")
+    return session_file.exists()
 
-    if existing_session:
-        session_id, session_path = existing_session
-        logging.info(f"Found existing session: {session_id}")
-
-        # Validate the session cookies (pass the directory path, function will handle sessionfb.json)
-        if validate_session_cookies(session_path):
-            logging.info("Existing session is valid, reusing it")
-            return session_path, session_id
-        else:
-            logging.warning("Existing session is invalid, proceeding with new login")
-
-    # No valid session found, proceed with manual login
-    logging.info("No valid session found, starting manual login process")
-    folder_path, session_id = create_session_folder()
-
-    options = Options()
-    options.add_argument("--disable-notifications")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.headless = False  # Show browser for manual login
-
-    driver = None
+def load_session_cookies() -> Optional[List[Dict[str, Any]]]:
+    """
+    Load Facebook session cookies from file.
+    
+    Returns:
+        List of cookies or None if not found
+    """
+    session_file = Path("session/session-facebook.json")
+    
+    if not session_file.exists():
+        logger.warning(f"Session file not found: {session_file}")
+        return None
+    
     try:
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-        driver.get("https://www.facebook.com/")
-
-        logging.info("Please log in manually and handle 2FA if needed.")
-        print("Please log in manually and handle 2FA if needed.")
-
-        # Wait for login to complete
-        wait = WebDriverWait(driver, 300)  # Wait up to 5 minutes for login
-
-        # First check if we're no longer on the login page
-        wait.until_not(EC.presence_of_element_located((By.ID, "email")))
-        logging.info("Login form no longer visible")
-
-        # Wait for any of these elements that indicate successful login
-        login_indicators = [
-            (By.CSS_SELECTOR, "div[aria-label='Account']"),
-            (By.CSS_SELECTOR, "div[aria-label='Your profile']"),
-            (By.CSS_SELECTOR, "div[role='navigation']"),
-            (By.CSS_SELECTOR, "div[data-pagelet='Stories']"),
-            (By.CSS_SELECTOR, "div[role='main']"),
-            (By.CSS_SELECTOR, "div[aria-label='Home']")
-        ]
-
-        for by_type, selector in login_indicators:
-            try:
-                element = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((by_type, selector))
-                )
-                logging.info(f"Login confirmed with element: {selector}")
-                break
-            except:
-                continue
-
-        # Additional wait to ensure all cookies are set
-        logging.info("Waiting for cookies to be fully set...")
-        time.sleep(10)
-
-        # Get cookies after successful login
-        cookies = driver.get_cookies()
-
-        # Save cookies to file
-        cookie_file = os.path.join(folder_path, 'cookies.json')
-        with open(cookie_file, 'w') as f:
-            json.dump(cookies, f, indent=2)
-        logging.info(f"Session cookies saved to {cookie_file}")
-
-        # Verify cookies contain essential Facebook authentication cookies
+        with open(session_file, 'r') as f:
+            cookies = json.load(f)
+        
+        # Validate cookies
+        if not cookies or not isinstance(cookies, list):
+            logger.warning("Invalid cookie structure")
+            return None
+        
+        # Check for essential Facebook cookies
         cookie_names = [cookie.get('name', '') for cookie in cookies]
-        if 'c_user' in cookie_names and 'xs' in cookie_names:
-            logging.info(f"New session created and saved: {session_id}")
-        else:
-            raise ValueError("Login successful but essential cookies are missing")
-
-        return folder_path, session_id
-
+        if 'c_user' not in cookie_names or 'xs' not in cookie_names:
+            logger.warning("Missing essential Facebook cookies")
+            return None
+        
+        logger.info(f"Session cookies loaded successfully from {session_file}")
+        return cookies
+        
     except Exception as e:
-        logging.error(f"Error during Facebook login: {e}")
-        raise
-    finally:
-        if driver:
-            driver.quit()
-            logging.info("Browser closed after login")
+        logger.error(f"Failed to load session cookies: {e}")
+        return None
 
-def initialize_driver(session_folder_path: str) -> webdriver.Chrome:
+def initialize_driver() -> webdriver.Chrome:
     """
     Initialize Chrome WebDriver with session cookies.
-
-    Args:
-        session_folder_path: Path to session folder containing cookies
 
     Returns:
         Configured Chrome WebDriver instance
@@ -142,9 +81,9 @@ def initialize_driver(session_folder_path: str) -> webdriver.Chrome:
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         logger.info("WebDriver initialized successfully")
 
-        # Load and validate session cookies
-        if validate_session_cookies(session_folder_path):
-            cookies = load_session_cookies(session_folder_path)
+        # Load session cookies
+        cookies = load_session_cookies()
+        if cookies:
             logger.info("Loading session cookies...")
             driver.get("https://www.facebook.com/")
             time.sleep(2)  # Wait for page load

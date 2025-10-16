@@ -252,47 +252,24 @@ async def actions_instagram(target_username, greeting, json_data, report_filenam
 
 @log_function_status
 async def actions_facebook(target_fanpage_id, greeting, json_data, report_filename, id_test, time_start, today, tester_name):
-    from session_manager import get_latest_session, validate_session_cookies, create_session_folder
-    import os
-
     logger = envfacebook.logger
-
-    def setup_test_environment() -> tuple[str, str]:
-        """Set up the test environment and handle login."""
-        logger.info("Setting up test environment...")
-
-        try:
-            # Check for existing valid session
-            latest_session = get_latest_session()
-            if latest_session:
-                session_id, session_folder = latest_session
-                cookie_file = os.path.join(session_folder, 'cookies.json')
-                if validate_session_cookies(cookie_file):
-                    logger.info(f"Using existing valid session: {session_id} in {session_folder}")
-                    return session_folder, session_id
-
-            # If no valid session, perform manual login
-            session_folder, session_id = envfacebook.perform_manual_login()
-            logger.info(f"New session established: {session_id} in {session_folder}")
-            return session_folder, session_id
-        except Exception as e:
-            logger.error(f"Failed to establish session: {e}")
-            raise
 
     logger.info("Starting Facebook chatbot automation testing...")
 
-    # Initialize variables
-    session_folder: Optional[str] = None
-    session_id: Optional[str] = None
+    # Check if session exists
+    if not envfacebook.check_session_exists():
+        logger.error("Facebook session not found!")
+        print("\n❌ Facebook session tidak ditemukan!")
+        print("Silakan jalankan: python generate_facebook_session.py")
+        print("untuk membuat session Facebook terlebih dahulu.\n")
+        raise FileNotFoundError("Facebook session file not found. Please run generate_facebook_session.py first.")
+
     driver = None
 
     try:
-        # 1. Set up session and login
-        session_folder, session_id = setup_test_environment()
-
-        # 2. Initialize driver and navigate to chatbot
+        # Initialize driver and navigate to chatbot
         logger.info("Initializing WebDriver...")
-        driver = envfacebook.initialize_driver(session_folder)
+        driver = envfacebook.initialize_driver()
 
         chatbot_url = f"https://www.facebook.com/messages/t/{target_fanpage_id}"
         logger.info(f"Navigating to chatbot: {chatbot_url}")
