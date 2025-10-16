@@ -1,6 +1,0 @@
-2025-10-15 16:59:43,309 - root - INFO - Function convert_excel_to_json executed successfully
-2025-10-15 16:59:43,311 - asyncio - DEBUG - Using proactor: IocpProactor
-2025-10-15 16:59:43,313 - root - INFO - Function actions_instagram executed successfully
-2025-10-15 16:59:51,699 - instagrapi - INFO - https://i.instagram.com/api/v1/users/75889220702/info/
-2025-10-15 16:59:51,708 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): i.instagram.com:443
-2025-10-15 17:00:12,771 - root - INFO - Function write_end_time_summary executed successfully
