@@ -91,11 +91,25 @@ export class DhaiWakeupPlatform {
     }
   }
 
+  static async generateTTSWithSpeechSynthesis(text: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const audioDir = 'temp_audio';
+      if (!fs.existsSync(audioDir)) {
+        fs.mkdirSync(audioDir, { recursive: true });
+      }
+
+      const filename = `${audioDir}/tts_${Date.now()}.wav`;
+      console.log(`🎵 Generating TTS with SpeechSynthesis for: "${text}"`);
+      
+      // Return filename immediately - actual TTS will be handled in browser
+      resolve(filename);
+    });
+  }
+
   static async generateTTS(text: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      // Optimized Google TTS API with slower speed for better recognition
+      // Fallback Google TTS API for backup
       const encodedText = encodeURIComponent(text);
-      // Add slow parameter for clearer speech recognition
       const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=id&client=tw-ob&ttsspeed=0.5&q=${encodedText}`;
 
       const audioDir = 'temp_audio';
@@ -106,12 +120,11 @@ export class DhaiWakeupPlatform {
       const filename = `${audioDir}/tts_${Date.now()}.mp3`;
       const file = fs.createWriteStream(filename);
 
-      console.log(`🎵 Generating TTS for: "${text}" (optimized for speech recognition)`);
+      console.log(`🎵 Generating fallback TTS for: "${text}" (Google TTS)`);
       
       const request = https.get(url, (response) => {
         if (response.statusCode !== 200) {
           console.log(`⚠️ TTS API returned status ${response.statusCode}, retrying...`);
-          // Retry without speed parameter if it fails
           const fallbackUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=id&client=tw-ob&q=${encodedText}`;
           https.get(fallbackUrl, (fallbackResponse) => {
             fallbackResponse.pipe(file);
@@ -130,7 +143,7 @@ export class DhaiWakeupPlatform {
         response.pipe(file);
         file.on('finish', () => {
           file.close();
-          console.log(`✅ TTS audio generated (speech-optimized): ${filename}`);
+          console.log(`✅ TTS audio generated (Google TTS): ${filename}`);
           resolve(filename);
         });
       });
@@ -140,7 +153,6 @@ export class DhaiWakeupPlatform {
         reject(err);
       });
 
-      // Add timeout for TTS generation
       request.setTimeout(10000, () => {
         request.destroy();
         fs.unlink(filename, () => { });
@@ -216,6 +228,199 @@ export class DhaiWakeupPlatform {
     } catch (error) {
       console.log('⚠️ Error checking DHAI listening state:', error);
       return false;
+    }
+  }
+
+  static async simulateMicrophoneInputWithSpeechSynthesis(page: Page, text: string): Promise<void> {
+    try {
+      console.log('🎤 Setting up SpeechSynthesis virtual microphone...');
+
+      // Use SpeechSynthesis Web API directly in browser
+      await page.evaluate((textToSpeak) => {
+        return new Promise<void>(async (resolve) => {
+          try {
+            console.log('🎙️ Initializing SpeechSynthesis virtual microphone...');
+
+            // Create audio context for virtual microphone
+            const audioContext = new ((globalThis as any).AudioContext || (globalThis as any).webkitAudioContext)({
+              sampleRate: 16000,
+              latencyHint: 'interactive'
+            });
+
+            if (audioContext.state === 'suspended') {
+              await audioContext.resume();
+              console.log('🔊 Audio context resumed');
+            }
+
+            // Create destination stream for virtual microphone
+            const destination = audioContext.createMediaStreamDestination();
+
+            // Store original getUserMedia
+            const nav = (globalThis as any).navigator;
+            const originalGetUserMedia = nav.mediaDevices.getUserMedia.bind(nav.mediaDevices);
+
+            // Override getUserMedia to provide virtual microphone
+            nav.mediaDevices.getUserMedia = async function (constraints: any) {
+              if (constraints && constraints.audio) {
+                console.log('🎤 Providing SpeechSynthesis virtual microphone');
+
+                const stream = destination.stream;
+
+                // Set stream properties
+                Object.defineProperty(stream, 'id', {
+                  value: `speechsynthesis-mic-${Date.now()}`,
+                  writable: false
+                });
+
+                const audioTrack = stream.getAudioTracks()[0];
+                if (audioTrack) {
+                  Object.defineProperty(audioTrack, 'label', {
+                    value: 'SpeechSynthesis Virtual Microphone',
+                    writable: false
+                  });
+                  Object.defineProperty(audioTrack, 'enabled', {
+                    value: true,
+                    writable: true
+                  });
+                  Object.defineProperty(audioTrack, 'readyState', {
+                    value: 'live',
+                    writable: false
+                  });
+                }
+
+                console.log('✅ SpeechSynthesis virtual microphone stream provided');
+                return Promise.resolve(stream);
+              }
+
+              return originalGetUserMedia(constraints);
+            };
+
+            // Use SpeechSynthesis to generate audio
+            const win = globalThis as any;
+            if ('speechSynthesis' in win) {
+              const utterance = new win.SpeechSynthesisUtterance(textToSpeak);
+              
+              // Configure for Indonesian with better voice selection
+              utterance.lang = 'id-ID';
+              utterance.rate = 0.8; // Slower for better recognition
+              utterance.pitch = 1.0;
+              utterance.volume = 1.0;
+
+              // Wait for voices to load if not ready
+              let voices = win.speechSynthesis.getVoices();
+              if (voices.length === 0) {
+                await new Promise(resolve => {
+                  win.speechSynthesis.onvoiceschanged = () => {
+                    voices = win.speechSynthesis.getVoices();
+                    resolve(undefined);
+                  };
+                });
+              }
+
+              // Enhanced Indonesian voice detection
+              const indonesianVoice = voices.find((voice: any) => {
+                const voiceName = voice.name.toLowerCase();
+                const voiceLang = voice.lang.toLowerCase();
+                
+                // Priority order for Indonesian voices
+                return (
+                  voiceLang === 'id-id' ||
+                  voiceLang === 'id' ||
+                  voiceName.includes('indonesia') ||
+                  voiceName.includes('damayanti') ||
+                  voiceName.includes('andika') ||
+                  voiceName.includes('sari') ||
+                  voiceName.includes('budi') ||
+                  (voiceLang.includes('id') && !voiceLang.includes('en'))
+                );
+              });
+
+              if (indonesianVoice) {
+                utterance.voice = indonesianVoice;
+                console.log(`🗣️ Using Indonesian voice: ${indonesianVoice.name} (${indonesianVoice.lang})`);
+              } else {
+                // Fallback: try to find any non-English voice that might work better
+                const nonEnglishVoice = voices.find((voice: any) => 
+                  !voice.lang.toLowerCase().includes('en') && 
+                  !voice.name.toLowerCase().includes('english')
+                );
+                
+                if (nonEnglishVoice) {
+                  utterance.voice = nonEnglishVoice;
+                  console.log(`🗣️ Using fallback voice: ${nonEnglishVoice.name} (${nonEnglishVoice.lang})`);
+                } else {
+                  console.log('⚠️ No Indonesian voice found, using system default');
+                  // Log available voices for debugging
+                  console.log('Available voices:', voices.map((v: any) => `${v.name} (${v.lang})`));
+                }
+              }
+
+              // Create audio source from SpeechSynthesis
+              const mediaRecorder = new win.MediaRecorder(destination.stream);
+              const audioChunks: any[] = [];
+
+              mediaRecorder.ondataavailable = (event: any) => {
+                if (event.data.size > 0) {
+                  audioChunks.push(event.data);
+                }
+              };
+
+              mediaRecorder.onstop = () => {
+                console.log('✅ SpeechSynthesis recording completed');
+                setTimeout(() => {
+                  console.log('🔇 SpeechSynthesis virtual microphone session completed');
+                  resolve();
+                }, 3000);
+              };
+
+              // Start recording and speaking
+              mediaRecorder.start();
+              
+              utterance.onstart = () => {
+                console.log('🗣️ SpeechSynthesis started speaking');
+              };
+
+              utterance.onend = () => {
+                console.log('✅ SpeechSynthesis finished speaking');
+                setTimeout(() => {
+                  mediaRecorder.stop();
+                }, 1000);
+              };
+
+              utterance.onerror = (error: any) => {
+                console.error('❌ SpeechSynthesis error:', error);
+                mediaRecorder.stop();
+              };
+
+              // Start speaking
+              win.speechSynthesis.speak(utterance);
+
+              // Safety timeout
+              setTimeout(() => {
+                console.log('⏰ SpeechSynthesis safety timeout');
+                win.speechSynthesis.cancel();
+                if (mediaRecorder.state === 'recording') {
+                  mediaRecorder.stop();
+                }
+                resolve();
+              }, 30000);
+
+            } else {
+              console.error('❌ SpeechSynthesis not supported');
+              resolve();
+            }
+
+          } catch (error) {
+            console.error('❌ SpeechSynthesis virtual microphone failed:', error);
+            resolve();
+          }
+        });
+      }, text);
+
+      console.log('🎤 SpeechSynthesis virtual microphone setup completed');
+
+    } catch (error) {
+      console.error('Error setting up SpeechSynthesis virtual microphone:', error);
     }
   }
 
@@ -423,11 +628,51 @@ export class DhaiWakeupPlatform {
     }
   }
 
-  static async playTTSToMicrophone(page: Page, text: string): Promise<void> {
+  static async playTTSToMicrophoneWithSpeechSynthesis(page: Page, text: string): Promise<void> {
     try {
-      console.log(`🎤 Sending TTS to virtual microphone: "${text}"`);
+      console.log(`🎤 Sending SpeechSynthesis TTS to virtual microphone: "${text}"`);
 
-      // Generate TTS audio
+      // Check if Indonesian voice is available first
+      const hasIndonesianVoice = await page.evaluate(() => {
+        const win = globalThis as any;
+        if (!('speechSynthesis' in win)) return false;
+        
+        const voices = win.speechSynthesis.getVoices();
+        return voices.some((voice: any) => {
+          const voiceLang = voice.lang.toLowerCase();
+          const voiceName = voice.name.toLowerCase();
+          return (
+            voiceLang === 'id-id' ||
+            voiceLang === 'id' ||
+            voiceName.includes('indonesia') ||
+            (voiceLang.includes('id') && !voiceLang.includes('en'))
+          );
+        });
+      });
+
+      if (hasIndonesianVoice) {
+        // Use SpeechSynthesis Web API directly
+        await this.simulateMicrophoneInputWithSpeechSynthesis(page, text);
+        console.log(`✅ SpeechSynthesis TTS sent to microphone for: "${text}"`);
+      } else {
+        console.log('⚠️ No proper Indonesian voice found, using Google TTS for better accent');
+        await this.playTTSToMicrophoneFallback(page, text);
+      }
+
+    } catch (error) {
+      console.error('Error sending SpeechSynthesis TTS to microphone:', error);
+      
+      // Fallback to Google TTS
+      console.log('🔄 Falling back to Google TTS...');
+      await this.playTTSToMicrophoneFallback(page, text);
+    }
+  }
+
+  static async playTTSToMicrophoneFallback(page: Page, text: string): Promise<void> {
+    try {
+      console.log(`🎤 Sending fallback TTS to virtual microphone: "${text}"`);
+
+      // Generate TTS audio with Google TTS
       const audioPath = await this.generateTTS(text);
 
       // Send TTS to virtual microphone (not just play audio)
@@ -438,10 +683,25 @@ export class DhaiWakeupPlatform {
         fs.unlinkSync(audioPath);
       } catch { }
 
-      console.log(`✅ TTS sent to microphone for: "${text}"`);
+      console.log(`✅ Fallback TTS sent to microphone for: "${text}"`);
 
     } catch (error) {
-      console.error('Error sending TTS to microphone:', error);
+      console.error('Error sending fallback TTS to microphone:', error);
+    }
+  }
+
+  static async playTTSToMicrophone(page: Page, text: string, forceGoogleTTS: boolean = false): Promise<void> {
+    try {
+      if (forceGoogleTTS) {
+        console.log('🔄 Using Google TTS for better Indonesian accent');
+        await this.playTTSToMicrophoneFallback(page, text);
+      } else {
+        // Try SpeechSynthesis first
+        await this.playTTSToMicrophoneWithSpeechSynthesis(page, text);
+      }
+    } catch (error) {
+      console.error('Error with primary TTS method:', error);
+      // Fallback is already handled in playTTSToMicrophoneWithSpeechSynthesis
     }
   }
 
@@ -461,7 +721,9 @@ export class DhaiWakeupPlatform {
       }
 
       // Send combined wake word + question to virtual microphone
-      await this.playTTSToMicrophone(page, fullText);
+      // Set forceGoogleTTS = true if you want better Indonesian accent
+      const forceGoogleTTS = true; // Change to false to try SpeechSynthesis first
+      await this.playTTSToMicrophone(page, fullText, forceGoogleTTS);
 
       // Dynamic wait time based on text length for better recognition
       const baseWaitTime = 4;
@@ -732,7 +994,7 @@ export class DhaiWakeupPlatform {
 
             const skor = 80;
             const explanation = 'Auto-evaluated with TTS';
-            const AI = 'Playwright TypeScript + Google TTS';
+            const AI = 'Playwright TypeScript + SpeechSynthesis TTS';
 
             const status = this.calculateStatus(skor);
 
@@ -780,6 +1042,11 @@ export class DhaiWakeupPlatform {
     }
 
     console.log('✅ Topik Terakhir \n');
+
+    // Generate HTML report after all tests complete
+    console.log('📊 Generating HTML report...');
+    EnvFile.generateHtmlReport(reportFilename, idTest);
+    console.log('✅ HTML report generated successfully!\n');
 
     // Cleanup temp audio folder
     try {

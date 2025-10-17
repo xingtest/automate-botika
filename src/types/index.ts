@@ -26,6 +26,8 @@ export interface SummaryData {
   browser_name: string;
   date_test: string;
   start_time_test: string;
+  end_time_test?: string;
+  duration?: string;
   total_title: number;
   total_question: number;
   success: number;

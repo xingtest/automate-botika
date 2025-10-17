@@ -79,4 +79,142 @@ export class EnvFile {
     console.log(`Or use existing JSON file from assets/json/converted/`);
     return [];
   }
+
+  static generateHtmlReport(reportFilename: string, idTest: string): void {
+    try {
+      const reportDir = path.join('report', 'json');
+      const htmlDir = path.join('report', 'html');
+      const templatePath = path.join('report', 'template', 'template.html');
+      
+      if (!fs.existsSync(htmlDir)) {
+        fs.mkdirSync(htmlDir, { recursive: true });
+      }
+
+      // Check if template exists
+      if (!fs.existsSync(templatePath)) {
+        console.log('⚠️ Template file not found at report/template/template.html');
+        return;
+      }
+
+      // Read JSON data files
+      const botDataPath = path.join(reportDir, `${reportFilename}-${idTest}.json`);
+      const summaryDataPath = path.join(reportDir, `${reportFilename}-${idTest}-summary.json`);
+      const chartDataPath = path.join(reportDir, `${reportFilename}-${idTest}-chart.json`);
+
+      if (!fs.existsSync(botDataPath) || !fs.existsSync(summaryDataPath)) {
+        console.log('⚠️ Required JSON files not found for HTML report generation');
+        return;
+      }
+
+      const botData: BotData[] = JSON.parse(fs.readFileSync(botDataPath, 'utf-8'));
+      const summaryData: SummaryData = JSON.parse(fs.readFileSync(summaryDataPath, 'utf-8'));
+      const chartData = fs.existsSync(chartDataPath) ? JSON.parse(fs.readFileSync(chartDataPath, 'utf-8')) : {};
+
+      // Read template
+      let htmlTemplate = fs.readFileSync(templatePath, 'utf-8');
+
+      // Generate HTML content using template
+      const htmlContent = this.processTemplate(htmlTemplate, botData, summaryData, chartData);
+
+      // Write HTML file
+      const htmlFilePath = path.join(htmlDir, `${reportFilename}-${idTest}.html`);
+      fs.writeFileSync(htmlFilePath, htmlContent);
+
+      console.log(`✅ HTML report generated: ${htmlFilePath}`);
+    } catch (error) {
+      console.error('❌ Error generating HTML report:', error);
+    }
+  }
+
+  private static processTemplate(
+    template: string,
+    botData: BotData[],
+    summaryData: SummaryData,
+    chartData: Record<string, string>
+  ): string {
+    // Calculate statistics
+    const totalQuestions = botData.length;
+    const passedQuestions = botData.filter(item => item.status === 'PASS').length;
+    const failedQuestions = botData.filter(item => item.status === 'FAILED').length;
+
+    // Create summary array for template compatibility
+    const summaryArray = [summaryData];
+
+    // Replace template variables
+    let processedTemplate = template;
+
+    // Replace summary data placeholders
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.success\s*\}\}/g, passedQuestions.toString());
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.failed\s*\}\}/g, failedQuestions.toString());
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.total_title\s*\}\}/g, summaryData.total_title.toString());
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.total_question\s*\}\}/g, summaryData.total_question.toString());
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.duration\s*\}\}/g, summaryData.duration || 'N/A');
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.id_test\s*\}\}/g, summaryData.id_test);
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.tester_name\s*\}\}/g, summaryData.tester_name);
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.date_test\s*\}\}/g, summaryData.date_test);
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.ai_evaluation\s*\}\}/g, summaryData.ai_evaluation);
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.browser_name\s*\}\}/g, summaryData.browser_name);
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.url\s*\}\}/g, summaryData.url);
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.start_time_test\s*\}\}/g, summaryData.start_time_test);
+    processedTemplate = processedTemplate.replace(/\{\{\s*summary\[0\]\.end_time_test\s*\}\}/g, summaryData.end_time_test || 'N/A');
+
+    // Process test data loop ({% for test_item in test_data %})
+    const forLoopRegex = /\{\%\s*for\s+test_item\s+in\s+test_data\s*\%\}([\s\S]*?)\{\%\s*endfor\s*\%\}/g;
+    processedTemplate = processedTemplate.replace(forLoopRegex, (match, loopContent) => {
+      return botData.map(item => {
+        let itemContent = loopContent;
+        
+        // Replace test_item placeholders
+        itemContent = itemContent.replace(/\{\{\s*test_item\.title\s*\}\}/g, this.escapeHtml(item.title));
+        itemContent = itemContent.replace(/\{\{\s*test_item\.question\s*\}\}/g, this.escapeHtml(item.question));
+        itemContent = itemContent.replace(/\{\{\s*test_item\.response_kb\s*\}\}/g, this.escapeHtml(item.response_kb));
+        itemContent = itemContent.replace(/\{\{\s*test_item\.response_llm\s*\}\}/g, this.escapeHtml(item.response_llm));
+        itemContent = itemContent.replace(/\{\{\s*test_item\.explanation\s*\}\}/g, this.escapeHtml(item.explanation));
+        itemContent = itemContent.replace(/\{\{\s*test_item\.skor\s*\}\}/g, item.skor.toString());
+        itemContent = itemContent.replace(/\{\{\s*test_item\.status\s*\}\}/g, item.status);
+        itemContent = itemContent.replace(/\{\{\s*test_item\.duration\s*\}\}/g, item.duration);
+        
+        // Handle image capture with conditional
+        const imageConditionRegex = /\{\%\s*if\s+test_item\.image_capture\s*\%\}([\s\S]*?)\{\%\s*else\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\}/g;
+        itemContent = itemContent.replace(imageConditionRegex, (match: string, ifContent: string, elseContent: string) => {
+          if (item.image_capture) {
+            return ifContent.replace(/\{\{\s*test_item\.image_capture\s*\}\}/g, `screenshoot/${item.image_capture}`);
+          } else {
+            return elseContent;
+          }
+        });
+        
+        return itemContent;
+      }).join('');
+    });
+
+    // Update title for DHAI Wake-up Word
+    processedTemplate = processedTemplate.replace(
+      /<title>Dashboard Analytics<\/title>/,
+      `<title>🎤 DHAI Wake-up Word Test Report - ${summaryData.id_test}</title>`
+    );
+
+    // Update main title
+    processedTemplate = processedTemplate.replace(
+      /Hello, Champ!/,
+      '🎤 DHAI Wake-up Word Test Report'
+    );
+
+    return processedTemplate;
+  }
+
+  private static escapeHtml(text: string): string {
+    const div = { innerHTML: '' } as any;
+    div.textContent = text;
+    return div.innerHTML || text.replace(/[&<>"']/g, (match: string) => {
+      const escapeMap: { [key: string]: string } = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      };
+      return escapeMap[match];
+    });
+  }
 }
