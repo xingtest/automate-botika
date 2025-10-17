@@ -788,17 +788,19 @@ export class DhaiWakeupPlatform {
 
   static async waitForValidResponse(page: Page, previousResponseLength: number = 0): Promise<string[]> {
     console.log('⏳ Waiting for new DHAI response...');
+    console.log(`📊 Tracking from previous length: ${previousResponseLength} chars`);
 
     let attempts = 0;
-    const maxAttempts = 8; // Increased attempts
+    const maxAttempts = 10;
     let lastDetectedLength = previousResponseLength;
+    let stableCount = 0;
 
     while (attempts < maxAttempts) {
       attempts++;
       console.log(`🔍 Checking for new response (attempt ${attempts}/${maxAttempts})...`);
 
       // Wait between attempts
-      await Modul.waitTime(2); // Reduced wait time
+      await Modul.waitTime(2);
 
       // Get current bubble-msg content
       const bubbleMsg = await page.locator('#bubble-msg').textContent();
@@ -807,65 +809,96 @@ export class DhaiWakeupPlatform {
 
         // Check if there's new content
         if (currentLength > lastDetectedLength) {
-          console.log(`📝 New content detected (${currentLength} vs ${lastDetectedLength} chars)`);
-          lastDetectedLength = currentLength;
-
-          // Wait a bit more for complete response
+          console.log(`📝 New content detected! Length: ${currentLength} (previous: ${lastDetectedLength})`);
+          
+          // Wait for response to stabilize
           await Modul.waitTime(2);
           
-          // Get updated content after waiting
-          const finalBubbleMsg = await page.locator('#bubble-msg').textContent();
-          if (finalBubbleMsg && finalBubbleMsg.trim()) {
-            const finalLength = finalBubbleMsg.trim().length;
+          const checkBubbleMsg = await page.locator('#bubble-msg').textContent();
+          const checkLength = checkBubbleMsg ? checkBubbleMsg.trim().length : 0;
+          
+          // If length is stable (not growing anymore)
+          if (checkLength === currentLength) {
+            stableCount++;
+            console.log(`✅ Response length stable (${stableCount}/2)`);
             
-            // If length is stable, extract the response
-            if (finalLength === currentLength || attempts >= 6) {
-              // Extract the latest response by splitting and getting recent parts
-              const lines = finalBubbleMsg.split('\n').map(line => line.trim()).filter(line => line);
+            if (stableCount >= 2) {
+              // Extract ONLY the new response (not the entire bubble)
+              const newResponse = this.extractNewResponse(bubbleMsg, previousResponseLength);
               
-              // Find the most recent response (look for pattern: text followed by timestamp)
-              let newResponse = '';
-              for (let i = lines.length - 1; i >= 0; i--) {
-                const line = lines[i];
-                
-                // Skip timestamps
-                if (/^\d{2}:\d{2}$/.test(line)) {
-                  continue;
-                }
-                
-                // This should be the response text
-                if (line && line.length > 10) { // Reasonable response length
-                  newResponse = line;
-                  break;
-                }
-              }
-
-              // If we couldn't extract properly, get the last substantial line
-              if (!newResponse && lines.length > 0) {
-                for (let i = lines.length - 1; i >= 0; i--) {
-                  const line = lines[i];
-                  if (line && !line.match(/^\d{2}:\d{2}$/) && line.length > 5) {
-                    newResponse = line;
-                    break;
-                  }
-                }
-              }
-
               if (newResponse) {
-                console.log(`📝 New response extracted: "${newResponse.substring(0, 100)}${newResponse.length > 100 ? '...' : ''}"`);
+                console.log(`✅ New response extracted: "${newResponse.substring(0, 100)}${newResponse.length > 100 ? '...' : ''}"`);
                 return [newResponse];
               }
             }
+          } else {
+            // Still growing, reset stable count
+            stableCount = 0;
+            lastDetectedLength = checkLength;
+            console.log(`⏳ Response still growing... new length: ${checkLength}`);
           }
         } else if (attempts <= 3) {
-          // For first few attempts, continue waiting even if no new content
-          console.log(`⏳ No new content yet, continuing to wait...`);
+          console.log(`⏳ No new content yet (current: ${currentLength}, previous: ${lastDetectedLength})`);
         }
       }
     }
 
     console.log('⚠️ No new response detected after multiple attempts');
     return ['Timeout: Tidak ada respons baru dari DHAI setelah TTS'];
+  }
+
+  static extractNewResponse(fullBubbleContent: string, previousLength: number): string {
+    // Split content into lines
+    const lines = fullBubbleContent.split('\n').map(line => line.trim()).filter(line => line);
+    
+    console.log(`🔍 Extracting new response from ${lines.length} lines...`);
+    
+    // Get the content that's new (after previousLength)
+    const previousContent = fullBubbleContent.substring(0, previousLength);
+    const newContent = fullBubbleContent.substring(previousLength).trim();
+    
+    if (newContent) {
+      // Split new content into lines
+      const newLines = newContent.split('\n').map(line => line.trim()).filter(line => line);
+      
+      // Filter out timestamps and get actual response
+      const responseLine = newLines.find(line => {
+        // Skip timestamps (HH:MM format)
+        if (/^\d{2}:\d{2}$/.test(line)) {
+          return false;
+        }
+        // Skip very short lines (likely not a real response)
+        if (line.length < 3) {
+          return false;
+        }
+        return true;
+      });
+      
+      if (responseLine) {
+        console.log(`✅ Extracted response line: "${responseLine}"`);
+        return responseLine;
+      }
+    }
+    
+    // Fallback: get the last non-timestamp line from all lines
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      
+      // Skip timestamps
+      if (/^\d{2}:\d{2}$/.test(line)) {
+        continue;
+      }
+      
+      // Skip very short lines
+      if (line.length < 3) {
+        continue;
+      }
+      
+      console.log(`⚠️ Fallback: Using last valid line: "${line}"`);
+      return line;
+    }
+    
+    return '';
   }
 
   static currentResponseLength = 0; // Track response length
@@ -876,8 +909,7 @@ export class DhaiWakeupPlatform {
       console.log('⏳ Waiting for DHAI to process TTS and respond...');
       await Modul.waitTime(4);
 
-      // Get current response length before waiting for new response
-      const currentBubbleMsg = await page.locator('#bubble-msg').textContent();
+      // Get previous response length before waiting for new response
       const previousLength = this.currentResponseLength;
 
       console.log(`📊 Previous response length: ${previousLength} chars`);
@@ -885,9 +917,11 @@ export class DhaiWakeupPlatform {
       // Get new response with length tracking
       const response = await this.waitForValidResponse(page, previousLength);
 
-      // Update current response length
-      if (currentBubbleMsg) {
-        this.currentResponseLength = currentBubbleMsg.trim().length;
+      // Update current response length after getting new response
+      const updatedBubbleMsg = await page.locator('#bubble-msg').textContent();
+      if (updatedBubbleMsg) {
+        this.currentResponseLength = updatedBubbleMsg.trim().length;
+        console.log(`📊 Updated response length: ${this.currentResponseLength} chars`);
       }
 
       if (response[0] && !response[0].includes('Timeout')) {
