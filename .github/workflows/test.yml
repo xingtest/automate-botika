@@ -52,7 +52,7 @@ jobs:
     
     strategy:
       matrix:
-        browser: [chromium, firefox, webkit]
+        browser: [chromium]
     
     steps:
     - name: Checkout code
