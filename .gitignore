@@ -52,3 +52,4 @@ venv/
 Thumbs.db
 .DS_Store
 log
+docs

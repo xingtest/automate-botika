@@ -63,21 +63,89 @@ export class EnvFile {
   }
 
   static convertExcelToJson(filename: string): any[] {
-    // Placeholder - untuk sementara return empty array
-    // User harus convert Excel ke JSON terlebih dahulu
-    console.log(`⚠️  Excel parsing not yet implemented.`);
-    console.log(`Please convert ${filename} to JSON format first.`);
-    console.log(`Or use existing JSON file from assets/json/converted/`);
-    return [];
+    try {
+      const XLSX = require('xlsx');
+      const filePath = path.join('assets', 'xlsx', filename);
+      
+      if (!fs.existsSync(filePath)) {
+        console.log(`⚠️ Excel file not found: ${filePath}`);
+        return [];
+      }
+
+      console.log(`📊 Reading Excel file: ${filename}`);
+      
+      // Read the Excel file
+      const workbook = XLSX.readFile(filePath);
+      
+      // Get the first sheet name
+      const sheetName = workbook.SheetNames[0];
+      console.log(`📋 Reading sheet: ${sheetName}`);
+      
+      // Convert sheet to JSON
+      const worksheet = workbook.Sheets[sheetName];
+      const rawData = XLSX.utils.sheet_to_json(worksheet);
+      
+      // Normalize key names to lowercase
+      const jsonData = rawData.map((row: any) => {
+        const normalizedRow: any = {};
+        Object.keys(row).forEach(key => {
+          const normalizedKey = key.toLowerCase();
+          normalizedRow[normalizedKey] = row[key];
+        });
+        return normalizedRow;
+      });
+      
+      console.log(`✅ Successfully converted Excel to JSON: ${jsonData.length} rows`);
+      console.log('📋 Sample data:', JSON.stringify(jsonData[0], null, 2));
+      
+      return jsonData;
+      
+    } catch (error) {
+      console.error(`❌ Error reading Excel file ${filename}:`, error);
+      console.log(`Please make sure the file exists at assets/xlsx/${filename}`);
+      return [];
+    }
   }
 
   static convertCsvToJson(filename: string): any[] {
-    // Placeholder - untuk sementara return empty array
-    // User harus convert CSV ke JSON terlebih dahulu
-    console.log(`⚠️  CSV parsing not yet implemented.`);
-    console.log(`Please convert ${filename} to JSON format first.`);
-    console.log(`Or use existing JSON file from assets/json/converted/`);
-    return [];
+    try {
+      const csvPath = path.join('assets', 'csv', filename);
+      
+      if (!fs.existsSync(csvPath)) {
+        console.log(`⚠️ CSV file not found: ${csvPath}`);
+        return [];
+      }
+
+      const csvContent = fs.readFileSync(csvPath, 'utf-8');
+      const lines = csvContent.trim().split('\n');
+      
+      if (lines.length < 2) {
+        console.log(`⚠️ CSV file must have at least header and one data row`);
+        return [];
+      }
+
+      // Parse header
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      // Parse data rows
+      const jsonData = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const rowData: any = {};
+        
+        headers.forEach((header, index) => {
+          rowData[header] = values[index] || '';
+        });
+        
+        jsonData.push(rowData);
+      }
+
+      console.log(`✅ Successfully converted CSV to JSON: ${jsonData.length} records`);
+      return jsonData;
+    } catch (error) {
+      console.error(`❌ Error converting CSV to JSON:`, error);
+      return [];
+    }
   }
 
   static generateHtmlReport(reportFilename: string, idTest: string): void {
