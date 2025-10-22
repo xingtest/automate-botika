@@ -1,6 +1,8 @@
 import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
+import { GeminiEvaluator } from '../utils/gemini-evaluator';
+import { ResponseCapture } from '../utils/response-capture';
 import { TestData, BotData, SummaryData } from '../types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -127,12 +129,6 @@ export class InstagramPlatform {
       
       await Modul.waitTime(5);
 
-      // Take screenshot for debugging
-      try {
-        await this.page.screenshot({ path: `debug_instagram_${Date.now()}.png` });
-        console.log('Debug screenshot saved');
-      } catch {}
-
       // Try multiple selectors for message input
       const inputSelectors = [
         'div[contenteditable="true"][role="textbox"]',
@@ -191,23 +187,21 @@ export class InstagramPlatform {
     }
   }
 
-  async getLatestMessage(username: string, afterTimestamp: number): Promise<string> {
+  async getAllBotResponses(username: string, userMessage: string, afterTimestamp: number): Promise<string> {
     if (!this.page) {
       console.error('Instagram page not initialized');
       return 'Error: Page not initialized';
     }
 
     try {
-      // Wait for response with polling
-      console.log('Waiting for response...');
+      console.log(`🔍 Capturing bot responses for: "${userMessage}"`);
       await Modul.waitTime(15);
 
-      // Try multiple selectors for messages
+      // Try multiple selectors for messages - prioritize more specific ones
       const messageSelectors = [
         'div[role="row"]',
-        'div[class*="message"]',
+        'div[class*="x1n2onr6"]', // Instagram message container
         'div[dir="auto"]',
-        'span[dir="auto"]',
       ];
 
       let messages: any[] = [];
@@ -216,49 +210,168 @@ export class InstagramPlatform {
           const found = await this.page.locator(selector).all();
           if (found.length > 0) {
             messages = found;
-            console.log(`Found ${messages.length} messages with selector: ${selector}`);
+            console.log(`Found ${found.length} messages with selector: ${selector}`);
             break;
           }
         } catch {}
       }
 
-      if (messages.length > 0) {
-        // Get last few messages
-        const lastMessages = messages.slice(-3);
-        const texts: string[] = [];
-        
-        for (const msg of lastMessages) {
+      console.log(`📊 Total messages: ${messages.length}`);
+
+      if (messages.length === 0) {
+        console.log('⚠️ No messages found');
+        return 'Tidak ada balasan dari bot.';
+      }
+
+      // Find user's question message (search from end)
+      let questionIndex = -1;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        try {
+          const text = await messages[i].textContent();
+          if (text && text.trim() === userMessage.trim()) {
+            questionIndex = i;
+            console.log(`✅ Found question at index ${i}: "${text}"`);
+            break;
+          }
+        } catch {}
+      }
+
+      if (questionIndex < 0) {
+        console.log('⚠️ Question not found in messages, trying partial match...');
+        // Try partial match
+        for (let i = messages.length - 1; i >= 0; i--) {
           try {
-            const text = await msg.textContent();
-            if (text && text.trim()) {
-              texts.push(text.trim());
+            const text = await messages[i].textContent();
+            if (text && text.includes(userMessage.substring(0, 20))) {
+              questionIndex = i;
+              console.log(`✅ Found question (partial) at index ${i}`);
+              break;
             }
           } catch {}
         }
+      }
 
-        if (texts.length > 0) {
-          const response = texts[texts.length - 1];
-          console.log(`Response received: ${response.substring(0, 50)}...`);
-          return response;
+      // Collect bot responses after the question
+      const botResponses: string[] = [];
+      const startIndex = questionIndex >= 0 ? questionIndex + 1 : Math.max(0, messages.length - 3);
+      
+      console.log(`📝 Capturing bot responses from index ${startIndex}...`);
+      
+      // UI noise to filter (but keep actual bot responses)
+      const uiNoisePatterns = [
+        /^You sent$/i,
+        /^Enter$/i,
+        /^Message$/i,
+        /^Send$/i,
+        /^Active \d+[mh] ago$/i,
+        /^Active now$/i,
+        /^@\w+$/,
+        /^[0-9]+$/,  // Just numbers
+        /ahmadnurbrasta2\.2/i,  // Username noise
+        /^Enter\s+@?\w+/i,  // "Enter username"
+        /@?\w+respond/i,  // "usernamerespond"
+        /@?\w+Enter/i,  // "usernameEnter"
+      ];
+      
+      for (let i = startIndex; i < messages.length; i++) {
+        try {
+          const text = await messages[i].textContent();
+          if (!text || !text.trim()) continue;
+          
+          let cleanText = text.trim();
+          
+          // Skip if it's the user's message
+          if (cleanText === userMessage.trim()) {
+            console.log(`  ⏭️ Skipping user message at ${i}`);
+            continue;
+          }
+          
+          // Skip UI noise patterns
+          const isNoise = uiNoisePatterns.some(pattern => pattern.test(cleanText));
+          if (isNoise) {
+            console.log(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
+            continue;
+          }
+          
+          // Clean up username artifacts from text
+          cleanText = cleanText
+            .replace(/ahmadnurbrasta2\.2/gi, '')
+            .replace(/^Enter\s+/i, '')
+            .replace(/respond$/i, '')
+            .replace(/Enter$/i, '')
+            .trim();
+          
+          // Skip if cleaning removed everything
+          if (!cleanText || cleanText.length < 2) {
+            console.log(`  ⏭️ Skipping empty after cleaning at ${i}`);
+            continue;
+          }
+          
+          // Accept messages with at least 2 characters (to catch "Hi", "Ok", etc)
+          botResponses.push(cleanText);
+          console.log(`  ✅ Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
+        } catch (err) {
+          console.log(`  ⚠️ Error reading message at ${i}`);
         }
       }
 
-      // Fallback: get all text content
-      try {
-        const bodyText = await this.page.locator('body').textContent();
-        if (bodyText) {
-          // Try to extract last message
-          const lines = bodyText.split('\n').filter(l => l.trim());
-          if (lines.length > 0) {
-            return lines[lines.length - 1].trim();
+      if (botResponses.length === 0) {
+        console.log('⚠️ No bot responses captured after filtering');
+        
+        // Last resort: try to get any text after question
+        console.log('🔄 Trying fallback method...');
+        try {
+          const allText = await this.page.locator('div[dir="auto"]').allTextContents();
+          console.log(`Found ${allText.length} text elements`);
+          
+          // Find question and get next elements
+          const qIndex = allText.findIndex(t => t.trim() === userMessage.trim());
+          if (qIndex >= 0 && qIndex < allText.length - 1) {
+            for (let i = qIndex + 1; i < allText.length; i++) {
+              const txt = allText[i].trim();
+              if (txt && txt.length >= 2 && txt !== userMessage.trim()) {
+                botResponses.push(txt);
+                console.log(`  ✅ Fallback captured: "${txt}"`);
+              }
+            }
           }
+        } catch {}
+        
+        if (botResponses.length === 0) {
+          return 'Tidak ada balasan dari bot.';
         }
-      } catch {}
+      }
 
-      return 'Tidak ada balasan dari bot setelah menunggu.';
+      console.log(`📊 Total captured: ${botResponses.length} bot responses`);
+      const result = botResponses.join('\n');
+      console.log(`📝 Final result: "${result.substring(0, 100)}..."`);
+      return result;
     } catch (error) {
-      console.error('Error getting latest message:', error);
+      console.error('Error getting bot responses:', error);
       return 'Error: Gagal mengambil pesan';
+    }
+  }
+
+  async takeScreenshot(idTest: string, key: string, question: string): Promise<string> {
+    if (!this.page) {
+      return '';
+    }
+
+    const screenshotDir = 'report/screenshoot';
+    if (!fs.existsSync(screenshotDir)) {
+      fs.mkdirSync(screenshotDir, { recursive: true });
+    }
+
+    const sanitizedQuestion = question.substring(0, 30).replace(/[^a-z0-9]/gi, '_');
+    const filename = `${idTest}_${key}_${sanitizedQuestion}.png`;
+    const filepath = path.join(screenshotDir, filename);
+
+    try {
+      await this.page.screenshot({ path: filepath, fullPage: false });
+      return filename;
+    } catch (error) {
+      console.error('Error taking screenshot:', error);
+      return '';
     }
   }
 
@@ -304,10 +417,14 @@ export class InstagramPlatform {
           const sentTimestamp = Date.now();
           await this.sendMessage(targetUsername, question);
 
-          let respondBot = await this.getLatestMessage(targetUsername, sentTimestamp);
+          let respondBot = await this.getAllBotResponses(targetUsername, question, sentTimestamp);
           if (!respondBot) {
             respondBot = 'Error: Tidak ada balasan dari bot setelah menunggu.';
           }
+
+          // Take screenshot
+          const imageCapture = await this.takeScreenshot(idTest, key, question);
+          console.log(`📸 Screenshot saved: ${imageCapture}`);
 
           const titleLoading = `${key} : ${question}`;
           Modul.showLoadingSampleText(titleLoading);
@@ -315,9 +432,19 @@ export class InstagramPlatform {
           const respondCsv = (element.context || '').trim();
           const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
 
-          const skor = 80;
-          const explanation = 'Auto-evaluated';
-          const AI = 'Playwright TypeScript';
+          // AI evaluation using Gemini
+          console.log('🤖 Evaluating response with Gemini AI...');
+          const geminiEvaluator = new GeminiEvaluator();
+          const evaluationResult = await geminiEvaluator.evaluateResponse(
+            question,
+            respondCsv,
+            respondBot,
+            element.title || 'Unknown Topic'
+          );
+          
+          const skor = evaluationResult.score;
+          const explanation = evaluationResult.explanation;
+          const AI = evaluationResult.success ? 'Gemini AI + Playwright TypeScript' : 'Playwright TypeScript (Gemini fallback)';
 
           const status = InstagramPlatform.calculateStatus(skor);
 
@@ -329,7 +456,7 @@ export class InstagramPlatform {
             response_llm: respondBot,
             status,
             duration: endDurationPerSampleText,
-            image_capture: null,
+            image_capture: imageCapture,
             skor,
             explanation
           };

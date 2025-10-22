@@ -1,6 +1,8 @@
 import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
+import { GeminiEvaluator } from '../utils/gemini-evaluator';
+import { ResponseCapture } from '../utils/response-capture';
 import { TestData, BotData, SummaryData } from '../types';
 
 export class DhaiPlatform {
@@ -40,39 +42,71 @@ export class DhaiPlatform {
     }
   }
 
-  static async getReply(page: Page): Promise<string[]> {
+  static async getReply(page: Page, userMessage: string): Promise<string[]> {
     try {
+      console.log(`🔍 Capturing bot responses for: "${userMessage}"`);
       await Modul.waitTime(3);
 
-      // Try to find chat messages
+      // Try to find all chat messages
       const chatMessages = await page.locator('div[class*="message"], div[class*="chat"], div[class*="bubble"]').all();
 
+      console.log(`📊 Total messages: ${chatMessages.length}`);
+
       if (chatMessages.length > 0) {
-        const lastMessage = await chatMessages[chatMessages.length - 1].textContent();
-        if (lastMessage) {
-          console.log(`Balasan diterima: ${lastMessage}`);
-          return [lastMessage.trim()];
+        // Find user's question
+        let questionIndex = -1;
+        for (let i = 0; i < chatMessages.length; i++) {
+          const text = await chatMessages[i].textContent();
+          if (text && text.includes(userMessage)) {
+            questionIndex = i;
+            console.log(`✅ Found question at index ${i}`);
+            break;
+          }
+        }
+
+        if (questionIndex < 0) {
+          console.log('⚠️ Question not found, using recent messages');
+        }
+
+        // Collect bot responses after the question
+        const botResponses: string[] = [];
+        const startIndex = questionIndex >= 0 ? questionIndex + 1 : Math.max(0, chatMessages.length - 3);
+        
+        console.log(`📝 Capturing from index ${startIndex}...`);
+        
+        for (let i = startIndex; i < chatMessages.length; i++) {
+          const text = await chatMessages[i].textContent();
+          if (text && text.trim() && !text.includes(userMessage)) {
+            botResponses.push(text.trim());
+            console.log(`  ✅ Bot message ${botResponses.length}: "${text.substring(0, 60)}..."`);
+          }
+        }
+
+        if (botResponses.length > 0) {
+          console.log(`📊 Captured ${botResponses.length} bot responses`);
+          return botResponses;
         }
       }
 
       // Fallback to bubble-msg
+      console.log('💡 Trying fallback: bubble-msg');
       const bubbleMsg = await page.locator('#bubble-msg').textContent();
       if (bubbleMsg) {
-        const lines = bubbleMsg.split('\n');
-        for (let i = lines.length - 1; i >= 0; i--) {
-          const line = lines[i].trim();
-          if (line && !/^\d{2}:\d{2}$/.test(line)) {
-            console.log(`Balasan diterima: ${line}`);
-            return [line];
-          }
+        const lines = bubbleMsg.split('\n').filter(line => {
+          const trimmed = line.trim();
+          return trimmed && !/^\d{2}:\d{2}$/.test(trimmed) && !trimmed.includes(userMessage);
+        });
+        
+        if (lines.length > 0) {
+          console.log(`📊 Captured ${lines.length} lines from bubble-msg`);
+          return lines.map(l => l.trim());
         }
-        console.log(`Balasan diterima: ${bubbleMsg}`);
-        return [bubbleMsg];
       }
 
+      console.log('⚠️ No bot responses captured');
       return [];
     } catch (error) {
-      console.error('Error saat mengambil balasan dari DHAI:', error);
+      console.error('❌ Error:', error);
       return [];
     }
   }
@@ -140,7 +174,7 @@ export class DhaiPlatform {
             await Modul.waitTime(5);
 
             const imageCapture = await this.takeScreenshot(page, idTest, key, question);
-            const respondBotList = await this.getReply(page);
+            const respondBotList = await this.getReply(page, question);
             let respondBot = respondBotList.join('\n').trim();
 
             if (!respondBot) {
@@ -153,9 +187,19 @@ export class DhaiPlatform {
             const respondCsv = (element.context || '').trim();
             const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
 
-            const skor = 80;
-            const explanation = 'Auto-evaluated';
-            const AI = 'Playwright TypeScript';
+            // AI evaluation using Gemini
+            console.log('🤖 Evaluating response with Gemini AI...');
+            const geminiEvaluator = new GeminiEvaluator();
+            const evaluationResult = await geminiEvaluator.evaluateResponse(
+              question,
+              respondCsv,
+              respondBot,
+              element.title || 'Unknown Topic'
+            );
+            
+            const skor = evaluationResult.score;
+            const explanation = evaluationResult.explanation;
+            const AI = evaluationResult.success ? 'Gemini AI + Playwright TypeScript' : 'Playwright TypeScript (Gemini fallback)';
 
             const status = this.calculateStatus(skor);
 

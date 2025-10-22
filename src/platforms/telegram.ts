@@ -2,6 +2,8 @@ import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
+import { GeminiEvaluator } from '../utils/gemini-evaluator';
+import { ResponseCapture } from '../utils/response-capture';
 import { TestData, BotData, SummaryData } from '../types';
 
 export class TelegramPlatform {
@@ -53,6 +55,137 @@ export class TelegramPlatform {
     }
   }
 
+  async getAllBotResponses(botUsername: string, userMessage: string, maxWaitSeconds: number = 15): Promise<string> {
+    if (!this.client) {
+      console.error('Telegram client not initialized');
+      return 'Error: Client not initialized';
+    }
+
+    try {
+      console.log(`🔍 Capturing bot responses for: "${userMessage.substring(0, 50)}..."`);
+      
+      // Get initial message count to know when new messages arrive
+      const initialMessages = await this.client.getMessages(botUsername, { limit: 5 });
+      const initialCount = initialMessages.length;
+      
+      console.log(`⏳ Waiting for bot reply (max ${maxWaitSeconds}s)...`);
+      
+      // Poll for new incoming messages
+      let botResponses: string[] = [];
+      let attempts = 0;
+      const maxAttempts = Math.ceil(maxWaitSeconds / 2); // Check every 2 seconds to avoid flood wait
+      
+      while (attempts < maxAttempts) {
+        await Modul.waitTime(2);
+        attempts++;
+        
+        // Get recent messages
+        const messages = await this.client.getMessages(botUsername, { limit: 30 });
+        
+        // Find the user's question message (should be outgoing)
+        let questionIndex = -1;
+        for (let i = 0; i < messages.length; i++) {
+          const msg = messages[i];
+          if (msg.out && msg.text && msg.text.includes(userMessage)) {
+            questionIndex = i;
+            break;
+          }
+        }
+        
+        if (questionIndex === -1) {
+          continue; // Question not found yet, keep waiting
+        }
+        
+        // Collect all bot responses BEFORE the question in the array (which means AFTER in time)
+        // Since messages are in reverse chronological order (newest first at index 0)
+        // We need to collect from index 0 to questionIndex-1
+        const currentBotResponses: string[] = [];
+        for (let i = 0; i < questionIndex; i++) {
+          const msg = messages[i];
+          // Only collect incoming messages (from bot)
+          if (!msg.out && msg.text) {
+            currentBotResponses.push(msg.text);
+          }
+        }
+        
+        // Check if we got new responses
+        if (currentBotResponses.length > 0) {
+          const previousCount = botResponses.length;
+          botResponses = currentBotResponses;
+          
+          // Check if response is stable (same count for 2 consecutive checks)
+          if (previousCount === botResponses.length && previousCount > 0) {
+            // Wait one more cycle to ensure stability
+            if (attempts > 1) {
+              console.log(`✅ Found stable response with ${botResponses.length} messages`);
+              break;
+            }
+          }
+          
+          console.log(`📨 Received ${botResponses.length} bot messages (attempt ${attempts}/${maxAttempts}), waiting for more...`);
+        }
+      }
+      
+      if (botResponses.length === 0) {
+        console.log(`⚠️ Timeout (${maxWaitSeconds}s) - no bot responses found`);
+        
+        // Fallback: get latest incoming messages
+        const messages = await this.client.getMessages(botUsername, { limit: 30 });
+        console.log(`📨 Retrieved ${messages.length} messages from chat (fallback)`);
+        
+        // Debug: show first few messages
+        for (let i = 0; i < Math.min(5, messages.length); i++) {
+          const msg = messages[i];
+          const preview = msg.text ? msg.text.substring(0, 50) : '[no text]';
+          const isOutgoing = msg.out ? '(sent by me)' : '(received)';
+          console.log(`  [${i}] ${isOutgoing}: ${preview}...`);
+        }
+        
+        // Get all recent incoming (bot) messages
+        const recentBotMessages: string[] = [];
+        for (let i = 0; i < Math.min(10, messages.length); i++) {
+          const msg = messages[i];
+          if (!msg.out && msg.text) {
+            recentBotMessages.push(msg.text);
+          }
+        }
+        
+        if (recentBotMessages.length > 0) {
+          botResponses = recentBotMessages;
+          console.log(`📋 Using ${botResponses.length} recent bot messages as fallback`);
+        } else {
+          return 'Tidak ada balasan dari bot.';
+        }
+      }
+      
+      console.log(`📋 Total responses captured: ${botResponses.length}`);
+      
+      // Show captured messages (from API - newest first)
+      console.log('📨 Messages from API (newest first):');
+      for (let i = 0; i < botResponses.length; i++) {
+        console.log(`  [${i}] "${botResponses[i].substring(0, 50)}..."`);
+      }
+      
+      // Reverse to get chronological order (oldest to newest) for report
+      botResponses.reverse();
+      
+      // Show final order
+      console.log('📨 Final order for report (oldest to newest):');
+      for (let i = 0; i < botResponses.length; i++) {
+        console.log(`  ✅ Bot message ${i + 1}: "${botResponses[i].substring(0, 50)}..."`);
+      }
+      
+      // Join all responses with newline
+      const fullResponse = botResponses.join('\n');
+      console.log(`📝 Final response (${fullResponse.length} chars): "${fullResponse.substring(0, 150)}..."`);
+      
+      return fullResponse;
+    } catch (error) {
+      console.error(`Error saat mengambil pesan dari '${botUsername}':`, error);
+      return 'Error: Gagal mengambil pesan';
+    }
+  }
+
   static calculateStatus(score: number): string {
     return score >= 70 ? 'PASS' : 'FAILED';
   }
@@ -67,6 +200,11 @@ export class TelegramPlatform {
     today: string,
     testerName: string
   ): Promise<void> {
+    // Send /start command first to activate bot
+    console.log(`🤖 Activating bot with /start command...`);
+    await this.sendMessage(targetBotUsername, '/start');
+    await Modul.waitTime(3);
+    
     Modul.showLoading(`Mengirim sapaan awal ke ${targetBotUsername}...`);
     await this.sendMessage(targetBotUsername, greeting);
     await Modul.waitTime(5);
@@ -92,9 +230,9 @@ export class TelegramPlatform {
           const question = value;
 
           await this.sendMessage(targetBotUsername, question);
-          await Modul.waitTime(15);
 
-          let respondBot = await this.getLatestMessage(targetBotUsername);
+          // Capture all bot responses with built-in polling
+          let respondBot = await this.getAllBotResponses(targetBotUsername, question, 15);
           if (!respondBot) {
             respondBot = 'Error: Tidak ada balasan dari bot setelah menunggu.';
           }
@@ -105,10 +243,19 @@ export class TelegramPlatform {
           const respondCsv = (element.context || '').trim();
           const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
 
-          // Simplified LLM scoring (placeholder)
-          const skor = 80;
-          const explanation = 'Auto-evaluated';
-          const AI = 'Playwright TypeScript';
+          // AI evaluation using Gemini
+          console.log('🤖 Evaluating response with Gemini AI...');
+          const geminiEvaluator = new GeminiEvaluator();
+          const evaluationResult = await geminiEvaluator.evaluateResponse(
+            question,
+            respondCsv,
+            respondBot,
+            element.title || 'Unknown Topic'
+          );
+          
+          const skor = evaluationResult.score;
+          const explanation = evaluationResult.explanation;
+          const AI = evaluationResult.success ? 'Gemini AI + Telegram Client' : 'Telegram Client (Gemini fallback)';
 
           const status = TelegramPlatform.calculateStatus(skor);
 

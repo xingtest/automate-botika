@@ -1,6 +1,8 @@
 import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
+import { GeminiEvaluator } from '../utils/gemini-evaluator';
+import { ResponseCapture } from '../utils/response-capture';
 import { TestData, BotData, SummaryData } from '../types';
 import * as https from 'https';
 import * as fs from 'fs';
@@ -903,37 +905,35 @@ export class DhaiWakeupPlatform {
 
   static currentResponseLength = 0; // Track response length
 
-  static async getReply(page: Page): Promise<string[]> {
+  static async getReply(page: Page, userMessage: string = ''): Promise<string[]> {
     try {
-      // Wait for DHAI to process and respond
-      console.log('⏳ Waiting for DHAI to process TTS and respond...');
+      console.log(`🔍 Capturing bot responses for: "${userMessage}"`);
+      console.log('⏳ Waiting for DHAI TTS processing...');
       await Modul.waitTime(4);
 
-      // Get previous response length before waiting for new response
+      // Get previous response length
       const previousLength = this.currentResponseLength;
-
-      console.log(`📊 Previous response length: ${previousLength} chars`);
 
       // Get new response with length tracking
       const response = await this.waitForValidResponse(page, previousLength);
 
-      // Update current response length after getting new response
+      // Update current response length
       const updatedBubbleMsg = await page.locator('#bubble-msg').textContent();
       if (updatedBubbleMsg) {
         this.currentResponseLength = updatedBubbleMsg.trim().length;
-        console.log(`📊 Updated response length: ${this.currentResponseLength} chars`);
       }
 
       if (response[0] && !response[0].includes('Timeout')) {
-        console.log(`✅ New DHAI response received: ${response[0]}`);
+        console.log(`  ✅ Bot message: "${response[0].substring(0, 60)}..."`);
+        console.log(`📊 Captured ${response.length} bot responses`);
         return response;
       } else {
-        console.log('⚠️ No new response received, but continuing...');
+        console.log('⚠️ No new response captured');
         return response;
       }
 
     } catch (error) {
-      console.error('Error saat mengambil balasan dari DHAI:', error);
+      console.error('❌ Error:', error);
       return ['Error: Gagal mengambil respons dari DHAI'];
     }
   }
@@ -1005,7 +1005,7 @@ export class DhaiWakeupPlatform {
 
             // Wait for DHAI response after TTS and validate
             console.log('📝 Getting DHAI response after TTS...');
-            const respondBotList = await this.getReply(page);
+            const respondBotList = await this.getReply(page, question);
             let respondBot = respondBotList.join('\n').trim();
 
             // Validate response before continuing
@@ -1026,9 +1026,19 @@ export class DhaiWakeupPlatform {
             const respondCsv = (element.context || '').trim();
             const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
 
-            const skor = 80;
-            const explanation = 'Auto-evaluated with TTS';
-            const AI = 'Playwright TypeScript + SpeechSynthesis TTS';
+            // AI evaluation using Gemini
+            console.log('🤖 Evaluating response with Gemini AI...');
+            const geminiEvaluator = new GeminiEvaluator();
+            const evaluationResult = await geminiEvaluator.evaluateResponse(
+              question,
+              respondCsv,
+              respondBot,
+              element.title || 'Unknown Topic'
+            );
+            
+            const skor = evaluationResult.score;
+            const explanation = evaluationResult.explanation;
+            const AI = evaluationResult.success ? 'Gemini AI + Playwright TypeScript + TTS' : 'Playwright TypeScript + TTS (Gemini fallback)';
 
             const status = this.calculateStatus(skor);
 
