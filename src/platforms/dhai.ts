@@ -302,13 +302,16 @@ export class DhaiPlatform {
             await this.sendMessage(page, question);
             await Modul.waitTime(5);
 
-            const imageCapture = await this.takeScreenshot(page, idTest, key, question);
+            // Get bot response first
             const respondBotList = await this.getReply(page, question);
             let respondBot = respondBotList.join('\n').trim();
 
             if (!respondBot) {
               respondBot = 'Error: Tidak ada balasan dari bot.';
             }
+
+            // Take screenshot AFTER bot responds
+            const imageCapture = await this.takeScreenshot(page, idTest, key, question);
 
             const titleLoading = `${key} : ${question}`;
             Modul.showLoadingSampleText(titleLoading);

@@ -62,9 +62,12 @@ export class Modul {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
   }
 
-  static async readBrowser(url: string, browserType: string = 'chromium', headless: boolean = true): Promise<{ browser: Browser; context: BrowserContext; page: Page; title: string; browserName: string }> {
+  static async readBrowser(url: string, browserType: string = 'chromium', headless: boolean = true, customViewport?: { width: number; height: number }): Promise<{ browser: Browser; context: BrowserContext; page: Page; title: string; browserName: string }> {
     const title = `Choose ${browserType.toUpperCase()} as a main browser and open the URL`;
     this.showLoading(title);
+
+    // Determine viewport size (default Full HD, or custom for DHAI)
+    const viewport = customViewport || { width: 1920, height: 1080 };
 
     // Optimized args for faster startup
     let launchArgs: string[] = [
@@ -88,8 +91,11 @@ export class Modul {
       // Visible mode - optimized for speed
       launchArgs.push(
         '--use-fake-ui-for-media-stream',
+        '--use-fake-device-for-media-stream',
         '--autoplay-policy=no-user-gesture-required',
-        '--window-size=1400,900',
+        '--allow-file-access-from-files',
+        '--disable-web-security',
+        `--window-size=${viewport.width},${viewport.height}`,
         '--disable-infobars',
         '--no-first-run',
         '--disable-default-apps',
@@ -110,10 +116,11 @@ export class Modul {
     });
 
     const context = await browser.newContext({
-      viewport: { width: 1920, height: 1080 },
-      permissions: ['microphone', 'camera'],
+      viewport: viewport,
+      permissions: ['microphone', 'camera', 'notifications'],
       ignoreHTTPSErrors: true,
-      bypassCSP: true
+      bypassCSP: true,
+      acceptDownloads: true
     });
 
     const page = await context.newPage();
