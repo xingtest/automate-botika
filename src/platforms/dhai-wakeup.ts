@@ -906,35 +906,176 @@ export class DhaiWakeupPlatform {
   static currentResponseLength = 0; // Track response length
 
   static async getReply(page: Page, userMessage: string = ''): Promise<string[]> {
+    // Retry logic: try up to 3 times with increasing wait time
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const waitTime = attempt === 1 ? 5 : attempt * 3; // 5s, 6s, 9s
+        console.log(`⏳ Waiting for DHAI TTS processing (${waitTime}s)...`);
+        await Modul.waitTime(waitTime);
+
+        console.log(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
+        
+        const responses = await this.extractBotResponse(page, userMessage);
+        
+        if (responses.length > 0) {
+          return responses;
+        }
+        
+        if (attempt < maxRetries) {
+          console.log(`⏳ No response yet, retrying in ${(attempt + 1) * 3}s...`);
+        }
+      } catch (error) {
+        console.error(`Error on attempt ${attempt}:`, error);
+        if (attempt === maxRetries) {
+          return ['Error: Gagal mengambil respons dari DHAI'];
+        }
+      }
+    }
+    
+    return [];
+  }
+
+  private static async extractBotResponse(page: Page, userMessage: string): Promise<string[]> {
     try {
-      console.log(`🔍 Capturing bot responses for: "${userMessage}"`);
-      console.log('⏳ Waiting for DHAI TTS processing...');
-      await Modul.waitTime(4);
+      // Try multiple selectors for DHAI messages - same as dhai.ts
+      const messageSelectors = [
+        'span.whitespace-pre-line',  // DHAI bot response
+        'span[data-v-4699965e]',  // DHAI specific
+        'span[class*="whitespace"]',
+        'div[class*="message"]',
+        'div[class*="chat"]',
+        'div[class*="bubble"]',
+      ];
 
-      // Get previous response length
-      const previousLength = this.currentResponseLength;
-
-      // Get new response with length tracking
-      const response = await this.waitForValidResponse(page, previousLength);
-
-      // Update current response length
-      const updatedBubbleMsg = await page.locator('#bubble-msg').textContent();
-      if (updatedBubbleMsg) {
-        this.currentResponseLength = updatedBubbleMsg.trim().length;
+      let chatMessages: any[] = [];
+      for (const selector of messageSelectors) {
+        try {
+          const found = await page.locator(selector).all();
+          if (found.length > 0) {
+            chatMessages = found;
+            console.log(`📊 Found ${found.length} messages with selector: ${selector}`);
+            break;
+          }
+        } catch {}
       }
 
-      if (response[0] && !response[0].includes('Timeout')) {
-        console.log(`  ✅ Bot message: "${response[0].substring(0, 60)}..."`);
-        console.log(`📊 Captured ${response.length} bot responses`);
-        return response;
-      } else {
-        console.log('⚠️ No new response captured');
-        return response;
+      console.log(`📊 Total messages: ${chatMessages.length}`);
+
+      if (chatMessages.length > 0) {
+        // Find ALL occurrences of the question
+        const questionIndices: number[] = [];
+        for (let i = 0; i < chatMessages.length; i++) {
+          const text = await chatMessages[i].textContent();
+          if (text && text.includes(userMessage)) {
+            questionIndices.push(i);
+          }
+        }
+
+        if (questionIndices.length === 0) {
+          console.log('⚠️ Question not found');
+          
+          // Fallback: return last 3 messages
+          const recentMessages: string[] = [];
+          for (let i = Math.max(0, chatMessages.length - 3); i < chatMessages.length; i++) {
+            const text = await chatMessages[i].textContent();
+            if (text && text.trim() && !text.includes(userMessage)) {
+              recentMessages.push(text.trim());
+            }
+          }
+          
+          if (recentMessages.length > 0) {
+            console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
+            return recentMessages;
+          }
+          
+          return [];
+        }
+
+        // Use the LAST occurrence (most recent)
+        const questionIndex = questionIndices[questionIndices.length - 1];
+        console.log(`✅ Found ${questionIndices.length} occurrence(s) of question`);
+        console.log(`✅ Using LAST occurrence at index ${questionIndex}`);
+
+        // Collect bot responses after the question
+        const botResponses: string[] = [];
+        const startIndex = questionIndex + 1;
+        
+        console.log(`📝 Capturing from index ${startIndex} to ${chatMessages.length}...`);
+        
+        // Check if there are messages after the question
+        if (startIndex >= chatMessages.length) {
+          console.log('⚠️ No messages after question, question is at the end');
+          return [];
+        }
+        
+        // UI noise patterns
+        const uiNoisePatterns = [
+          /^Enter$/i,
+          /^Send$/i,
+          /^Sent$/i,
+          /^\d{2}:\d{2}$/,  // Time stamps
+          /^[0-9]+$/,  // Just numbers
+        ];
+        
+        for (let i = startIndex; i < chatMessages.length; i++) {
+          const text = await chatMessages[i].textContent();
+          if (!text || !text.trim()) continue;
+          
+          let cleanText = text.trim();
+          
+          // Skip if it's the user's message
+          if (cleanText.includes(userMessage)) {
+            console.log(`  ⏭️ Skipping user message at ${i}`);
+            continue;
+          }
+          
+          // Check if ENTIRE text is just UI noise
+          const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(cleanText));
+          if (isExactNoise) {
+            console.log(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
+            continue;
+          }
+          
+          // Skip if this is a duplicate of the last message
+          if (botResponses.length > 0 && botResponses[botResponses.length - 1] === cleanText) {
+            console.log(`  ⏭️ Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
+            continue;
+          }
+          
+          botResponses.push(cleanText);
+          console.log(`  ✅ Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
+        }
+
+        if (botResponses.length > 0) {
+          console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
+          return botResponses;
+        }
       }
 
+      // Fallback: try to get all visible text
+      console.log('💡 Trying fallback: get all visible text');
+      try {
+        // Try bubble-msg first
+        const bubbleMsg = await page.locator('#bubble-msg').textContent();
+        if (bubbleMsg && bubbleMsg.trim()) {
+          const lines = bubbleMsg.split('\n').filter(line => {
+            const trimmed = line.trim();
+            return trimmed && !/^\d{2}:\d{2}$/.test(trimmed) && !trimmed.includes(userMessage);
+          });
+          
+          if (lines.length > 0) {
+            console.log(`📊 Captured ${lines.length} lines from bubble-msg`);
+            return lines.map(l => l.trim());
+          }
+        }
+      } catch {}
+
+      console.log('⚠️ No bot responses captured');
+      return [];
     } catch (error) {
-      console.error('❌ Error:', error);
-      return ['Error: Gagal mengambil respons dari DHAI'];
+      console.error('Error extracting bot response:', error);
+      return [];
     }
   }
 
@@ -1086,11 +1227,6 @@ export class DhaiWakeupPlatform {
     }
 
     console.log('✅ Topik Terakhir \n');
-
-    // Generate HTML report after all tests complete
-    console.log('📊 Generating HTML report...');
-    EnvFile.generateHtmlReport(reportFilename, idTest);
-    console.log('✅ HTML report generated successfully!\n');
 
     // Cleanup temp audio folder
     try {

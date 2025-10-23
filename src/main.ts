@@ -185,8 +185,8 @@ async function main(): Promise<void> {
       console.log(`URL Pengujian: ${url}`);
       console.log(`Wake Word: "${wakeWord}"\n`);
 
-      // Show browser for DHAI Wake-up Word (headless: false)
-      const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium', false);
+      // Show browser for DHAI Wake-up Word (non-headless) with Full HD viewport
+      const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium', true);
       await DhaiWakeupPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, wakeWord);
       await Modul.closeBrowser(browser);
 

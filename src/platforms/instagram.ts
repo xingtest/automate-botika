@@ -193,10 +193,41 @@ export class InstagramPlatform {
       return 'Error: Page not initialized';
     }
 
-    try {
-      console.log(`🔍 Capturing bot responses for: "${userMessage}"`);
-      await Modul.waitTime(15);
+    // Retry logic: try up to 3 times with increasing wait time
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const waitTime = attempt === 1 ? 8 : attempt * 4; // 8s, 8s, 12s
+        await Modul.waitTime(waitTime);
 
+        console.log(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
+        
+        const response = await this.extractBotResponse(username, userMessage, afterTimestamp);
+        
+        if (response && response !== 'Tidak ada balasan dari bot.') {
+          return response;
+        }
+        
+        if (attempt < maxRetries) {
+          console.log(`⏳ No response yet, retrying in ${(attempt + 1) * 4}s...`);
+        }
+      } catch (error) {
+        console.error(`Error on attempt ${attempt}:`, error);
+        if (attempt === maxRetries) {
+          return 'Error: Gagal mengambil pesan';
+        }
+      }
+    }
+    
+    return 'Tidak ada balasan dari bot.';
+  }
+
+  private async extractBotResponse(username: string, userMessage: string, afterTimestamp: number): Promise<string> {
+    if (!this.page) {
+      return 'Error: Page not initialized';
+    }
+
+    try {
       // Try multiple selectors for messages - prioritize more specific ones
       const messageSelectors = [
         'div[role="row"]',
@@ -223,57 +254,101 @@ export class InstagramPlatform {
         return 'Tidak ada balasan dari bot.';
       }
 
-      // Find user's question message (search from end)
-      let questionIndex = -1;
-      for (let i = messages.length - 1; i >= 0; i--) {
+      // Find ALL occurrences of the question
+      const questionIndices: number[] = [];
+      for (let i = 0; i < messages.length; i++) {
         try {
           const text = await messages[i].textContent();
-          if (text && text.trim() === userMessage.trim()) {
-            questionIndex = i;
-            console.log(`✅ Found question at index ${i}: "${text}"`);
-            break;
+          if (text && (text.trim() === userMessage.trim() || text.includes(userMessage.substring(0, 20)))) {
+            questionIndices.push(i);
           }
         } catch {}
       }
 
-      if (questionIndex < 0) {
-        console.log('⚠️ Question not found in messages, trying partial match...');
-        // Try partial match
-        for (let i = messages.length - 1; i >= 0; i--) {
+      if (questionIndices.length === 0) {
+        console.log('⚠️ Question not found in messages');
+        console.log(`💡 Looking for: "${userMessage}"`);
+        
+        // Fallback: return last 3 messages
+        const recentMessages: string[] = [];
+        for (let i = Math.max(0, messages.length - 3); i < messages.length; i++) {
           try {
             const text = await messages[i].textContent();
-            if (text && text.includes(userMessage.substring(0, 20))) {
-              questionIndex = i;
-              console.log(`✅ Found question (partial) at index ${i}`);
-              break;
+            if (text && text.trim() && text.trim() !== userMessage.trim()) {
+              recentMessages.push(text.trim());
             }
           } catch {}
         }
+        
+        if (recentMessages.length > 0) {
+          console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
+          return recentMessages.join('\n');
+        }
+        
+        return 'Tidak ada balasan dari bot.';
       }
+
+      // Use the LAST occurrence (most recent)
+      const questionIndex = questionIndices[questionIndices.length - 1];
+      console.log(`✅ Found ${questionIndices.length} occurrence(s) of question`);
+      console.log(`✅ Using LAST occurrence at index ${questionIndex}`);
 
       // Collect bot responses after the question
       const botResponses: string[] = [];
-      const startIndex = questionIndex >= 0 ? questionIndex + 1 : Math.max(0, messages.length - 3);
+      const startIndex = questionIndex + 1;
       
       console.log(`📝 Capturing bot responses from index ${startIndex}...`);
       
-      // UI noise to filter (but keep actual bot responses)
+      // Identify next user message to know where to stop
+      const userMessageIndices: number[] = [questionIndex];
+      for (let i = questionIndex + 1; i < messages.length; i++) {
+        try {
+          const text = await messages[i].textContent();
+          if (text) {
+            const cleanText = text.trim();
+            // Detect user questions
+            if (cleanText.toLowerCase().startsWith('apa itu ') || 
+                cleanText.toLowerCase().startsWith('apa yang ') ||
+                cleanText.toLowerCase().startsWith('bagaimana ') ||
+                cleanText.toLowerCase().startsWith('mengapa ') ||
+                cleanText.toLowerCase().startsWith('siapa ') ||
+                cleanText.toLowerCase().startsWith('kapan ') ||
+                cleanText.toLowerCase().startsWith('dimana ') ||
+                cleanText.toLowerCase().startsWith('berapa ')) {
+              userMessageIndices.push(i);
+              console.log(`🔍 Detected user question at index ${i}`);
+            }
+          }
+        } catch {}
+      }
+      
+      // Find next user message after current question
+      let nextUserMessageIndex = messages.length;
+      for (const idx of userMessageIndices) {
+        if (idx > questionIndex) {
+          nextUserMessageIndex = idx;
+          console.log(`🛑 Next user message at index ${idx}, stopping there`);
+          break;
+        }
+      }
+      
+      // UI noise to filter - ONLY match exact short phrases, not words within sentences
       const uiNoisePatterns = [
         /^You sent$/i,
         /^Enter$/i,
         /^Message$/i,
         /^Send$/i,
+        /^Sent$/i,
+        /^Delivered$/i,
+        /^Seen$/i,
         /^Active \d+[mh] ago$/i,
         /^Active now$/i,
-        /^@\w+$/,
+        /^@\w+$/,  // Just username
         /^[0-9]+$/,  // Just numbers
-        /ahmadnurbrasta2\.2/i,  // Username noise
-        /^Enter\s+@?\w+/i,  // "Enter username"
-        /@?\w+respond/i,  // "usernamerespond"
-        /@?\w+Enter/i,  // "usernameEnter"
+        /^Press Enter to send$/i,
       ];
       
-      for (let i = startIndex; i < messages.length; i++) {
+      for (let i = startIndex; i < nextUserMessageIndex; i++) {
         try {
           const text = await messages[i].textContent();
           if (!text || !text.trim()) continue;
@@ -286,24 +361,34 @@ export class InstagramPlatform {
             continue;
           }
           
-          // Skip UI noise patterns
-          const isNoise = uiNoisePatterns.some(pattern => pattern.test(cleanText));
-          if (isNoise) {
+          // Check if ENTIRE text is just UI noise (skip only if exact match)
+          const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(cleanText));
+          if (isExactNoise) {
             console.log(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
             continue;
           }
           
-          // Clean up username artifacts from text
+          // Clean/hide noise words from within the text (but keep the rest)
           cleanText = cleanText
-            .replace(/ahmadnurbrasta2\.2/gi, '')
-            .replace(/^Enter\s+/i, '')
-            .replace(/respond$/i, '')
-            .replace(/Enter$/i, '')
+            .replace(/ahmadnurbrasta2\.2/gi, '')  // Remove username
+            .replace(/Enter/gi, '')  // Remove "Enter" (with or without word boundary)
+            .replace(/Sent/gi, '')  // Remove "Sent"
+            .replace(/Delivered/gi, '')  // Remove "Delivered"
+            .replace(/Seen/gi, '')  // Remove "Seen"
+            .replace(/You sent/gi, '')  // Remove "You sent"
+            .replace(/respond/gi, '')  // Remove "respond"
+            .replace(/\s+/g, ' ')  // Normalize spaces
             .trim();
           
           // Skip if cleaning removed everything
           if (!cleanText || cleanText.length < 2) {
             console.log(`  ⏭️ Skipping empty after cleaning at ${i}`);
+            continue;
+          }
+          
+          // Skip if this is a duplicate of the last message
+          if (botResponses.length > 0 && botResponses[botResponses.length - 1] === cleanText) {
+            console.log(`  ⏭️ Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
             continue;
           }
           
@@ -317,37 +402,13 @@ export class InstagramPlatform {
 
       if (botResponses.length === 0) {
         console.log('⚠️ No bot responses captured after filtering');
-        
-        // Last resort: try to get any text after question
-        console.log('🔄 Trying fallback method...');
-        try {
-          const allText = await this.page.locator('div[dir="auto"]').allTextContents();
-          console.log(`Found ${allText.length} text elements`);
-          
-          // Find question and get next elements
-          const qIndex = allText.findIndex(t => t.trim() === userMessage.trim());
-          if (qIndex >= 0 && qIndex < allText.length - 1) {
-            for (let i = qIndex + 1; i < allText.length; i++) {
-              const txt = allText[i].trim();
-              if (txt && txt.length >= 2 && txt !== userMessage.trim()) {
-                botResponses.push(txt);
-                console.log(`  ✅ Fallback captured: "${txt}"`);
-              }
-            }
-          }
-        } catch {}
-        
-        if (botResponses.length === 0) {
-          return 'Tidak ada balasan dari bot.';
-        }
+        return 'Tidak ada balasan dari bot.';
       }
 
-      console.log(`📊 Total captured: ${botResponses.length} bot responses`);
-      const result = botResponses.join('\n');
-      console.log(`📝 Final result: "${result.substring(0, 100)}..."`);
-      return result;
+      console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
+      return botResponses.join('\n');
     } catch (error) {
-      console.error('Error getting bot responses:', error);
+      console.error('Error extracting bot response:', error);
       return 'Error: Gagal mengambil pesan';
     }
   }

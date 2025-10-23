@@ -110,7 +110,7 @@ export class Modul {
     });
 
     const context = await browser.newContext({
-      viewport: headless ? { width: 1400, height: 900 } : null,
+      viewport: { width: 1920, height: 1080 },
       permissions: ['microphone', 'camera'],
       ignoreHTTPSErrors: true,
       bypassCSP: true

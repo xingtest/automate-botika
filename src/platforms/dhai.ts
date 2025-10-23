@@ -43,65 +43,194 @@ export class DhaiPlatform {
   }
 
   static async getReply(page: Page, userMessage: string): Promise<string[]> {
-    try {
-      console.log(`🔍 Capturing bot responses for: "${userMessage}"`);
-      await Modul.waitTime(3);
+    // Retry logic: try up to 3 times with increasing wait time
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const waitTime = attempt === 1 ? 5 : attempt * 3; // 5s, 6s, 9s
+        await Modul.waitTime(waitTime);
 
-      // Try to find all chat messages
-      const chatMessages = await page.locator('div[class*="message"], div[class*="chat"], div[class*="bubble"]').all();
+        console.log(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
+        
+        const responses = await this.extractBotResponse(page, userMessage);
+        
+        if (responses.length > 0) {
+          return responses;
+        }
+        
+        if (attempt < maxRetries) {
+          console.log(`⏳ No response yet, retrying in ${(attempt + 1) * 3}s...`);
+        }
+      } catch (error) {
+        console.error(`Error on attempt ${attempt}:`, error);
+        if (attempt === maxRetries) {
+          return [];
+        }
+      }
+    }
+    
+    return [];
+  }
+
+  private static async extractBotResponse(page: Page, userMessage: string): Promise<string[]> {
+    try {
+      // Try multiple selectors for DHAI messages - prioritize specific ones
+      const messageSelectors = [
+        'span.whitespace-pre-line',  // DHAI bot response
+        'span[data-v-4699965e]',  // DHAI specific
+        'span[class*="whitespace"]',
+        'div[class*="message"]',
+        'div[class*="chat"]',
+        'div[class*="bubble"]',
+      ];
+
+      let chatMessages: any[] = [];
+      for (const selector of messageSelectors) {
+        try {
+          const found = await page.locator(selector).all();
+          if (found.length > 0) {
+            chatMessages = found;
+            console.log(`📊 Found ${found.length} messages with selector: ${selector}`);
+            break;
+          }
+        } catch {}
+      }
 
       console.log(`📊 Total messages: ${chatMessages.length}`);
 
       if (chatMessages.length > 0) {
-        // Find user's question
-        let questionIndex = -1;
+        // Find ALL occurrences of the question
+        const questionIndices: number[] = [];
         for (let i = 0; i < chatMessages.length; i++) {
           const text = await chatMessages[i].textContent();
           if (text && text.includes(userMessage)) {
-            questionIndex = i;
-            console.log(`✅ Found question at index ${i}`);
-            break;
+            questionIndices.push(i);
           }
         }
 
-        if (questionIndex < 0) {
-          console.log('⚠️ Question not found, using recent messages');
+        if (questionIndices.length === 0) {
+          console.log('⚠️ Question not found');
+          
+          // Fallback: return last 3 messages
+          const recentMessages: string[] = [];
+          for (let i = Math.max(0, chatMessages.length - 3); i < chatMessages.length; i++) {
+            const text = await chatMessages[i].textContent();
+            if (text && text.trim() && !text.includes(userMessage)) {
+              recentMessages.push(text.trim());
+            }
+          }
+          
+          if (recentMessages.length > 0) {
+            console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
+            return recentMessages;
+          }
+          
+          return [];
         }
+
+        // Use the LAST occurrence (most recent)
+        const questionIndex = questionIndices[questionIndices.length - 1];
+        console.log(`✅ Found ${questionIndices.length} occurrence(s) of question`);
+        console.log(`✅ Using LAST occurrence at index ${questionIndex}`);
 
         // Collect bot responses after the question
         const botResponses: string[] = [];
-        const startIndex = questionIndex >= 0 ? questionIndex + 1 : Math.max(0, chatMessages.length - 3);
+        const startIndex = questionIndex + 1;
         
-        console.log(`📝 Capturing from index ${startIndex}...`);
+        console.log(`📝 Capturing from index ${startIndex} to ${chatMessages.length}...`);
+        
+        // Check if there are messages after the question
+        if (startIndex >= chatMessages.length) {
+          console.log('⚠️ No messages after question, question is at the end');
+          return [];
+        }
+        
+        // UI noise patterns
+        const uiNoisePatterns = [
+          /^Enter$/i,
+          /^Send$/i,
+          /^Sent$/i,
+          /^\d{2}:\d{2}$/,  // Time stamps
+          /^[0-9]+$/,  // Just numbers
+        ];
         
         for (let i = startIndex; i < chatMessages.length; i++) {
           const text = await chatMessages[i].textContent();
-          if (text && text.trim() && !text.includes(userMessage)) {
-            botResponses.push(text.trim());
-            console.log(`  ✅ Bot message ${botResponses.length}: "${text.substring(0, 60)}..."`);
+          if (!text || !text.trim()) continue;
+          
+          let cleanText = text.trim();
+          
+          // Skip if it's the user's message
+          if (cleanText.includes(userMessage)) {
+            console.log(`  ⏭️ Skipping user message at ${i}`);
+            continue;
           }
+          
+          // Check if ENTIRE text is just UI noise
+          const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(cleanText));
+          if (isExactNoise) {
+            console.log(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
+            continue;
+          }
+          
+          // Skip if this is a duplicate of the last message
+          if (botResponses.length > 0 && botResponses[botResponses.length - 1] === cleanText) {
+            console.log(`  ⏭️ Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
+            continue;
+          }
+          
+          botResponses.push(cleanText);
+          console.log(`  ✅ Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
         }
 
         if (botResponses.length > 0) {
-          console.log(`📊 Captured ${botResponses.length} bot responses`);
+          console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
           return botResponses;
         }
       }
 
-      // Fallback to bubble-msg
-      console.log('💡 Trying fallback: bubble-msg');
-      const bubbleMsg = await page.locator('#bubble-msg').textContent();
-      if (bubbleMsg) {
-        const lines = bubbleMsg.split('\n').filter(line => {
-          const trimmed = line.trim();
-          return trimmed && !/^\d{2}:\d{2}$/.test(trimmed) && !trimmed.includes(userMessage);
-        });
-        
-        if (lines.length > 0) {
-          console.log(`📊 Captured ${lines.length} lines from bubble-msg`);
-          return lines.map(l => l.trim());
+      // Fallback: try to get all visible text
+      console.log('💡 Trying fallback: get all visible text');
+      try {
+        // Try bubble-msg first
+        const bubbleMsg = await page.locator('#bubble-msg').textContent();
+        if (bubbleMsg && bubbleMsg.trim()) {
+          const lines = bubbleMsg.split('\n').filter(line => {
+            const trimmed = line.trim();
+            return trimmed && !/^\d{2}:\d{2}$/.test(trimmed) && !trimmed.includes(userMessage);
+          });
+          
+          if (lines.length > 0) {
+            console.log(`📊 Captured ${lines.length} lines from bubble-msg`);
+            return lines.map(l => l.trim());
+          }
         }
-      }
+      } catch {}
+      
+      // Last resort: get all text content from body
+      try {
+        console.log('💡 Last resort: scanning all text in page');
+        const allText = await page.locator('body').allTextContents();
+        if (allText.length > 0) {
+          const fullText = allText.join('\n');
+          const lines = fullText.split('\n').filter(line => {
+            const trimmed = line.trim();
+            return trimmed && 
+                   trimmed.length > 10 &&  // At least 10 chars
+                   !/^\d{2}:\d{2}$/.test(trimmed) && 
+                   !trimmed.includes(userMessage) &&
+                   !trimmed.includes('Tap to Start') &&
+                   !trimmed.includes('Send');
+          });
+          
+          if (lines.length > 0) {
+            // Take last 3 lines as bot response
+            const recentLines = lines.slice(-3);
+            console.log(`📊 Captured ${recentLines.length} lines from page scan`);
+            return recentLines.map(l => l.trim());
+          }
+        }
+      } catch {}
 
       console.log('⚠️ No bot responses captured');
       return [];

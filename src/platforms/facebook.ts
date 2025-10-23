@@ -76,10 +76,39 @@ export class FacebookPlatform {
       return 'Error: Page not initialized';
     }
 
-    try {
-      await Modul.waitTime(5);
+    // Retry logic: try up to 3 times with increasing wait time
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const waitTime = attempt === 1 ? 5 : attempt * 3; // 5s, 6s, 9s
+        await Modul.waitTime(waitTime);
 
-      console.log(`🔍 Capturing bot responses for: "${userMessage}"`);
+        console.log(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
+        
+        const response = await this.extractBotResponse(userMessage);
+        
+        if (response && response !== 'Tidak ada balasan dari bot') {
+          return response;
+        }
+        
+        if (attempt < maxRetries) {
+          console.log(`⏳ No response yet, retrying in ${(attempt + 1) * 3}s...`);
+        }
+      } catch (error) {
+        console.error(`Error on attempt ${attempt}:`, error);
+        if (attempt === maxRetries) {
+          return 'Error: Gagal mengambil balasan';
+        }
+      }
+    }
+    
+    return 'Tidak ada balasan dari bot';
+  }
+
+  private async extractBotResponse(userMessage: string): Promise<string> {
+    if (!this.page) {
+      return 'Error: Page not initialized';
+    }
 
       // Get ALL messages including user and bot
       // Try to get message containers first
@@ -157,17 +186,15 @@ export class FacebookPlatform {
 
       console.log(`📋 Total message texts: ${messageTexts.length}`);
 
-      // Find question (search from end for most recent)
-      let questionIndex = -1;
-      for (let i = messageTexts.length - 1; i >= 0; i--) {
+      // Find ALL occurrences of the question
+      const questionIndices: number[] = [];
+      for (let i = 0; i < messageTexts.length; i++) {
         if (messageTexts[i].toLowerCase().includes(userMessage.toLowerCase())) {
-          questionIndex = i;
-          console.log(`✅ Found question at index ${i}: "${messageTexts[i].substring(0, 50)}..."`);
-          break;
+          questionIndices.push(i);
         }
       }
 
-      if (questionIndex < 0) {
+      if (questionIndices.length === 0) {
         console.log('⚠️ Question not found');
         console.log(`💡 Looking for: "${userMessage}"`);
         console.log(`💡 Available messages: ${messageTexts.length}`);
@@ -190,41 +217,98 @@ export class FacebookPlatform {
         return 'Tidak ada balasan dari bot';
       }
 
+      // Use the LAST occurrence (most recent)
+      const questionIndex = questionIndices[questionIndices.length - 1];
+      console.log(`✅ Found ${questionIndices.length} occurrence(s) of question`);
+      console.log(`✅ Using LAST occurrence at index ${questionIndex}: "${messageTexts[questionIndex].substring(0, 50)}..."`)
+
       // Collect bot responses after question until next user message
       const botResponses: string[] = [];
       
       console.log(`📝 Capturing from index ${questionIndex + 1}...`);
       
-      // First, identify all user messages (questions) to know where to stop
-      const userMessageIndices: number[] = [];
-      for (let i = 0; i < messageTexts.length; i++) {
+      // Identify user messages more carefully
+      // User messages typically start with "Apa" based on test data
+      const userMessageIndices: number[] = [questionIndex]; // Start with current question
+      
+      for (let i = questionIndex + 1; i < messageTexts.length; i++) {
         const text = messageTexts[i];
-        // Heuristic: User messages are typically questions or short commands
-        // In Facebook, user messages from test data usually start with "Apa"
-        if (text.toLowerCase().startsWith('apa ') || 
-            text.toLowerCase().includes('?') ||
-            text.length < 50) { // Short messages might be user messages
+        // Only mark as user message if it clearly starts with question pattern
+        // Be more conservative to avoid cutting off bot responses
+        if (text.toLowerCase().startsWith('apa itu ') || 
+            text.toLowerCase().startsWith('apa yang ') ||
+            text.toLowerCase().startsWith('bagaimana ') ||
+            text.toLowerCase().startsWith('mengapa ') ||
+            text.toLowerCase().startsWith('siapa ') ||
+            text.toLowerCase().startsWith('kapan ') ||
+            text.toLowerCase().startsWith('dimana ') ||
+            text.toLowerCase().startsWith('berapa ')) {
           userMessageIndices.push(i);
+          console.log(`🔍 Detected user question at index ${i}: "${text.substring(0, 40)}..."`);
         }
       }
       
-      console.log(`📋 Detected ${userMessageIndices.length} potential user messages at indices: ${userMessageIndices.join(', ')}`);
+      console.log(`📋 Found ${userMessageIndices.length} user messages`);
       
       // Find next user message after current question
       let nextUserMessageIndex = messageTexts.length; // Default to end
       for (const idx of userMessageIndices) {
         if (idx > questionIndex) {
           nextUserMessageIndex = idx;
-          console.log(`🛑 Next user message found at index ${idx}`);
+          console.log(`🛑 Next user message at index ${idx}, stopping there`);
           break;
         }
       }
       
-      // Collect bot responses between current question and next user message
+      // UI noise patterns to filter out
+      const uiNoisePatterns = [
+        /^Enter$/i,
+        /^Send$/i,
+        /^Message$/i,
+        /^You sent$/i,
+        /^Sent$/i,
+        /^Delivered$/i,
+        /^Seen$/i,
+        /^Active now$/i,
+        /^Active \d+[mh] ago$/i,
+        /^[0-9]+$/,  // Just numbers
+        /^Press Enter to send$/i,
+      ];
+      
+      // Collect ALL bot responses between current question and next user message
       for (let i = questionIndex + 1; i < nextUserMessageIndex; i++) {
-        const text = messageTexts[i];
+        let text = messageTexts[i];
+        
+        // Skip empty or very short noise
+        if (!text || text.length < 2) {
+          console.log(`  ⏭️ Skipping empty/short at ${i}`);
+          continue;
+        }
+        
+        // Check if ENTIRE text is just UI noise (skip only if exact match)
+        const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(text));
+        if (isExactNoise) {
+          console.log(`  ⏭️ Skipping UI noise at ${i}: "${text}"`);
+          continue;
+        }
+        
+        // Clean up text - remove "Enter" prefix/suffix if attached to actual content
+        text = text.replace(/^Enter\s+/i, '').replace(/\s+Enter$/i, '').trim();
+        
+        // Skip if cleaning removed everything
+        if (!text || text.length < 2) {
+          console.log(`  ⏭️ Skipping empty after cleaning at ${i}`);
+          continue;
+        }
+        
+        // Skip if this is a duplicate of the last message (Facebook DOM duplicates)
+        if (botResponses.length > 0 && botResponses[botResponses.length - 1] === text) {
+          console.log(`  ⏭️ Skipping duplicate at ${i}: "${text.substring(0, 40)}..."`);
+          continue;
+        }
+        
         botResponses.push(text);
-        console.log(`  ✅ Bot message ${botResponses.length}: "${text.substring(0, 60)}..."`);
+        console.log(`  ✅ Bot message ${botResponses.length}: "${text.substring(0, 80)}..."`);
       }
 
       if (botResponses.length === 0) {
@@ -232,12 +316,8 @@ export class FacebookPlatform {
         return 'Tidak ada balasan dari bot';
       }
 
-      console.log(`📊 Captured ${botResponses.length} bot responses`);
+      console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
       return botResponses.join('\n');
-    } catch (error) {
-      console.error('Error getting chatbot response:', error);
-      return 'Error: Gagal mengambil balasan';
-    }
   }
 
   async takeScreenshot(idTest: string, key: string, question: string): Promise<string> {
