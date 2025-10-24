@@ -17,8 +17,25 @@ export class EnvFile {
       existingData = JSON.parse(fileContent);
     }
 
-    existingData.push(data);
+    // Format skor to 3 decimal places
+    const formattedData = {
+      ...data,
+      skor: parseFloat(data.skor.toFixed(3))
+    };
+
+    existingData.push(formattedData);
     fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2));
+
+    // Auto-generate HTML and Excel reports after each data write (incremental update)
+    try {
+      this.generateHtmlReportIncremental(reportFilename, idTest);
+      
+      // Generate Excel report incrementally
+      const { generateExcelReportIncremental } = require('./excel-report-generator');
+      generateExcelReportIncremental(reportFilename, idTest);
+    } catch (error) {
+      // Silent fail - don't break the test flow if report generation fails
+    }
   }
 
   static writeJsonDataSummary(data: SummaryData, reportFilename: string, idTest: string): void {
@@ -148,6 +165,89 @@ export class EnvFile {
     }
   }
 
+  static generateHtmlReportIncremental(reportFilename: string, idTest: string): void {
+    // Incremental HTML generation - called after each data write
+    // Silent mode - no console logs to avoid cluttering output
+    try {
+      const reportDir = path.join('report', 'json');
+      const htmlDir = path.join('report', 'html');
+      const templatePath = path.join('report', 'template', 'template.html');
+      
+      if (!fs.existsSync(htmlDir)) {
+        fs.mkdirSync(htmlDir, { recursive: true });
+      }
+
+      if (!fs.existsSync(templatePath)) {
+        return; // Silent fail
+      }
+
+      const botDataPath = path.join(reportDir, `${reportFilename}-${idTest}.json`);
+      const summaryDataPath = path.join(reportDir, `${reportFilename}-${idTest}-summary.json`);
+      const chartDataPath = path.join(reportDir, `${reportFilename}-${idTest}-chart.json`);
+
+      if (!fs.existsSync(botDataPath)) {
+        return; // Not ready yet
+      }
+
+      const botData: BotData[] = JSON.parse(fs.readFileSync(botDataPath, 'utf-8'));
+      
+      // Use default summary if not exists yet
+      let summaryData: SummaryData;
+      if (fs.existsSync(summaryDataPath)) {
+        summaryData = JSON.parse(fs.readFileSync(summaryDataPath, 'utf-8'));
+      } else {
+        // Create temporary summary with current data
+        summaryData = {
+          id_test: idTest,
+          tester_name: 'In Progress...',
+          ai_evaluation: 'N/A',
+          url: 'N/A',
+          page_name: 'N/A',
+          browser_name: 'N/A',
+          date_test: new Date().toLocaleDateString(),
+          start_time_test: 'N/A',
+          end_time_test: 'In Progress...',
+          duration: 'In Progress...',
+          total_title: 0,
+          total_question: botData.length,
+          success: botData.filter(d => d.status === 'PASS').length,
+          failed: botData.filter(d => d.status === 'FAILED').length
+        };
+      }
+
+      const chartData = fs.existsSync(chartDataPath) ? JSON.parse(fs.readFileSync(chartDataPath, 'utf-8')) : {};
+
+      const htmlTemplate = fs.readFileSync(templatePath, 'utf-8');
+      const htmlContent = this.processTemplate(htmlTemplate, botData, summaryData, chartData);
+
+      // Create folder for this report
+      const reportFolderPath = path.join(htmlDir, `${reportFilename}-${idTest}`);
+      if (!fs.existsSync(reportFolderPath)) {
+        fs.mkdirSync(reportFolderPath, { recursive: true });
+      }
+
+      // Copy screenshots to report folder
+      const screenshotDir = path.join('report', 'screenshoot');
+      if (fs.existsSync(screenshotDir)) {
+        botData.forEach(item => {
+          if (item.image_capture) {
+            const srcPath = path.join(screenshotDir, item.image_capture);
+            const destPath = path.join(reportFolderPath, item.image_capture);
+            if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
+              fs.copyFileSync(srcPath, destPath);
+            }
+          }
+        });
+      }
+
+      // Write HTML file
+      const htmlFilePath = path.join(reportFolderPath, 'dashboard.html');
+      fs.writeFileSync(htmlFilePath, htmlContent);
+    } catch (error) {
+      // Silent fail - don't break test flow
+    }
+  }
+
   static generateHtmlReport(reportFilename: string, idTest: string): void {
     try {
       const reportDir = path.join('report', 'json');
@@ -184,8 +284,28 @@ export class EnvFile {
       // Generate HTML content using template
       const htmlContent = this.processTemplate(htmlTemplate, botData, summaryData, chartData);
 
+      // Create folder for this report
+      const reportFolderPath = path.join(htmlDir, `${reportFilename}-${idTest}`);
+      if (!fs.existsSync(reportFolderPath)) {
+        fs.mkdirSync(reportFolderPath, { recursive: true });
+      }
+
+      // Copy screenshots to report folder
+      const screenshotDir = path.join('report', 'screenshoot');
+      if (fs.existsSync(screenshotDir)) {
+        botData.forEach(item => {
+          if (item.image_capture) {
+            const srcPath = path.join(screenshotDir, item.image_capture);
+            const destPath = path.join(reportFolderPath, item.image_capture);
+            if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
+              fs.copyFileSync(srcPath, destPath);
+            }
+          }
+        });
+      }
+
       // Write HTML file
-      const htmlFilePath = path.join(htmlDir, `${reportFilename}-${idTest}.html`);
+      const htmlFilePath = path.join(reportFolderPath, 'dashboard.html');
       fs.writeFileSync(htmlFilePath, htmlContent);
 
       console.log(`✅ HTML report generated: ${htmlFilePath}`);
@@ -246,7 +366,8 @@ export class EnvFile {
         const imageConditionRegex = /\{\%\s*if\s+test_item\.image_capture\s*\%\}([\s\S]*?)\{\%\s*else\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\}/g;
         itemContent = itemContent.replace(imageConditionRegex, (match: string, ifContent: string, elseContent: string) => {
           if (item.image_capture) {
-            return ifContent.replace(/\{\{\s*test_item\.image_capture\s*\}\}/g, `screenshoot/${item.image_capture}`);
+            // Use relative path since screenshot is copied to same folder as HTML
+            return ifContent.replace(/\{\{\s*test_item\.image_capture\s*\}\}/g, item.image_capture);
           } else {
             return elseContent;
           }

@@ -27,7 +27,7 @@ export class GeminiEvaluator {
   ): Promise<EvaluationResult> {
     // Check if Gemini evaluation is enabled
     const isEnabled = process.env.ENABLE_GEMINI_EVALUATION?.toLowerCase() === 'true';
-    
+
     if (!isEnabled) {
       // Use simple text matching when Gemini is disabled
       return this.simpleTextEvaluation(expectedAnswer, actualAnswer, 'Gemini AI evaluation disabled in config');
@@ -45,7 +45,7 @@ export class GeminiEvaluator {
 
     try {
       const prompt = this.createEvaluationPrompt(question, expectedAnswer, actualAnswer, title);
-      
+
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: 'POST',
         headers: {
@@ -71,7 +71,7 @@ export class GeminiEvaluator {
       }
 
       const data: any = await response.json();
-      
+
       if (data.candidates && data.candidates[0] && data.candidates[0].content) {
         const evaluationText = data.candidates[0].content.parts[0].text;
         return this.parseEvaluationResult(evaluationText);
@@ -83,8 +83,8 @@ export class GeminiEvaluator {
       console.error('Error evaluating with Gemini:', error);
       // Use simple text evaluation as fallback when API fails
       return this.simpleTextEvaluation(
-        expectedAnswer, 
-        actualAnswer, 
+        expectedAnswer,
+        actualAnswer,
         `Gemini API error: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
@@ -92,15 +92,25 @@ export class GeminiEvaluator {
 
   private simpleTextEvaluation(expectedAnswer: string, actualAnswer: string, reason: string): EvaluationResult {
     // Simple text-based evaluation when AI is not available
-    
+    // Focus on content quality: factual correctness, relevance, completeness
+
     // Check if actual answer is empty or error
-    if (!actualAnswer || actualAnswer.trim() === '' || 
-        actualAnswer.includes('Error:') || 
-        actualAnswer.includes('Tidak ada balasan') ||
-        actualAnswer.includes('tidak ada pesan')) {
+    if (!actualAnswer || actualAnswer.trim() === '' ||
+      actualAnswer.includes('Error:') ||
+      actualAnswer.includes('Tidak ada balasan') ||
+      actualAnswer.includes('tidak ada pesan')) {
       return {
-        score: 0,
-        explanation: `No response from bot (${reason})`,
+        score: 0.0,
+        explanation: `✗ Tidak ada respons dari bot. Tidak dapat dievaluasi.`,
+        success: false
+      };
+    }
+
+    // Check for very short or generic answers (likely not helpful)
+    if (actualAnswer.trim().length < 20) {
+      return {
+        score: 0.15,
+        explanation: `✗ Jawaban terlalu singkat (${actualAnswer.trim().length} karakter). Tidak cukup informatif untuk menjawab pertanyaan.`,
         success: false
       };
     }
@@ -120,40 +130,79 @@ export class GeminiEvaluator {
     const expectedWords = normalizedExpected.split(' ').filter(w => w.length > 3);
     const actualWords = normalizedActual.split(' ');
 
-    // Count matching keywords
-    let matchCount = 0;
+    // Find matching and missing keywords
+    const matchedKeywords: string[] = [];
+    const missingKeywords: string[] = [];
+    
     for (const word of expectedWords) {
       if (actualWords.some(aw => aw.includes(word) || word.includes(aw))) {
-        matchCount++;
+        matchedKeywords.push(word);
+      } else {
+        missingKeywords.push(word);
       }
     }
 
-    // Calculate similarity percentage
-    const similarity = expectedWords.length > 0 
-      ? (matchCount / expectedWords.length) * 100 
+    // Calculate similarity percentage (0-100)
+    const similarity = expectedWords.length > 0
+      ? (matchedKeywords.length / expectedWords.length) * 100
       : 0;
 
-    // Determine score based on similarity
-    let score = 0;
+    // Convert to 0.0-1.0 scale with better distribution
+    let score = 0.0;
     let explanation = '';
 
-    if (similarity >= 70) {
-      score = Math.round(70 + (similarity - 70) * 0.5); // 70-85 range
-      explanation = `High similarity (${Math.round(similarity)}% keywords match) - ${reason}`;
+    // Build natural, descriptive explanation
+    const percentage = Math.round(similarity);
+    const totalKeywords = expectedWords.length;
+    const matchedCount = matchedKeywords.length;
+    const missingCount = missingKeywords.length;
+
+    // Analyze content to create natural description
+    const hasGoodCoverage = similarity >= 75;
+    const hasDecentCoverage = similarity >= 60;
+    const hasMinimalCoverage = similarity >= 40;
+
+    // Evaluate based on content coverage and provide natural explanation
+    if (similarity >= 75) {
+      score = 0.75 + (similarity - 75) * 0.01; // 0.75-1.0 range (PASS)
+      if (similarity >= 90) {
+        explanation = `✓ Jawaban sudah sangat baik dan lengkap. Semua informasi penting yang diharapkan sudah tercakup dengan akurat.`;
+      } else if (missingCount > 0 && missingCount <= 2) {
+        const missing = missingKeywords.slice(0, 2).join(' dan ');
+        explanation = `✓ Jawaban sudah baik dan mencakup sebagian besar informasi yang dibutuhkan. Akan lebih sempurna jika ditambahkan informasi tentang ${missing}.`;
+      } else if (missingCount > 2) {
+        const missing = missingKeywords.slice(0, 2).join(', ');
+        explanation = `✓ Jawaban sudah cukup lengkap mencakup poin-poin utama. Bisa ditambahkan detail tentang ${missing} untuk lebih komprehensif.`;
+      } else {
+        explanation = `✓ Jawaban sudah sangat baik, mencakup semua informasi penting yang diharapkan dengan lengkap dan akurat.`;
+      }
+    } else if (similarity >= 60) {
+      score = 0.60 + (similarity - 60) * 0.01; // 0.60-0.75 range
+      const matched = matchedKeywords.slice(0, 2).join(' dan ');
+      const missing = missingKeywords.slice(0, 3).join(', ');
+      explanation = `⚠ Jawaban sudah benar untuk bagian ${matched}, tapi masih kurang lengkap. Perlu ditambahkan informasi tentang ${missing}.`;
     } else if (similarity >= 40) {
-      score = Math.round(50 + (similarity - 40)); // 50-70 range
-      explanation = `Moderate similarity (${Math.round(similarity)}% keywords match) - ${reason}`;
+      score = 0.40 + (similarity - 40) * 0.01; // 0.40-0.60 range
+      const missing = missingKeywords.slice(0, 3).join(', ');
+      if (matchedCount > 0) {
+        const matched = matchedKeywords.slice(0, 2).join(' dan ');
+        explanation = `⚠ Jawaban hanya mencakup sebagian kecil informasi (${matched}). Banyak informasi penting yang belum disebutkan seperti ${missing}.`;
+      } else {
+        explanation = `⚠ Jawaban kurang lengkap dan tidak mencakup informasi penting yang dibutuhkan seperti ${missing}.`;
+      }
     } else if (similarity >= 20) {
-      score = Math.round(30 + similarity); // 30-50 range
-      explanation = `Low similarity (${Math.round(similarity)}% keywords match) - ${reason}`;
+      score = 0.20 + (similarity - 20) * 0.01; // 0.20-0.40 range
+      const missing = missingKeywords.slice(0, 3).join(', ');
+      explanation = `✗ Jawaban tidak cukup relevan dengan yang diharapkan. Sebagian besar informasi penting seperti ${missing} tidak disebutkan.`;
     } else {
-      score = Math.round(similarity * 1.5); // 0-30 range
-      explanation = `Very low similarity (${Math.round(similarity)}% keywords match) - ${reason}`;
+      score = similarity * 0.01; // 0.0-0.20 range
+      const missing = missingKeywords.slice(0, 3).join(', ');
+      explanation = `✗ Jawaban tidak sesuai dengan yang diharapkan. Informasi yang dibutuhkan seperti ${missing} tidak ada dalam jawaban.`;
     }
 
     return {
-      score: Math.max(0, Math.min(100, score)),
-      explanation: `Auto-evaluated: ${explanation}`,
+      score: Math.max(0.0, Math.min(1.0, parseFloat(score.toFixed(3)))),
+      explanation: `Auto: ${explanation}`,
       success: false
     };
   }
@@ -164,42 +213,88 @@ export class GeminiEvaluator {
     actualAnswer: string,
     title: string
   ): string {
-    return `Sebagai AI evaluator untuk chatbot testing, evaluasi kualitas jawaban chatbot berikut:
+    return `Sebagai AI evaluator profesional untuk chatbot testing, evaluasi kualitas jawaban chatbot berikut:
 
 TOPIK: ${title}
-PERTANYAAN: ${question}
+PERTANYAAN LENGKAP: ${question}
+JAWABAN KB YANG DIHARAPKAN (sebagai referensi): ${expectedAnswer}
+JAWABAN LLM YANG DIBERIKAN: ${actualAnswer}
 
-JAWABAN YANG DIHARAPKAN:
-${expectedAnswer}
+KRITERIA EVALUASI UTAMA untuk 'Jawaban LLM yang Diberikan':
 
-JAWABAN AKTUAL DARI BOT:
-${actualAnswer}
+1. KEBENARAN FAKTUAL (35%)
+   - Apakah informasi yang diberikan benar dan akurat?
+   - Tidak ada informasi yang menyesatkan atau salah?
+   - Fakta dan data sesuai dengan konteks?
 
-Tugas Anda:
-1. Bandingkan jawaban aktual dengan jawaban yang diharapkan
-2. Evaluasi berdasarkan kriteria:
-   - Akurasi informasi (40%)
-   - Relevansi dengan pertanyaan (30%)
-   - Kelengkapan jawaban (20%)
-   - Kejelasan dan struktur (10%)
+2. RELEVANSI (30%)
+   - Apakah jawaban LANGSUNG menjawab pertanyaan yang diajukan?
+   - Tidak ada informasi yang tidak relevan atau menyimpang dari topik?
+   - Fokus pada apa yang ditanyakan?
 
-3. Berikan output dalam format JSON yang tepat:
+3. KELENGKAPAN & KOMPREHENSIF (20%)
+   - Apakah jawaban mencakup semua aspek penting dari pertanyaan?
+   - Informasi yang diberikan cukup detail dan tidak terlalu singkat?
+   - Menjawab pertanyaan secara menyeluruh?
+
+4. KEJELASAN & PROFESIONALITAS (15%)
+   - Apakah jawaban ringkas dan mudah dipahami?
+   - Nada netral dan profesional (tidak bias, tidak berbahaya)?
+   - Struktur kalimat jelas dan terorganisir dengan baik?
+
+CATATAN PENTING:
+- Gunakan 'Jawaban KB yang Diharapkan' HANYA sebagai KONTEKS/REFERENSI, bukan sebagai jawaban mutlak
+- Fokus utama adalah menilai KUALITAS 'Jawaban LLM yang Diberikan' secara objektif
+- Jawaban LLM bisa berbeda dari KB selama tetap BENAR, RELEVAN, dan KOMPREHENSIF
+- Prioritaskan kebenaran faktual dan relevansi di atas kesamaan dengan KB
+
+OUTPUT FORMAT (JSON):
 {
-  "score": [angka 0-100],
-  "explanation": "[penjelasan detail dalam bahasa Indonesia mengapa mendapat score tersebut, maksimal 200 karakter]"
+  "score": [angka desimal 0.0-1.0, contoh: 0.85],
+  "explanation": "[penjelasan DESKRIPTIF dalam bahasa Indonesia, maksimal 200 karakter]"
 }
 
-Pastikan output hanya berupa JSON yang valid tanpa teks tambahan.`;
+FORMAT EXPLANATION yang BAIK:
+- Mulai dengan status: ✓ (sesuai), ⚠ (cukup sesuai), atau ✗ (tidak sesuai)
+- Gunakan bahasa NATURAL dan DESKRIPTIF, bukan list kata-kata
+- Jelaskan dengan SANTAI seperti menjelaskan ke teman
+- Sebutkan apa yang SUDAH BENAR dan apa yang MASIH KURANG dalam kalimat lengkap
+- Maksimal 200 karakter, fokus pada konteks keseluruhan
+
+CONTOH EXPLANATION YANG BAIK:
+- "✓ Jawaban sudah sangat baik, mencakup jam operasional dan lokasi dengan lengkap. Akan lebih sempurna jika ditambahkan info kontak."
+- "⚠ Jawaban sudah benar untuk bagian lokasi dan jam buka, tapi masih kurang lengkap. Perlu ditambahkan info telepon dan email."
+- "✗ Jawaban tidak menjawab pertanyaan tentang jam operasional. Hanya memberikan salam pembuka tanpa informasi yang diminta."
+
+HINDARI format seperti ini:
+- ❌ "Sudah ada: A, B, C. Kurang: D, E, F" (terlalu kaku, seperti list)
+- ❌ "Mencakup: X, Y, Z" (tidak natural)
+
+GUNAKAN format seperti ini:
+- ✅ "Jawaban sudah baik untuk bagian X dan Y, tapi perlu ditambahkan Z"
+- ✅ "Informasi tentang X sudah lengkap, namun belum menyebutkan Y"
+
+SCORING GUIDE:
+- 0.90-1.00: Sempurna - Faktual, sangat relevan, lengkap, jelas
+- 0.75-0.89: Baik (PASS) - Benar, relevan, cukup lengkap
+- 0.60-0.74: Cukup - Ada kekurangan minor dalam kelengkapan
+- 0.40-0.59: Kurang - Relevansi atau kelengkapan bermasalah
+- 0.00-0.39: Buruk - Tidak relevan atau informasi salah
+
+PENTING:
+- Score ≥0.75 = PASS
+- Score <0.75 = FAILED
+- Pastikan output HANYA JSON valid tanpa teks tambahan`;
   }
 
   private parseEvaluationResult(evaluationText: string): EvaluationResult {
     try {
       // Clean the response text
       let cleanText = evaluationText.trim();
-      
+
       // Remove markdown code blocks if present
       cleanText = cleanText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-      
+
       // Try to find JSON in the response
       const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -207,20 +302,32 @@ Pastikan output hanya berupa JSON yang valid tanpa teks tambahan.`;
       }
 
       const result = JSON.parse(cleanText);
-      
+
       // Validate the result
       if (typeof result.score === 'number' && typeof result.explanation === 'string') {
-        // Ensure score is within valid range
-        const score = Math.max(0, Math.min(100, Math.round(result.score)));
+        let score = result.score;
         
+        // Convert if score is in 0-100 range (old format)
+        if (score > 1.0) {
+          score = score / 100.0;
+        }
+        
+        // Ensure score is within valid range 0.0-1.0
+        score = Math.max(0.0, Math.min(1.0, parseFloat(score.toFixed(3))));
+
         // Limit explanation length
-        const explanation = result.explanation.length > 200 
+        let explanation = result.explanation.length > 200
           ? result.explanation.substring(0, 197) + '...'
           : result.explanation;
 
+        // Add prefix if not already present
+        if (!explanation.startsWith('AI:') && !explanation.startsWith('✓') && !explanation.startsWith('✗') && !explanation.startsWith('⚠')) {
+          explanation = `AI: ${explanation}`;
+        }
+
         return {
           score,
-          explanation: `AI-evaluated: ${explanation}`,
+          explanation,
           success: true
         };
       } else {
@@ -230,14 +337,19 @@ Pastikan output hanya berupa JSON yang valid tanpa teks tambahan.`;
     } catch (error) {
       console.error('Error parsing Gemini evaluation result:', error);
       console.error('Raw response:', evaluationText);
-      
+
       // Fallback: try to extract score from text
-      const scoreMatch = evaluationText.match(/score["\s:]*(\d+)/i);
-      const score = scoreMatch ? parseInt(scoreMatch[1]) : 75;
+      const scoreMatch = evaluationText.match(/score["\s:]*(\d+\.?\d*)/i);
+      let score = scoreMatch ? parseFloat(scoreMatch[1]) : 0.75;
       
+      // Convert if in 0-100 range
+      if (score > 1.0) {
+        score = score / 100.0;
+      }
+
       return {
-        score: Math.max(0, Math.min(100, score)),
-        explanation: 'AI-evaluated: Evaluasi berhasil namun format response tidak standar',
+        score: Math.max(0.0, Math.min(1.0, parseFloat(score.toFixed(3)))),
+        explanation: 'AI: Evaluasi berhasil namun format response tidak standar',
         success: true
       };
     }
@@ -261,7 +373,7 @@ Pastikan output hanya berupa JSON yang valid tanpa teks tambahan.`;
     for (const endpoint of endpoints) {
       try {
         console.log(`🧪 Testing endpoint: ${endpoint.split('/').pop()}`);
-        
+
         const response = await fetch(`${endpoint}?key=${this.apiKey}`, {
           method: 'POST',
           headers: {

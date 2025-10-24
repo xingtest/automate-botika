@@ -256,7 +256,7 @@ export class DhaiPlatform {
   }
 
   static calculateStatus(score: number): string {
-    return score >= 70 ? 'PASS' : 'FAILED';
+    return score >= 0.75 ? 'PASS' : 'FAILED';
   }
 
   static async actions(

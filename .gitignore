@@ -21,7 +21,9 @@ yarn-error.log*
 # Reports
 report/json/*.json
 report/screenshoot/*.png
-report/html/*.html
+report/html/**/*.html
+report/html/**/*.xlsx
+report/html/**/screenshots/*.png
 
 # Session Files (keep structure, ignore content)
 session/*.json

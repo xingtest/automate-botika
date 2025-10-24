@@ -426,9 +426,12 @@
           </div>
         </div>
       </div>
-      <div class="flex justify-end mb-4">
-         <button id="download-all-data-csv" class="bg-brand-secondary hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg shadow-md flex items-center space-x-2 transition-colors duration-150 text-sm font-medium" aria-label="Download all data as CSV">
-          <!-- DownloadIcon will be injected by JS --> <span>Download All Data (CSV)</span>
+      <div class="flex justify-end gap-3 mb-4">
+         <button id="download-all-data-csv" onclick="handleDownloadCSV()" class="bg-brand-secondary hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg shadow-md flex items-center space-x-2 transition-colors duration-150 text-sm font-medium" aria-label="Download all data as CSV">
+          <!-- DownloadIcon will be injected by JS --> <span>Download CSV</span>
+        </button>
+         <button id="download-all-data-excel" onclick="handleDownloadExcel()" class="bg-brand-primary hover:bg-brand-primary-hover text-white px-4 py-2.5 rounded-lg shadow-md flex items-center space-x-2 transition-colors duration-150 text-sm font-medium" aria-label="Download all data as Excel">
+          <!-- DownloadIcon will be injected by JS --> <span>Download Excel</span>
         </button>
       </div>
       <div class="overflow-x-auto rounded-xl border border-secondary-themed shadow-md">
@@ -463,9 +466,13 @@
                       </div>
                       {% endif %}
                   </td>
-                  <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">{{ test_item.skor }}</td>
+                  <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">
+                    <span class="{% if test_item.skor >= 0.75 %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                      {{ test_item.skor }}
+                    </span>
+                  </td>
                   <td class="py-4 px-2 w-[8%] text-center">
-                    <span class="text-lg font-bold px-3 py-1 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100">
+                    <span class="text-lg font-bold px-3 py-1 rounded-full text-xs {% if test_item.skor >= 0.75 %}bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100{% else %}bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100{% endif %}">
                       {{ test_item.status }}
                     </span>
                   </td>
@@ -507,7 +514,7 @@
   </div>
 
   <footer class="text-center py-8 text-sm text-content-tertiary-themed">
-    copyright@okinr All reserved
+    TesterBotika
   </footer>
 
   <script type="module">
@@ -705,7 +712,11 @@
                         class="preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer" />` 
                 : '<span>No Image</span>'}
             </td>
-            <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">${row.skor || '-'}</td>
+            <td class="py-4 px-2 w-[5%] font-semibold text-lg text-center">
+              <span class="${parseFloat(row.skor) >= 0.75 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+                ${row.skor || '-'}
+              </span>
+            </td>
            <td class="py-4 px-2 w-[8%] text-center">
               <span class="px-3 py-1 rounded-full text-lg font-semibold ${row.status === 'pass' ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}">
                   ${row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : '-'}
@@ -801,15 +812,8 @@
             applyDataTableFiltersAndPagination();
         });
 
-        document.getElementById('download-intent-csv-button')?.addEventListener('click', () => {
-            if (dtIntentFilter) {
-                const dataToDownload = masterTableData.filter(row => row.title === dtIntentFilter);
-                downloadCSV(dataToDownload, `intent_data_${dtIntentFilter.replace(/\s+/g, '_')}.csv`);
-            }
-        });
-        document.getElementById('download-all-data-csv')?.addEventListener('click', () => {
-            downloadCSV(masterTableData, `all_dashboard_data.csv`);
-        });
+        // Download button event listeners moved to setupDownloadButtons() 
+        // to be called AFTER icon injection
     }
     
     function updateIntentCsvButtonState() {
@@ -1088,7 +1092,117 @@
             document.body.removeChild(link);
         }
     }
+
+    function downloadExcel(data, filename) {
+        if (!data || data.length === 0) {
+            console.warn("No data to download.");
+            alert("No data available to download!");
+            return;
+        }
+        
+        console.log("Starting Excel download with", data.length, "rows");
+        
+        try {
+            // Create HTML table for Excel with proper XML structure
+            const explicitHeaders = ['Title', 'Question', 'Expected', 'Actual', 'Image', 'Score', 'Explanation', 'Status', 'Duration'];
+            const dataKeys = ['title', 'question', 'expected', 'actual', 'imageSrc', 'skor', 'explanation', 'status', 'duration'];
+            
+            // Build Excel XML format
+            let excelContent = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Worksheet ss:Name="Test Results">
+  <Table>
+   <Row>`;
+            
+            // Add headers
+            explicitHeaders.forEach(header => {
+                excelContent += `<Cell><Data ss:Type="String">${header}</Data></Cell>`;
+            });
+            excelContent += `</Row>`;
+            
+            // Add data rows
+            data.forEach(row => {
+                excelContent += '<Row>';
+                dataKeys.forEach(key => {
+                    let cell = row[key] === undefined || row[key] === null ? '' : String(row[key]);
+                    // Escape XML special characters
+                    cell = cell.replace(/&/g, '&amp;')
+                               .replace(/</g, '&lt;')
+                               .replace(/>/g, '&gt;')
+                               .replace(/"/g, '&quot;')
+                               .replace(/'/g, '&apos;');
+                    
+                    // Determine data type
+                    const isNumber = key === 'skor' && !isNaN(cell);
+                    const dataType = isNumber ? 'Number' : 'String';
+                    
+                    excelContent += `<Cell><Data ss:Type="${dataType}">${cell}</Data></Cell>`;
+                });
+                excelContent += '</Row>';
+            });
+            
+            excelContent += `</Table>
+ </Worksheet>
+</Workbook>`;
+            
+            // Create blob and download
+            const blob = new Blob([excelContent], { 
+                type: 'application/vnd.ms-excel;charset=utf-8;' 
+            });
+            
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            
+            console.log("Triggering download...");
+            link.click();
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                console.log("Excel download completed");
+            }, 100);
+            
+        } catch (error) {
+            console.error("Error creating Excel file:", error);
+            alert("Failed to create Excel file: " + error.message);
+        }
+    }
     
+    // Global handlers for onclick (must be in window scope)
+    window.handleDownloadCSV = function() {
+      console.log('CSV button clicked, data length:', masterTableData.length);
+      downloadCSV(masterTableData, `all_dashboard_data.csv`);
+    };
+    
+    window.handleDownloadExcel = function() {
+      console.log('Excel button clicked, data length:', masterTableData.length);
+      downloadExcel(masterTableData, `all_dashboard_data.xls`);
+    };
+
+    function setupDownloadButtons() {
+      // Setup download button event listeners AFTER icon injection
+      const intentCsvBtn = document.getElementById('download-intent-csv-button');
+      
+      if (intentCsvBtn) {
+        intentCsvBtn.addEventListener('click', () => {
+          if (dtIntentFilter) {
+            const dataToDownload = masterTableData.filter(row => row.title === dtIntentFilter);
+            downloadCSV(dataToDownload, `intent_data_${dtIntentFilter.replace(/\s+/g, '_')}.csv`);
+          }
+        });
+      }
+    }
+
     function injectIcons() {
       const iconMappings = {
         'manual-refresh-button': RefreshIcon('w-5 h-5'),
@@ -1100,7 +1214,8 @@
         'filter-status-icon': ChevronDownIcon('w-5 h-5 text-content-tertiary-themed'),
         'filter-intent-icon': ChevronDownIcon('w-5 h-5 text-content-tertiary-themed'),
         'download-intent-csv-button': DownloadIcon('w-5 h-5'),
-        'download-all-data-csv': DownloadIcon('w-5 h-5'), 
+        'download-all-data-csv': DownloadIcon('w-5 h-5'),
+        'download-all-data-excel': DownloadIcon('w-5 h-5'), 
         'rows-per-page-icon': ChevronDownIcon('w-4 h-4 text-content-tertiary-themed'),
       };
       
@@ -1114,7 +1229,10 @@
         if (container) {
           if (id === 'download-all-data-csv') { 
               const textSpan = container.querySelector('span');
-              container.innerHTML = iconMappings[id] + ' ' + (textSpan ? textSpan.outerHTML : '<span>Download All Data (CSV)</span>');
+              container.innerHTML = iconMappings[id] + ' ' + (textSpan ? textSpan.outerHTML : '<span>Download CSV</span>');
+          } else if (id === 'download-all-data-excel') { 
+              const textSpan = container.querySelector('span');
+              container.innerHTML = iconMappings[id] + ' ' + (textSpan ? textSpan.outerHTML : '<span>Download Excel</span>');
           } else if (id === 'download-analytics-chart') { 
              // Dynamic content
           } else {
@@ -1128,6 +1246,7 @@
     function renderDashboard() {
       initializeTheme(); // Initialize theme first
       injectIcons(); 
+      setupDownloadButtons(); // Setup download buttons AFTER icon injection
       loadMasterTableDataFromHTML(); 
 
       const processedTrendChartData = trendIntentChartSourceData.map(item => {

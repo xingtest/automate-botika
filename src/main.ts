@@ -57,6 +57,9 @@ async function main(): Promise<void> {
 
   console.log(`Test ID : ${idTest}\nDay : ${today}\nStart Time : ${timeStart}\n`);
 
+  // Declare reportFilename outside try block so it's accessible in finally
+  let reportFilename = '';
+
   try {
     const platform = (process.env.PLATFORM || '').toLowerCase();
     if (!platform) {
@@ -73,7 +76,7 @@ async function main(): Promise<void> {
     const dateStr = now.toISOString().split('T')[0].replace(/-/g, '-');
     const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
     const testerNameClean = testerName.replace(/\s+/g, '_');
-    const reportFilename = `${testerNameClean}_${platform}_${dateStr}_${timeStr}`;
+    reportFilename = `${testerNameClean}_${platform}_${dateStr}_${timeStr}`;
 
     cleanupPreviousReport(reportFilename, idTest);
     Modul.setupLogging(reportFilename, idTest);
@@ -210,6 +213,20 @@ async function main(): Promise<void> {
     const endDurationMeasurement = Modul.endTime(startDurationMeasurement);
     const { today: todayEnd, time: timeEnd } = Modul.todays();
     console.log(`End Time : ${timeEnd}\nDuration : ${endDurationMeasurement}\n`);
+
+    // Generate HTML and Excel reports even if test failed (if data exists)
+    try {
+      if (reportFilename && idTest) {
+        console.log('📊 Generating HTML report...');
+        EnvFile.generateHtmlReport(reportFilename, idTest);
+        
+        console.log('📊 Generating Excel report...');
+        const { generateExcelReport } = await import('./utils/excel-report-generator');
+        generateExcelReport(reportFilename, idTest);
+      }
+    } catch (reportError) {
+      console.error('⚠️ Failed to generate reports:', reportError);
+    }
 
     Modul.testDone('Test Done!');
     console.log('Terima kasih, semoga harimu menyenangkan! 😎\n');
