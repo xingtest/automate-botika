@@ -129,7 +129,7 @@ export class Modul {
     console.log('🌐 Loading page...');
     try {
       // Try fastest loading first
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
       console.log('✅ Page loaded with domcontentloaded');
     } catch (error) {
       console.log('⚠️ Trying with load event...');

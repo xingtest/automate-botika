@@ -121,7 +121,7 @@ export class WebchatPlatform {
     }
   }
 
-  static async waitReply(page: Page, question: string, timeout: number = 15000): Promise<void> {
+  static async waitReply(page: Page, question: string, timeout: number = 30000): Promise<void> {
     const startTime = Date.now();
     let lastResponseCount = 0;
     let stableCount = 0;
