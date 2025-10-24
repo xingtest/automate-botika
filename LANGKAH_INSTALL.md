@@ -1,8 +1,5 @@
-# 🚀 Langkah Install - Super Simple!
+# 🚀 Langkah Install 
 
-Panduan paling simple untuk install dan jalankan aplikasi.
-
----
 
 ## ❌ TIDAK CUKUP hanya `npm install`
 
