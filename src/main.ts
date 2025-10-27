@@ -61,7 +61,9 @@ async function main(): Promise<void> {
   let reportFilename = '';
 
   try {
-    const platform = (process.env.PLATFORM || '').toLowerCase();
+  // Prefer CLI argument (e.g. `node dist/main.js instagram`) over .env
+  const cliPlatform = process.argv[2] || '';
+  const platform = (cliPlatform || process.env.PLATFORM || '').toLowerCase();
     if (!platform) {
       console.error("Error: Environment variable 'PLATFORM' tidak diatur.");
       Modul.testDone('Test Failed!');
@@ -77,6 +79,20 @@ async function main(): Promise<void> {
     const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
     const testerNameClean = testerName.replace(/\s+/g, '_');
     reportFilename = `${testerNameClean}_${platform}_${dateStr}_${timeStr}`;
+
+  // Create test folder and screenshots folder directly (include idTest so names match report json)
+  const fullReportFolderName = `${reportFilename}-${idTest}`;
+  const testFolder = path.join('report', 'html', fullReportFolderName);
+  const screenshotsFolder = path.join(testFolder, 'screenshots');
+
+    if (!fs.existsSync(testFolder)) {
+      fs.mkdirSync(testFolder, { recursive: true });
+    }
+    if (!fs.existsSync(screenshotsFolder)) {
+      fs.mkdirSync(screenshotsFolder, { recursive: true });
+    }
+    console.log(`Created report folder: ${testFolder}`);
+    console.log(`Created screenshots folder: ${screenshotsFolder}`);
 
     cleanupPreviousReport(reportFilename, idTest);
     Modul.setupLogging(reportFilename, idTest);
@@ -112,7 +128,7 @@ async function main(): Promise<void> {
 
       const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium');
       await WebchatPlatform.prechatForm(page, greeting, 'Tester', 'tester@example.com', '081234567890');
-      await WebchatPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName);
+      await WebchatPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder);
       await Modul.closeBrowser(browser);
 
     } else if (platform === 'telegram') {
@@ -130,7 +146,7 @@ async function main(): Promise<void> {
       console.log(`Target Bot Telegram: ${targetBotUsername}\n`);
       const telegramPlatform = new TelegramPlatform();
       await telegramPlatform.initialize(apiId, apiHash, sessionString);
-      await telegramPlatform.actions(targetBotUsername, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName);
+      await telegramPlatform.actions(targetBotUsername, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName, screenshotsFolder);
       await telegramPlatform.disconnect();
 
     } else if (platform === 'instagram') {
@@ -145,7 +161,7 @@ async function main(): Promise<void> {
       const { browser, page } = await Modul.readBrowser('https://www.instagram.com', 'chromium');
       const instagramPlatform = new InstagramPlatform();
       await instagramPlatform.initialize(page);
-      await instagramPlatform.actions(targetUsername, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName);
+      await instagramPlatform.actions(targetUsername, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName, screenshotsFolder);
       await Modul.closeBrowser(browser);
 
     } else if (platform === 'facebook') {
@@ -160,7 +176,7 @@ async function main(): Promise<void> {
       const { browser, page } = await Modul.readBrowser('https://www.facebook.com', 'chromium');
       const facebookPlatform = new FacebookPlatform();
       await facebookPlatform.initialize(page);
-      await facebookPlatform.actions(targetFanpageId, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName);
+      await facebookPlatform.actions(targetFanpageId, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName, screenshotsFolder);
       await Modul.closeBrowser(browser);
 
     } else if (platform === 'dhai') {
@@ -176,7 +192,7 @@ async function main(): Promise<void> {
       const headlessMode = false; // Set to true for headless, false to see browser
       const dhaiViewport = { width: 1280, height: 720 };
       const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium', headlessMode, dhaiViewport);
-      await DhaiPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName);
+      await DhaiPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder);
       await Modul.closeBrowser(browser);
 
     }

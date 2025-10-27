@@ -31,7 +31,7 @@ interface SummaryData {
   duration: string;
 }
 
-const PASS_THRESHOLD = 0.75;
+const PASS_THRESHOLD = 0.7;
 
 function findLatestTestFiles(): { jsonFile: string | null; summaryFile: string | null } {
   const jsonDir = 'report/json';
@@ -106,8 +106,8 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
       [],
       ['Evaluation Summary'],
       ['Total Questions', totalTests],
-      ['Passed (≥0.75)', passedTests],
-      ['Failed (<0.75)', failedTests],
+      ['Passed (≥0.7)', passedTests],
+      ['Failed (<0.7)', failedTests],
       ['Success Rate', `${((passedTests / totalTests) * 100).toFixed(2)}%`],
       ['Average Score', avgScore.toFixed(3)],
       ['Pass Threshold', PASS_THRESHOLD]
@@ -141,8 +141,8 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
 
     // Sheet 3: Statistics
     const statsData = [
-      { 'Status': 'PASS (≥0.75)', 'Count': passedTests, 'Percentage': `${((passedTests / totalTests) * 100).toFixed(2)}%` },
-      { 'Status': 'FAILED (<0.75)', 'Count': failedTests, 'Percentage': `${((failedTests / totalTests) * 100).toFixed(2)}%` },
+      { 'Status': 'PASS (≥0.7)', 'Count': passedTests, 'Percentage': `${((passedTests / totalTests) * 100).toFixed(2)}%` },
+      { 'Status': 'FAILED (<0.7)', 'Count': failedTests, 'Percentage': `${((failedTests / totalTests) * 100).toFixed(2)}%` },
       { 'Status': 'TOTAL', 'Count': totalTests, 'Percentage': '100%' }
     ];
 

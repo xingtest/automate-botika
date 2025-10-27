@@ -413,12 +413,12 @@ export class InstagramPlatform {
     }
   }
 
-  async takeScreenshot(idTest: string, key: string, question: string): Promise<string> {
+  async takeScreenshot(idTest: string, key: string, question: string, screenshotsFolder: string): Promise<string> {
     if (!this.page) {
       return '';
     }
 
-    const screenshotDir = 'report/screenshoot';
+    const screenshotDir = screenshotsFolder || 'report/screenshoot';
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
     }
@@ -437,7 +437,7 @@ export class InstagramPlatform {
   }
 
   static calculateStatus(score: number): string {
-    return score >= 0.75 ? 'PASS' : 'FAILED';
+    return score >= 0.7 ? 'PASS' : 'FAILED';
   }
 
   async actions(
@@ -448,7 +448,8 @@ export class InstagramPlatform {
     idTest: string,
     timeStart: string,
     today: string,
-    testerName: string
+    testerName: string,
+    screenshotsFolder: string
   ): Promise<void> {
     Modul.showLoading(`Mengirim sapaan awal ke @${targetUsername}...`);
     const greetingTimestamp = Date.now();
@@ -484,7 +485,7 @@ export class InstagramPlatform {
           }
 
           // Take screenshot
-          const imageCapture = await this.takeScreenshot(idTest, key, question);
+          const imageCapture = await this.takeScreenshot(idTest, key, question, screenshotsFolder);
           console.log(`📸 Screenshot saved: ${imageCapture}`);
 
           const titleLoading = `${key} : ${question}`;

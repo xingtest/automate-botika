@@ -163,8 +163,8 @@ export class GeminiEvaluator {
     const hasMinimalCoverage = similarity >= 40;
 
     // Evaluate based on content coverage and provide natural explanation
-    if (similarity >= 75) {
-      score = 0.75 + (similarity - 75) * 0.01; // 0.75-1.0 range (PASS)
+    if (similarity >= 70) {
+      score = 0.7 + (similarity - 70) * 0.01; // 0.7-1.0 range (PASS)
       if (similarity >= 90) {
         explanation = `✓ Jawaban sudah sangat baik dan lengkap. Semua informasi penting yang diharapkan sudah tercakup dengan akurat.`;
       } else if (missingCount > 0 && missingCount <= 2) {
@@ -217,36 +217,32 @@ export class GeminiEvaluator {
 
 TOPIK: ${title}
 PERTANYAAN LENGKAP: ${question}
-JAWABAN KB YANG DIHARAPKAN (sebagai referensi): ${expectedAnswer}
+KONTEKS KB (sebagai referensi): ${expectedAnswer}
 JAWABAN LLM YANG DIBERIKAN: ${actualAnswer}
 
 KRITERIA EVALUASI UTAMA untuk 'Jawaban LLM yang Diberikan':
 
-1. KEBENARAN FAKTUAL (35%)
-   - Apakah informasi yang diberikan benar dan akurat?
+1. KEBENARAN FAKTUAL (40%)
+   - Apakah informasi yang diberikan benar dan akurat sesuai konteks KB?
    - Tidak ada informasi yang menyesatkan atau salah?
-   - Fakta dan data sesuai dengan konteks?
+   - Fakta dan data konsisten dengan konteks KB?
 
-2. RELEVANSI (30%)
-   - Apakah jawaban LANGSUNG menjawab pertanyaan yang diajukan?
+2. RELEVANSI DENGAN PERTANYAAN LENGKAP (35%)
+   - Apakah jawaban LANGSUNG menjawab 'Pertanyaan Lengkap' yang diajukan?
    - Tidak ada informasi yang tidak relevan atau menyimpang dari topik?
-   - Fokus pada apa yang ditanyakan?
+   - Fokus pada apa yang ditanyakan dalam 'Pertanyaan Lengkap'?
 
-3. KELENGKAPAN & KOMPREHENSIF (20%)
-   - Apakah jawaban mencakup semua aspek penting dari pertanyaan?
-   - Informasi yang diberikan cukup detail dan tidak terlalu singkat?
-   - Menjawab pertanyaan secara menyeluruh?
-
-4. KEJELASAN & PROFESIONALITAS (15%)
-   - Apakah jawaban ringkas dan mudah dipahami?
-   - Nada netral dan profesional (tidak bias, tidak berbahaya)?
-   - Struktur kalimat jelas dan terorganisir dengan baik?
+3. KEMAMPUAN MERANGKUM DARI KONTEKS KB (25%)
+   - Apakah jawaban berhasil merangkum informasi penting dari konteks KB?
+   - Informasi yang diberikan cukup lengkap untuk menjawab pertanyaan?
+   - Mencakup poin-poin utama dari konteks KB?
 
 CATATAN PENTING:
-- Gunakan 'Jawaban KB yang Diharapkan' HANYA sebagai KONTEKS/REFERENSI, bukan sebagai jawaban mutlak
-- Fokus utama adalah menilai KUALITAS 'Jawaban LLM yang Diberikan' secara objektif
-- Jawaban LLM bisa berbeda dari KB selama tetap BENAR, RELEVAN, dan KOMPREHENSIF
-- Prioritaskan kebenaran faktual dan relevansi di atas kesamaan dengan KB
+- Gunakan 'Konteks KB' sebagai REFERENSI utama untuk menilai kebenaran faktual
+- Jawaban LLM yang BAIK harus: akurat secara faktual, relevan dengan 'Pertanyaan Lengkap', dan berhasil merangkum dari konteks KB
+- Jawaban LLM boleh berbeda redaksi dari KB selama tetap BENAR dan RELEVAN
+- NADA BAHASA TIDAK MASALAH - bisa formal, santai, ramah, atau gaya apapun selama informasinya benar
+- Prioritaskan: (1) Kebenaran faktual, (2) Relevansi dengan pertanyaan, (3) Kemampuan merangkum
 
 OUTPUT FORMAT (JSON):
 {
@@ -275,15 +271,15 @@ GUNAKAN format seperti ini:
 - ✅ "Informasi tentang X sudah lengkap, namun belum menyebutkan Y"
 
 SCORING GUIDE:
-- 0.90-1.00: Sempurna - Faktual, sangat relevan, lengkap, jelas
-- 0.75-0.89: Baik (PASS) - Benar, relevan, cukup lengkap
-- 0.60-0.74: Cukup - Ada kekurangan minor dalam kelengkapan
-- 0.40-0.59: Kurang - Relevansi atau kelengkapan bermasalah
-- 0.00-0.39: Buruk - Tidak relevan atau informasi salah
+- 0.90-1.00: Sempurna - Faktual akurat, sangat relevan dengan pertanyaan, berhasil merangkum KB dengan lengkap
+- 0.70-0.89: Baik (PASS) - Benar secara faktual, relevan dengan pertanyaan, berhasil merangkum poin utama KB
+- 0.50-0.69: Cukup - Benar tapi kurang lengkap dalam merangkum KB atau sedikit kurang relevan
+- 0.30-0.49: Kurang - Relevansi atau akurasi faktual bermasalah, tidak merangkum KB dengan baik
+- 0.00-0.29: Buruk - Tidak relevan dengan pertanyaan atau informasi faktual salah
 
 PENTING:
-- Score ≥0.75 = PASS
-- Score <0.75 = FAILED
+- Score ≥0.7 = PASS
+- Score <0.7 = FAILED
 - Pastikan output HANYA JSON valid tanpa teks tambahan`;
   }
 

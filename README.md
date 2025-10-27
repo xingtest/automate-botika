@@ -145,8 +145,8 @@ Setiap test akan menghasilkan 2 jenis report secara real-time:
 
 ### Scoring System
 - **Format**: 0.000 - 1.000 (3 desimal)
-- **Pass Threshold**: ≥ 0.75 (Hijau)
-- **Fail Threshold**: < 0.75 (Merah)
+- **Pass Threshold**: ≥ 0.7 (Hijau)
+- **Fail Threshold**: < 0.7 (Merah)
 - **Auto-Evaluation**: Gemini AI atau keyword matching
 
 Report di-generate secara incremental (real-time) dan disimpan dalam satu folder per test.

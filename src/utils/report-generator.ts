@@ -75,52 +75,8 @@ function createTestFolder(baseName: string): { testFolder: string; screenshotsFo
   return { testFolder, screenshotsFolder };
 }
 
-function moveScreenshots(testData: TestData[], screenshotsFolder: string): string[] {
-  const screenshotSourceDir = 'report/screenshoot';
-  const movedScreenshots: string[] = [];
+/* moveScreenshots removed - screenshots are written directly to each report's screenshots folder in real time */
 
-  if (!fs.existsSync(screenshotSourceDir)) {
-    console.log(`⚠️ Screenshot directory not found: ${screenshotSourceDir}`);
-    return movedScreenshots;
-  }
-
-  for (const item of testData) {
-    if (item.image_capture) {
-      const screenshotName = item.image_capture;
-      const sourcePath = path.join(screenshotSourceDir, screenshotName);
-
-      if (fs.existsSync(sourcePath)) {
-        const destPath = path.join(screenshotsFolder, screenshotName);
-        try {
-          // Move file instead of copy
-          fs.renameSync(sourcePath, destPath);
-          movedScreenshots.push(screenshotName);
-          console.log(`📸 Moved screenshot: ${screenshotName}`);
-        } catch (error) {
-          console.log(`❌ Failed to move ${screenshotName}: ${error}`);
-        }
-      } else {
-        console.log(`⚠️ Screenshot not found: ${sourcePath}`);
-      }
-    }
-  }
-
-  return movedScreenshots;
-}
-
-function cleanupScreenshotFolder(): void {
-  const screenshotSourceDir = 'report/screenshoot';
-  
-  if (fs.existsSync(screenshotSourceDir)) {
-    try {
-      // Remove the directory and all its contents
-      fs.rmSync(screenshotSourceDir, { recursive: true, force: true });
-      console.log(`🧹 Cleaned up temporary screenshot folder`);
-    } catch (error) {
-      console.log(`⚠️ Could not cleanup screenshot folder: ${error}`);
-    }
-  }
-}
 
 function calculateTotalDuration(testData: TestData[]): string {
   let totalSeconds = 0;
@@ -219,16 +175,17 @@ export async function generateReportFromLatestTest(openInBrowser: boolean = fals
     const baseName = jsonFile.replace('.json', '');
     const { testFolder, screenshotsFolder } = createTestFolder(baseName);
 
-    // Move screenshots from temporary folder to test folder
-    const movedScreenshots = moveScreenshots(testData, screenshotsFolder);
-
-    // Prepare test data with correct screenshot paths
+    // Prepare test data with correct screenshot paths (screenshots are stored in testFolder/screenshots)
     const testDataForTemplate = testData.map(item => {
       let screenshotPath = '';
       if (item.image_capture) {
         const screenshotName = item.image_capture;
-        if (movedScreenshots.includes(screenshotName)) {
+        const candidate = path.join(screenshotsFolder, screenshotName);
+        if (fs.existsSync(candidate)) {
           screenshotPath = `screenshots/${screenshotName}`;
+        } else {
+          // If not found, leave empty (template will show no image)
+          console.log(`⚠️ Screenshot not found for report: ${candidate}`);
         }
       }
 
@@ -264,7 +221,6 @@ export async function generateReportFromLatestTest(openInBrowser: boolean = fals
       date_test: summary.date_test,
       platform: 'webchat',
       total_questions: testData.length,
-      screenshots_moved: movedScreenshots.length,
       folder_path: testFolder
     };
 
@@ -273,11 +229,8 @@ export async function generateReportFromLatestTest(openInBrowser: boolean = fals
 
     console.log(`✅ Test folder created: ${testFolder}`);
     console.log(`📁 HTML report: ${outputFile}`);
-    console.log(`📸 Screenshots moved: ${movedScreenshots.length}`);
-    console.log(`📋 Test info: ${summaryFilePath}`);
     
-    // Cleanup temporary screenshot folder after moving all files
-    cleanupScreenshotFolder();
+  console.log(`📋 Test info: ${summaryFilePath}`);
 
     // Open in browser if requested
     if (openInBrowser) {

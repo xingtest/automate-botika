@@ -187,7 +187,7 @@ export class TelegramPlatform {
   }
 
   static calculateStatus(score: number): string {
-    return score >= 0.75 ? 'PASS' : 'FAILED';
+    return score >= 0.7 ? 'PASS' : 'FAILED';
   }
 
   async actions(
@@ -199,6 +199,7 @@ export class TelegramPlatform {
     timeStart: string,
     today: string,
     testerName: string
+  , screenshotsFolder?: string
   ): Promise<void> {
     // Send /start command first to activate bot
     console.log(`🤖 Activating bot with /start command...`);

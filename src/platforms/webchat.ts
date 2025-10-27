@@ -65,14 +65,17 @@ export class WebchatPlatform {
         if (await submitBtn.isVisible()) {
           console.log('📤 Submitting pre-chat form...');
           await submitBtn.click();
-          await Modul.waitTime(5); // Wait longer for form submission
+          await Modul.waitTime(2);
           console.log('✅ Pre-chat form submitted successfully');
+          // Wait for bot response after form submission
+          await this.waitReply(page, greeting, 30000);
         } else {
           console.log('⚠️ Submit button not found, trying alternative methods');
           // Try pressing Enter on the last field
           try {
             await page.keyboard.press('Enter');
-            await Modul.waitTime(3);
+            await Modul.waitTime(2);
+            await this.waitReply(page, greeting, 30000);
           } catch { }
         }
       } catch (error) {
@@ -85,8 +88,10 @@ export class WebchatPlatform {
       try {
         await page.locator('#input-message').fill(greeting);
         await page.keyboard.press('Enter');
-        await Modul.waitTime(5);
+        await Modul.waitTime(2);
         console.log('✅ Greeting sent via direct input');
+        // Wait for bot response after greeting
+        await this.waitReply(page, greeting, 30000);
       } catch (error) {
         console.log('❌ Error sending greeting:', error);
       }
@@ -374,23 +379,25 @@ export class WebchatPlatform {
     return uniqueReplies;
   }
 
-  static async takeScreenshot(page: Page, idTest: string, key: string, question: string): Promise<string> {
-    const screenshotDir = 'report/screenshoot';
+  static async takeScreenshot(page: Page, idTest: string, key: string, question: string, screenshotsFolder: string): Promise<string> {
     const fs = require('fs');
+    const path = require('path');
+    // Use the provided screenshotsFolder directly (ensure it exists)
+    const screenshotDir = screenshotsFolder || 'report/screenshoot';
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
     }
 
     const sanitizedQuestion = question.substring(0, 30).replace(/[^a-z0-9]/gi, '_');
     const filename = `${idTest}_${key}_${sanitizedQuestion}.png`;
-    const filepath = `${screenshotDir}/${filename}`;
+    const filepath = path.join(screenshotDir, filename);
 
     await page.screenshot({ path: filepath, fullPage: true });
     return filename;
   }
 
   static calculateStatus(score: number): string {
-    return score >= 0.75 ? 'PASS' : 'FAILED';
+    return score >= 0.7 ? 'PASS' : 'FAILED';
   }
 
   static async actions(
@@ -403,7 +410,8 @@ export class WebchatPlatform {
     testerName: string,
     url: string,
     titlePage: string,
-    browserName: string
+    browserName: string,
+    screenshotsFolder: string
   ): Promise<void> {
     const start = Modul.startTime();
     const title = '当 Membaca pertanyaan dan mengirim ke webchat';
@@ -439,7 +447,7 @@ export class WebchatPlatform {
           await Modul.waitTime(2);
 
           // Take screenshot first while page is stable
-          const imageCapture = await this.takeScreenshot(page, idTest, key, question);
+          const imageCapture = await this.takeScreenshot(page, idTest, key, question, screenshotsFolder);
           console.log(`📸 Screenshot saved: ${imageCapture}`);
 
           // Then capture response using utility

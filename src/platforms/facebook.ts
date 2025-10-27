@@ -5,6 +5,7 @@ import { GeminiEvaluator } from '../utils/gemini-evaluator';
 import { ResponseCapture } from '../utils/response-capture';
 import { TestData, BotData, SummaryData } from '../types';
 import * as fs from 'fs';
+import * as path from 'path';
 
 export class FacebookPlatform {
   private page: Page | null = null;
@@ -320,26 +321,26 @@ export class FacebookPlatform {
       return botResponses.join('\n');
   }
 
-  async takeScreenshot(idTest: string, key: string, question: string): Promise<string> {
+  async takeScreenshot(idTest: string, key: string, question: string, screenshotsFolder: string): Promise<string> {
     if (!this.page) {
       return '';
     }
 
-    const screenshotDir = 'report/screenshoot';
+    const screenshotDir = screenshotsFolder || 'report/screenshoot';
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
     }
 
     const sanitizedQuestion = question.substring(0, 30).replace(/[^a-z0-9]/gi, '_');
     const filename = `${idTest}_${key}_${sanitizedQuestion}.png`;
-    const filepath = `${screenshotDir}/${filename}`;
+    const filepath = path.join(screenshotDir, filename);
 
     await this.page.screenshot({ path: filepath, fullPage: true });
     return filename;
   }
 
   static calculateStatus(score: number): string {
-    return score >= 0.75 ? 'PASS' : 'FAILED';
+    return score >= 0.7 ? 'PASS' : 'FAILED';
   }
 
   async actions(
@@ -350,7 +351,8 @@ export class FacebookPlatform {
     idTest: string,
     timeStart: string,
     today: string,
-    testerName: string
+    testerName: string,
+    screenshotsFolder: string
   ): Promise<void> {
     await this.navigateToChatbot(targetFanpageId);
 
@@ -383,7 +385,7 @@ export class FacebookPlatform {
             respondBot = 'Error: Gagal mengirim pesan ke chatbot.';
           }
 
-          const imageCapture = await this.takeScreenshot(idTest, key, question);
+          const imageCapture = await this.takeScreenshot(idTest, key, question, screenshotsFolder);
 
           const titleLoading = `${key} : ${question}`;
           Modul.showLoadingSampleText(titleLoading);

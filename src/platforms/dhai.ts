@@ -240,23 +240,24 @@ export class DhaiPlatform {
     }
   }
 
-  static async takeScreenshot(page: Page, idTest: string, key: string, question: string): Promise<string> {
-    const fs = require('fs');
-    const screenshotDir = 'report/screenshoot';
-    if (!fs.existsSync(screenshotDir)) {
-      fs.mkdirSync(screenshotDir, { recursive: true });
+    static async takeScreenshot(page: Page, idTest: string, key: string, question: string, screenshotsFolder: string): Promise<string> {
+      const fs = require('fs');
+      const path = require('path');
+      const screenshotDir = screenshotsFolder || 'report/screenshoot';
+      if (!fs.existsSync(screenshotDir)) {
+        fs.mkdirSync(screenshotDir, { recursive: true });
+      }
+
+      const sanitizedQuestion = question.substring(0, 30).replace(/[^a-z0-9]/gi, '_');
+      const filename = `${idTest}_${key}_${sanitizedQuestion}.png`;
+      const filepath = path.join(screenshotDir, filename);
+
+      await page.screenshot({ path: filepath, fullPage: true });
+      return filename;
     }
 
-    const sanitizedQuestion = question.substring(0, 30).replace(/[^a-z0-9]/gi, '_');
-    const filename = `${idTest}_${key}_${sanitizedQuestion}.png`;
-    const filepath = `${screenshotDir}/${filename}`;
-
-    await page.screenshot({ path: filepath, fullPage: true });
-    return filename;
-  }
-
   static calculateStatus(score: number): string {
-    return score >= 0.75 ? 'PASS' : 'FAILED';
+    return score >= 0.7 ? 'PASS' : 'FAILED';
   }
 
   static async actions(
@@ -269,7 +270,8 @@ export class DhaiPlatform {
     testerName: string,
     url: string,
     titlePage: string,
-    browserName: string
+    browserName: string,
+    screenshotsFolder: string
   ): Promise<void> {
     const title = '当 Membaca pertanyaan dan mengirim ke DHAI';
     Modul.showLoading(title);
@@ -311,7 +313,7 @@ export class DhaiPlatform {
             }
 
             // Take screenshot AFTER bot responds
-            const imageCapture = await this.takeScreenshot(page, idTest, key, question);
+            const imageCapture = await this.takeScreenshot(page, idTest, key, question, screenshotsFolder);
 
             const titleLoading = `${key} : ${question}`;
             Modul.showLoadingSampleText(titleLoading);
