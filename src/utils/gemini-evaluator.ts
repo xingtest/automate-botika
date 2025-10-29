@@ -133,7 +133,7 @@ export class GeminiEvaluator {
     // Find matching and missing keywords
     const matchedKeywords: string[] = [];
     const missingKeywords: string[] = [];
-    
+
     for (const word of expectedWords) {
       if (actualWords.some(aw => aw.includes(word) || word.includes(aw))) {
         matchedKeywords.push(word);
@@ -302,12 +302,12 @@ PENTING:
       // Validate the result
       if (typeof result.score === 'number' && typeof result.explanation === 'string') {
         let score = result.score;
-        
+
         // Convert if score is in 0-100 range (old format)
         if (score > 1.0) {
           score = score / 100.0;
         }
-        
+
         // Ensure score is within valid range 0.0-1.0
         score = Math.max(0.0, Math.min(1.0, parseFloat(score.toFixed(3))));
 
@@ -337,7 +337,7 @@ PENTING:
       // Fallback: try to extract score from text
       const scoreMatch = evaluationText.match(/score["\s:]*(\d+\.?\d*)/i);
       let score = scoreMatch ? parseFloat(scoreMatch[1]) : 0.75;
-      
+
       // Convert if in 0-100 range
       if (score > 1.0) {
         score = score / 100.0;

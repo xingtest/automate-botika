@@ -135,10 +135,10 @@ async function main(): Promise<void> {
       const targetBotUsername = process.env.TARGET_BOT_USERNAME;
       const apiId = process.env.API_ID;
       const apiHash = process.env.API_HASH;
-      const sessionString = process.env.TELEGRAM_SESSION;
+      const sessionString = process.env.TELEGRAM_SESSION; // Optional, will auto-generate if not provided
 
-      if (!targetBotUsername || !apiId || !apiHash || !sessionString) {
-        console.error('Error: Telegram credentials tidak lengkap.');
+      if (!targetBotUsername || !apiId || !apiHash) {
+        console.error('Error: Telegram credentials tidak lengkap. Pastikan TARGET_BOT_USERNAME, API_ID, dan API_HASH sudah diset di .env');
         Modul.testDone('Test Failed!');
         return;
       }

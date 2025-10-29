@@ -26,7 +26,6 @@ report/html/**/*.xlsx
 report/html/**/screenshots/*.png
 
 # Session Files (keep structure, ignore content)
-session/*.json
 !session/.gitkeep
 
 # Debug Files
