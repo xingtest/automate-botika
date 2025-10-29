@@ -15,7 +15,7 @@ export class DhaiPlatform {
       await Modul.waitTime(2);
 
       // Click second interaction button
-      const interactionButton = page.locator('button').nth(2);
+      const interactionButton = page.locator('svg.icon.h-auto.w-8.portrait\\:lg\\:w-\\[46px\\]').nth(2);
       await interactionButton.click();
       console.log('Tombol interaksi kedua diklik.');
 
