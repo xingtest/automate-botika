@@ -1,0 +1,14 @@
+{
+  "id_test": "ff7433d7",
+  "tester_name": "Cik KB VOICEBOTIKA APP",
+  "ai_evaluation": "Playwright TypeScript (Gemini fallback)",
+  "url": "https://chat.botika.online/EJUnkrW",
+  "page_name": "Luna",
+  "browser_name": "Chrome (Headless)",
+  "date_test": "Kamis, 30 Oktober 2025",
+  "start_time_test": "15.19.46",
+  "total_title": 105,
+  "total_question": 105,
+  "success": 0,
+  "failed": 0
+}
