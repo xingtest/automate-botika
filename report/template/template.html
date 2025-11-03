@@ -542,26 +542,32 @@
 
     function loadMasterTableDataFromHTML() {
         const tableBody = document.getElementById('data-result-table-body');
-        if (!tableBody) return;
+        if (!tableBody) {
+            console.error('Table body not found!');
+            return;
+        }
         masterTableData = []; 
         const rows = tableBody.querySelectorAll('tr');
+        console.log('Found rows:', rows.length);
         rows.forEach((row, index) => {
             const cells = row.querySelectorAll('td');
-            if (cells.length === 9) { 
+            console.log(`Row ${index}: ${cells.length} cells`);
+            if (cells.length === 10) { 
                 masterTableData.push({
-                    id: (index + 1).toString(), 
-                    title: cells[0].textContent?.trim() || '',
-                    question: cells[1].textContent?.trim() || '',
-                    expected: cells[2].textContent?.trim() || '',
-                    actual: cells[3].textContent?.trim() || '',
-                    explanation: cells[4].textContent?.trim() || '',
-                    imageSrc: cells[5].querySelector('img')?.src || '',
-                    skor: cells[6].textContent?.trim() || '',
-                    status: cells[7].querySelector('span')?.textContent?.trim().toLowerCase() || '',
-                    duration: cells[8].textContent?.trim() || ''
+                    id: cells[0].textContent?.trim() || (index + 1).toString(), 
+                    title: cells[1].textContent?.trim() || '',
+                    question: cells[2].textContent?.trim() || '',
+                    expected: cells[3].textContent?.trim() || '',
+                    actual: cells[4].textContent?.trim() || '',
+                    explanation: cells[5].textContent?.trim() || '',
+                    imageSrc: cells[6].querySelector('img')?.src || '',
+                    skor: cells[7].textContent?.trim() || '',
+                    status: cells[8].querySelector('span')?.textContent?.trim().toLowerCase() || '',
+                    duration: cells[9].textContent?.trim() || ''
                 });
             }
         });
+        console.log('Loaded masterTableData:', masterTableData.length, 'items');
     }
 
 
@@ -606,12 +612,12 @@
 
         const tableRowsHTML = dataToRender.map(row => `
             <tr class="border-b border-secondary-themed table-row-hover-themed text-sm transition-colors table-row-odd-themed ${dataToRender.indexOf(row) % 2 !== 0 ? '' : 'table-row-odd-themed'}">
-            <td class="py-4 px-2 w-[4%] text-content-primary-themed  text-left">${row.id || (dataToRender.indexOf(row) + 1) || '-'}</td>
-            <td class="py-4 px-2 w-[10%] text-content-primary-themed  text-left">${row.title || '-'}</td>
-            <td class="py-4 px-2 w-[10%] text-content-primary-themed  text-left">${row.question || '-'}</td>
-            <td class="py-4 px-2 w-[25%] text-content-primary-themed  text-justify">${row.expected || '-'}</td>
-            <td class="py-4 px-2 w-[25%] text-content-primary-themed  text-justify">${row.actual || '-'}</td>
-            <td class="py-4 px-2 w-[20%] text-content-primary-themed  text-justify">${row.explanation || '-'}</td>
+            <td class="py-4 px-2 w-[4%] text-content-primary-themed font-medium text-left">${row.id || (dataToRender.indexOf(row) + 1) || '-'}</td>
+            <td class="py-4 px-2 w-[10%] text-content-primary-themed font-medium text-left">${row.title || '-'}</td>
+            <td class="py-4 px-2 w-[15%] text-content-primary-themed font-medium text-left">${row.question || '-'}</td>
+            <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">${row.expected || '-'}</td>
+            <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">${row.actual || '-'}</td>
+            <td class="py-4 px-2 w-[20%] text-content-primary-themed font-medium text-justify">${row.explanation || '-'}</td>
             <td class="py-4 px-2 w-[15%] text-center">
               ${row.imageSrc 
                 ? `<img src="${row.imageSrc}" 
@@ -619,7 +625,7 @@
                         class="preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer" />` 
                 : '<span>No Image</span>'}
             </td>
-            <td class="py-4 px-2 w-[5%] font-semibold text-lg text-center">
+            <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">
               <span class="${parseFloat(row.skor) >= 0.75 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
                 ${row.skor || '-'}
               </span>
@@ -629,10 +635,10 @@
                   ${row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : '-'}
               </span>
           </td>
-            <td class="py-4 px-4 text-center text-content-primary-themed text-lg font-semibold">${row.duration || '-'}</td>
+            <td class="py-4 px-2 w-[7%] text-content-primary-themed font-semibold text-lg text-center">${row.duration || '-'}</td>
             </tr>
         `).join('');
-        tableBody.innerHTML = tableRowsHTML || `<tr><td colspan="9" class="text-center py-12 text-content-tertiary-themed">No data matching your criteria.</td></tr>`;
+        tableBody.innerHTML = tableRowsHTML || `<tr><td colspan="10" class="text-center py-12 text-content-tertiary-themed">No data matching your criteria.</td></tr>`;
         
         renderPaginationControls(totalFilteredItems);
     }

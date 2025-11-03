@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as ejs from 'ejs';
 
 interface TestData {
+  no: number;
   title: string;
   question: string;
   response_kb: string;
@@ -190,6 +191,7 @@ export async function generateReportFromLatestTest(openInBrowser: boolean = fals
       }
 
       return {
+        no: item.no || 0,
         title: item.title || '',
         question: item.question || '',
         response_kb: item.response_kb || '',
