@@ -13,27 +13,27 @@ on:
         default: 'webchat'
         type: choice
         options:
-          # - 'all'
           - 'webchat'
           # - 'telegram'
           # - 'facebook'
           # - 'instagram'
           # - 'dhai'
           # - 'dhai-wakeup'
+          # - 'all'
       filename:
         description: 'Nama file hasil test'
         required: false
-        default: 'testing.xlsx'
+        default: 'test-result'
         type: string
       tester_name:
         description: 'Nama tester'
         required: false
-        default: 'Cik CICD'
+        default: 'GitHub Actions Bot'
         type: string
       greeting:
         description: 'Greeting message'
         required: false
-        default: 'Halo'
+        default: 'Halo, saya ingin bertanya'
         type: string
       webchat_url:
         description: 'URL Webchat'
@@ -94,7 +94,7 @@ jobs:
   test-platforms:
     runs-on: ubuntu-latest
     needs: build
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == '' }}
+    if: ${{ github.event.inputs.platform == 'all' }}
     
     strategy:
       matrix:
@@ -135,19 +135,38 @@ jobs:
         CI: true
         HEADLESS: true
     
-    - name: Upload hasil test
+    - name: Generate report summary
+      if: always()
+      run: |
+        echo "Generating test summary for ${{ matrix.platform }}..."
+        if [ -d "report" ]; then
+          echo "✅ Report folder exists"
+          find report/ -type f -name "*.json" -o -name "*.html" -o -name "*.xlsx" | head -10
+        else
+          echo "❌ Report folder not found"
+        fi
+        
+        # Create platform info file
+        echo "Platform: ${{ matrix.platform }}" > report/platform-info.txt
+        echo "Build: ${{ github.run_number }}" >> report/platform-info.txt
+        echo "Timestamp: $(date)" >> report/platform-info.txt
+    
+    - name: Upload hasil test lengkap
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-${{ matrix.platform }}-${{ github.run_number }}
+        name: test-report-${{ matrix.platform }}-${{ github.run_number }}
         path: |
           report/
+          temp_audio/
+          dist/
+          .env
         retention-days: 30
 
   test-single:
     runs-on: ubuntu-latest
     needs: build
-    if: ${{ github.event.inputs.platform != 'all' && github.event.inputs.platform != '' }}
+    if: ${{ github.event.inputs.platform != 'all' }}
     
     steps:
     - name: Checkout kode
@@ -184,25 +203,116 @@ jobs:
         CI: true
         HEADLESS: true
     
-    - name: Upload hasil test
+    - name: Generate report summary
+      if: always()
+      run: |
+        echo "Generating test summary for ${{ github.event.inputs.platform }}..."
+        if [ -d "report" ]; then
+          echo "✅ Report folder exists"
+          find report/ -type f -name "*.json" -o -name "*.html" -o -name "*.xlsx" | head -10
+        else
+          echo "❌ Report folder not found"
+        fi
+        
+        # Create platform info file
+        echo "Platform: ${{ github.event.inputs.platform }}" > report/platform-info.txt
+        echo "Build: ${{ github.run_number }}" >> report/platform-info.txt
+        echo "Timestamp: $(date)" >> report/platform-info.txt
+    
+    - name: Upload hasil test lengkap
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-${{ github.event.inputs.platform }}-${{ github.run_number }}
+        name: test-report-${{ github.event.inputs.platform }}-${{ github.run_number }}
         path: |
           report/
+          temp_audio/
+          dist/
+          .env
         retention-days: 30
 
-  summary:
+  collect-reports:
     runs-on: ubuntu-latest
     needs: [test-platforms, test-single]
     if: always()
+    name: Kumpulkan Semua Report
     
     steps:
     - name: Download semua artifact
       uses: actions/download-artifact@v4
       with:
         path: artifacts/
+    
+    - name: Organisir report
+      run: |
+        mkdir -p final-reports
+        
+        # Copy semua report ke folder final
+        for dir in artifacts/test-report-*/; do
+          if [ -d "$dir" ]; then
+            platform_name=$(basename "$dir" | sed 's/test-report-//' | sed 's/-[0-9]*$//')
+            echo "Processing reports for: $platform_name"
+            
+            mkdir -p "final-reports/$platform_name"
+            
+            # Copy report files
+            if [ -d "$dir/report" ]; then
+              cp -r "$dir/report"/* "final-reports/$platform_name/" 2>/dev/null || true
+            fi
+            
+            # Copy audio files if exist
+            if [ -d "$dir/temp_audio" ]; then
+              mkdir -p "final-reports/$platform_name/audio"
+              cp -r "$dir/temp_audio"/* "final-reports/$platform_name/audio/" 2>/dev/null || true
+            fi
+            
+            # Copy env file
+            if [ -f "$dir/.env" ]; then
+              cp "$dir/.env" "final-reports/$platform_name/config.env" 2>/dev/null || true
+            fi
+          fi
+        done
+        
+        # Create index file
+        echo "# Test Reports - Build ${{ github.run_number }}" > final-reports/README.md
+        echo "" >> final-reports/README.md
+        echo "Generated: $(date)" >> final-reports/README.md
+        echo "" >> final-reports/README.md
+        echo "## Platforms Tested:" >> final-reports/README.md
+        
+        for platform_dir in final-reports/*/; do
+          if [ -d "$platform_dir" ] && [ "$(basename "$platform_dir")" != "README.md" ]; then
+            platform=$(basename "$platform_dir")
+            echo "- **$platform**" >> final-reports/README.md
+            
+            # Count files in each platform
+            file_count=$(find "$platform_dir" -type f | wc -l)
+            echo "  - Files: $file_count" >> final-reports/README.md
+          fi
+        done
+        
+        echo "" >> final-reports/README.md
+        echo "## File Structure:" >> final-reports/README.md
+        tree final-reports/ >> final-reports/README.md 2>/dev/null || ls -la final-reports/ >> final-reports/README.md
+    
+    - name: Upload final reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: complete-test-reports-${{ github.run_number }}
+        path: final-reports/
+        retention-days: 60
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [collect-reports]
+    if: always()
+    
+    steps:
+    - name: Download final reports
+      uses: actions/download-artifact@v4
+      with:
+        name: complete-test-reports-${{ github.run_number }}
+        path: reports/
     
     - name: Buat ringkasan
       run: |
@@ -215,9 +325,41 @@ jobs:
         echo "**Greeting:** ${{ github.event.inputs.greeting || 'Halo' }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        # Hitung jumlah artifact
-        artifact_count=$(find artifacts/ -name "test-*" -type d | wc -l)
-        echo "**Total hasil test:** $artifact_count" >> $GITHUB_STEP_SUMMARY
+        # Hitung jumlah platform yang ditest
+        if [ -d "reports" ]; then
+          platform_count=$(find reports/ -maxdepth 1 -type d | grep -v "^reports/$" | wc -l)
+          total_files=$(find reports/ -type f | wc -l)
+          echo "**Platform yang ditest:** $platform_count" >> $GITHUB_STEP_SUMMARY
+          echo "**Total file report:** $total_files" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📁 Report Files Generated" >> $GITHUB_STEP_SUMMARY
+          
+          for platform_dir in reports/*/; do
+            if [ -d "$platform_dir" ]; then
+              platform=$(basename "$platform_dir")
+              file_count=$(find "$platform_dir" -type f | wc -l)
+              echo "- **$platform**: $file_count files" >> $GITHUB_STEP_SUMMARY
+              
+              # List key files
+              if [ -f "$platform_dir"/*.xlsx ]; then
+                echo "  - Excel reports: ✅" >> $GITHUB_STEP_SUMMARY
+              fi
+              if [ -f "$platform_dir"/*.html ]; then
+                echo "  - HTML reports: ✅" >> $GITHUB_STEP_SUMMARY
+              fi
+              if [ -f "$platform_dir"/*.json ]; then
+                echo "  - JSON data: ✅" >> $GITHUB_STEP_SUMMARY
+              fi
+              if [ -d "$platform_dir/audio" ]; then
+                audio_count=$(find "$platform_dir/audio" -type f | wc -l)
+                echo "  - Audio files: $audio_count" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+        else
+          echo "**Status:** No reports found" >> $GITHUB_STEP_SUMMARY
+        fi
         
         # Tampilkan URL yang digunakan
         echo "" >> $GITHUB_STEP_SUMMARY
