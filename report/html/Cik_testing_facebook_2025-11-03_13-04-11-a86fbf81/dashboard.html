@@ -9,7 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
-      darkMode: 'class', // Enable class-based dark mode
+      // darkMode disabled to keep single light theme
+      darkMode: false,
       theme: {
         extend: {
           fontFamily: {
@@ -107,7 +108,7 @@
     --chart-area-fill-stop-2-color: #FEF3C7; /* Lighter amber */
   }
 
-  /* Dark-mode CSS removed; template is light-only */
+  /* Dark mode removed - single light theme only */
 
   body {
     font-family: 'Inter', sans-serif;
@@ -119,17 +120,17 @@
   .recharts-default-legend {
     padding-bottom: 10px !important;
   }
-   .recharts-tooltip-wrapper {
-   outline: none !important;
-   z-index: 1000;
-   background-color: var(--chart-tooltip-bg) !important;
-   border-color: var(--chart-tooltip-border) !important;
-   border-radius: 0.5rem !important;
-   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.07) !important;
+  .recharts-tooltip-wrapper {
+    outline: none !important;
+    z-index: 1000;
+    background-color: var(--chart-tooltip-bg) !important;
+    border-color: var(--chart-tooltip-border) !important;
+    border-radius: 0.5rem; /* rounded-lg */
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.07); /* shadow-lg-ish */
   }
   .recharts-tooltip-label {
-    color: var(--content-primary) !important;
-    font-weight: 600 !important;
+     color: var(--content-primary) !important;
+     font-weight: 600;
   }
   .recharts-cartesian-axis-tick-value {
     fill: var(--chart-tick-color) !important;
@@ -152,11 +153,11 @@
   }
   ::-webkit-scrollbar-track {
     background-color: var(--bg-muted);
-    border-radius: 9999px;
+    border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb {
     background-color: var(--border-primary);
-    border-radius: 9999px;
+    border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
     background-color: var(--content-tertiary);
@@ -203,7 +204,7 @@
     <header class="mb-8 flex flex-col sm:flex-row justify-between items-center">
       <h1 id="main-title" class="text-4xl font-bold text-content-primary-themed mb-4 sm:mb-0">Hello, Champ!</h1>
       <div class="flex items-center space-x-2">
-        <!-- Theme toggle removed (light-only) -->
+        <!-- theme toggle removed to keep single light theme -->
         <button id="manual-refresh-button" class="p-1.5 rounded-md text-content-tertiary-themed hover:text-brand-primary hover:bg-secondary-themed transition-colors" aria-label="Refresh dashboard">
           <!-- RefreshIcon will be injected by JS -->
         </button>
@@ -219,7 +220,7 @@
           <h3 class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">Success</h3>
         </div>
         <div class="flex justify-between items-end">
-          <p class="text-4xl font-bold text-content-primary-themed">{{ summary[0].success }}</p>
+          <p class="text-4xl font-bold text-content-primary-themed">2</p>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-brand-secondary group-hover:scale-105 transition-transform duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
         </div>
         <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #059669;"></div>
@@ -229,7 +230,7 @@
           <h3 class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">Failed</h3>
         </div>
         <div class="flex justify-between items-end">
-          <p class="text-4xl font-bold text-content-primary-themed">{{ summary[0].failed }}</p>
+          <p class="text-4xl font-bold text-content-primary-themed">0</p>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-brand-danger group-hover:scale-105 transition-transform duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
         </div>
         <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #DC2626;"></div>
@@ -239,7 +240,7 @@
           <h3 class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">Total Topic</h3>
         </div>
         <div class="flex justify-between items-end">
-          <p class="text-4xl font-bold text-content-primary-themed">{{ summary[0].total_title }}</p>
+          <p class="text-4xl font-bold text-content-primary-themed">2</p>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-brand-info group-hover:scale-105 transition-transform duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" /></svg>
         </div>
         <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #0EA5E9;"></div>
@@ -249,7 +250,7 @@
           <h3 class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">Total Question</h3>
         </div>
         <div class="flex justify-between items-end">
-          <p class="text-4xl font-bold text-content-primary-themed">{{ summary[0].total_question }}</p>
+          <p class="text-4xl font-bold text-content-primary-themed">2</p>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-brand-teal group-hover:scale-105 transition-transform duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3.543-3.091a9.117 9.117 0 01-1.255 0H8.25c-.836 0-1.598-.574-1.899-1.385A5.964 5.964 0 016 11.75a5.96 5.96 0 013.355-5.337m8.208 2.258V7.579a5.962 5.962 0 00-5.902-5.903h-3.299c-.122.213-.248.431-.38.654a5.962 5.962 0 01-1.15 2.431A5.97 5.97 0 014.5 11.75c0 .599.081 1.17.236 1.708a5.991 5.991 0 011.263 3.388c.118.42.279.829.47 1.213a5.962 5.962 0 001.995 2.542h9.621c.748 0 1.385-.544 1.385-1.218V16.58c.41-.187.774-.418 1.08-.693A5.971 5.971 0 0022.5 11.75c0-.847-.173-1.652-.492-2.388z" /></svg>
         </div>
         <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #14B8A6;"></div>
@@ -259,7 +260,7 @@
           <h3 class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">Duration</h3>
         </div>
         <div class="flex justify-between items-end">
-          <p class="text-4xl font-bold text-content-primary-themed">{{ summary[0].duration }}</p>
+          <p class="text-4xl font-bold text-content-primary-themed">00:00:53</p>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-brand-warning group-hover:scale-105 transition-transform duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         </div>
         <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #F59E0B;"></div>
@@ -277,8 +278,8 @@
               <span class="text-content-secondary-themed w-28 shrink-0">Test ID</span>
               <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
               <span class="text-content-primary-themed flex-1 break-words flex items-center ml-1">
-                <span class="cursor-pointer hover:text-brand-primary hover:underline" data-copy-text="TEST-001" data-copy-type="Test ID">{{ summary[0].id_test }}</span>
-                <button data-copy-text="{{ summary[0].id_test }}" data-copy-type="Test ID" class="ml-2 text-content-tertiary-themed hover:text-brand-primary copy-button opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Copy Test ID">
+                <span class="cursor-pointer hover:text-brand-primary hover:underline" data-copy-text="TEST-001" data-copy-type="Test ID">a86fbf81</span>
+                <button data-copy-text="a86fbf81" data-copy-type="Test ID" class="ml-2 text-content-tertiary-themed hover:text-brand-primary copy-button opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Copy Test ID">
                   <!-- ClipboardIcon -->
                 </button>
               </span>
@@ -286,39 +287,39 @@
             <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
               <span class="text-content-secondary-themed w-28 shrink-0">Tester Name</span>
               <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
-              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].tester_name }}</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">Cik testing</span>
             </div>
             <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
               <span class="text-content-secondary-themed w-28 shrink-0">Date</span>
               <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
-              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].date_test }}</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">Senin, 3 November 2025</span>
             </div>
             <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
               <span class="text-content-secondary-themed w-28 shrink-0">AI Evaluation</span>
               <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
-              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].ai_evaluation }}</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">Playwright TypeScript (Gemini fallback)</span>
             </div>
             <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
               <span class="text-content-secondary-themed w-28 shrink-0">Browser</span>
               <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
-              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].browser_name }}</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">Playwright</span>
             </div>
             <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
               <span class="text-content-secondary-themed w-28 shrink-0">URL</span>
               <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
               <span class="text-content-primary-themed flex-1 break-words ml-1">
-                <a href="{{ summary[0].url }}" target="_blank" rel="noopener noreferrer" class="text-brand-primary hover:underline">{{ summary[0].url }}</a>
+                <a href="https://www.facebook.com/messages/t/114552848299710" target="_blank" rel="noopener noreferrer" class="text-brand-primary hover:underline">https://www.facebook.com/messages/t/114552848299710</a>
               </span>
             </div>
             <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
               <span class="text-content-secondary-themed w-28 shrink-0">Start Time</span>
               <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
-              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].start_time_test }}</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">13.04.11</span>
             </div>
             <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
               <span class="text-content-secondary-themed w-28 shrink-0">End Time</span>
               <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
-              <span class="text-content-primary-themed flex-1 break-words ml-1">{{ summary[0].end_time_test }}</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">13.10.13</span>
             </div>
           </div>
         </div>
@@ -326,14 +327,14 @@
 
   <div class="lg:col-span-9 h-full min-h-[380px]">
          <div id="analytics-chart-container" 
-              data-chart-data='[{"name":"Pass","value":{{ summary[0].success }},"color":"#059669"},{"name":"Failed","value":{{ summary[0].failed }},"color":"#DC2626"}]'
-              data-intent-sample-chart-data='[{"name":"Total Topic","value":{{ summary[0].total_title }},"color":"#0EA5E9"},{"name":"Total Question","value":{{ summary[0].total_question }},"color":"#14B8A6"}]'>
+              data-chart-data='[{"name":"Pass","value":2,"color":"#059669"},{"name":"Failed","value":0,"color":"#DC2626"}]'
+              data-intent-sample-chart-data='[{"name":"Total Topic","value":2,"color":"#0EA5E9"},{"name":"Total Question","value":2,"color":"#14B8A6"}]'>
 
             <!-- Analytics chart React component will render here. -->
          </div>
       </div>
       
-      <!-- Trend Topic card removed -->
+      <!-- Trend Topic card removed as requested -->
     </div>
 
     <div id="data-result-card" class="bg-primary-themed p-6 rounded-3xl shadow-xl mt-8">
@@ -398,7 +399,6 @@
         <table class="min-w-full divide-y divide-secondary-themed">
           <thead id="data-result-table-head" class="table-header-themed">
             <tr>
-              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">No</th>
               <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Title</th>
               <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Question</th>
               <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Expected</th>
@@ -411,38 +411,57 @@
             </tr>
           </thead>
           <tbody id="data-result-table-body" class="bg-primary-themed divide-y divide-secondary-themed">
-              {% for test_item in test_data %}
+              
                 <tr class="border-b border-secondary-themed table-row-hover-themed text-sm transition-colors table-row-odd-themed">
-                  <td class="py-4 px-2 w-[4%] text-content-primary-themed font-medium text-left">{{ test_item.no }}</td>
-                  <td class="py-4 px-2 w-[10%] text-content-primary-themed font-medium text-left">{{ test_item.title }}</td>
-                  <td class="py-4 px-2 w-[15%] text-content-primary-themed font-medium text-left">{{ test_item.question }}</td>
-                  <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">{{ test_item.response_kb }}</td>
-                  <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">{{ test_item.response_llm }}</td>
-                  <td class="py-4 px-2 w-[20%] text-content-primary-themed font-medium text-justify">{{ test_item.explanation }}</td>
+                  <td class="py-4 px-2 w-[10%] text-content-primary-themed font-medium text-left">Apa itu asuransi jiwa</td>
+                  <td class="py-4 px-2 w-[15%] text-content-primary-themed font-medium text-left">Apa itu asuransi jiwa</td>
+                  <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.</td>
+                  <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">respond bubble pertama adalah ini
+Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.</td>
+                  <td class="py-4 px-2 w-[20%] text-content-primary-themed font-medium text-justify">Auto: ✓ Jawaban sudah sangat baik dan lengkap. Semua informasi penting yang diharapkan sudah tercakup dengan akurat.</td>
                   <td class="py-4 px-2 w-[15%] text-center">
-                    {% if test_item.image_capture %}
-                      <img class="thumbnail preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer" src="{{ test_item.image_capture }}">
-                      {% else %}
-                      <div class="w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400">
-                        No Screenshot Available
-                      </div>
-                      {% endif %}
+                    
+                      <img class="thumbnail preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer" src="screenshots/a86fbf81_pertanyaan_Apa_itu_asuransi_jiwa.png">
+                      
                   </td>
-                  <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">
-                    <span class="{% if test_item.skor >= 0.75 %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %}">
-                      {{ test_item.skor }}
-                    </span>
-                  </td>
+                  <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">1</td>
                   <td class="py-4 px-2 w-[8%] text-center">
-                    <span class="text-lg font-bold px-3 py-1 rounded-full text-xs {% if test_item.skor >= 0.75 %}bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100{% else %}bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100{% endif %}">
-                      {{ test_item.status }}
-                    </span>
+                    
+                      <span class="text-lg font-bold px-3 py-1 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100">
+                        PASS
+                      </span>
+                    
                   </td>
-                  <td class="py-4 px-2 w-[7%] text-content-primary-themed font-semibold text-lg text-center">{{ test_item.duration }}</td>
+                  <td class="py-4 px-2 w-[7%] text-content-primary-themed font-semibold text-lg text-center">00:00:45</td>
                 </tr>
 
 
-              {% endfor %}
+              
+                <tr class="border-b border-secondary-themed table-row-hover-themed text-sm transition-colors table-row-odd-themed">
+                  <td class="py-4 px-2 w-[10%] text-content-primary-themed font-medium text-left">Apa itu asuransi kesehatan</td>
+                  <td class="py-4 px-2 w-[15%] text-content-primary-themed font-medium text-left">Apa itu asuransi kesehatan</td>
+                  <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.</td>
+                  <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">respond bubble pertama adalah ini
+Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.</td>
+                  <td class="py-4 px-2 w-[20%] text-content-primary-themed font-medium text-justify">Auto: ✓ Jawaban sudah sangat baik dan lengkap. Semua informasi penting yang diharapkan sudah tercakup dengan akurat.</td>
+                  <td class="py-4 px-2 w-[15%] text-center">
+                    
+                      <img class="thumbnail preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer" src="screenshots/a86fbf81_pertanyaan_Apa_itu_asuransi_kesehatan.png">
+                      
+                  </td>
+                  <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">1</td>
+                  <td class="py-4 px-2 w-[8%] text-center">
+                    
+                      <span class="text-lg font-bold px-3 py-1 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100">
+                        PASS
+                      </span>
+                    
+                  </td>
+                  <td class="py-4 px-2 w-[7%] text-content-primary-themed font-semibold text-lg text-center">00:00:08</td>
+                </tr>
+
+
+              
           </tbody>
         </table>
       </div>
@@ -476,7 +495,7 @@
   </div>
 
   <footer class="text-center py-8 text-sm text-content-tertiary-themed">
-    TesterBotika
+    Tester Botika
   </footer>
 
   <script type="module">
@@ -497,13 +516,10 @@
     const RefreshIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.992v4.992c0 .001 0 .001 0 .002Z" /></svg>`;
   /* Sun/Moon icons removed (light-only template) */
     
-  let masterTableData = []; 
-  let currentDataResultTableData = []; 
-  let paginatedData = [];
-
-    
-  // Trend topic removed — no runtime data
-    /* Theme management removed — template is light-only */
+    let masterTableData = []; 
+    let currentDataResultTableData = []; 
+    let paginatedData = [];
+    // Trend topic removed — no runtime data
 
 
     // --- HELPER FUNCTIONS ---
@@ -606,7 +622,6 @@
 
         const tableRowsHTML = dataToRender.map(row => `
             <tr class="border-b border-secondary-themed table-row-hover-themed text-sm transition-colors table-row-odd-themed ${dataToRender.indexOf(row) % 2 !== 0 ? '' : 'table-row-odd-themed'}">
-            <td class="py-4 px-2 w-[4%] text-content-primary-themed  text-left">${row.id || (dataToRender.indexOf(row) + 1) || '-'}</td>
             <td class="py-4 px-2 w-[10%] text-content-primary-themed  text-left">${row.title || '-'}</td>
             <td class="py-4 px-2 w-[10%] text-content-primary-themed  text-left">${row.question || '-'}</td>
             <td class="py-4 px-2 w-[25%] text-content-primary-themed  text-justify">${row.expected || '-'}</td>
@@ -619,11 +634,7 @@
                         class="preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer" />` 
                 : '<span>No Image</span>'}
             </td>
-            <td class="py-4 px-2 w-[5%] font-semibold text-lg text-center">
-              <span class="${parseFloat(row.skor) >= 0.75 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
-                ${row.skor || '-'}
-              </span>
-            </td>
+            <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">${row.skor || '-'}</td>
            <td class="py-4 px-2 w-[8%] text-center">
               <span class="px-3 py-1 rounded-full text-lg font-semibold ${row.status === 'pass' ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}">
                   ${row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : '-'}
@@ -785,7 +796,7 @@
         };
     };
 
-    // Trend intent chart removed to avoid unused React code in the light-only template
+    // Trend intent chart removed to prevent unused React code in light-only template
 
     function renderAnalyticsChart(wrapperContainerId, passFailDataFromAttr) {
       const wrapperContainer = document.getElementById(wrapperContainerId); 
@@ -830,19 +841,19 @@
             <div id="${chartSummaryTextId}" class="mt-4 space-y-3 w-[220px]">
               <div class="flex items-center space-x-2">
                 <span class="legend-box bg-blue-500"></span>
-                <div class="text-base text-content-secondary-themed text-left w-full">Total Topic: <b>{{ summary[0].total_title }}</b></div>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Topic: <b>2</b></div>
               </div>
               <div class="flex items-center space-x-2">
                 <span class="legend-box bg-teal-500"></span>
-                <div class="text-base text-content-secondary-themed text-left w-full">Total Question: <b>{{ summary[0].total_question }}</b></div>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Question: <b>2</b></div>
               </div>
               <div class="flex items-center space-x-2">
                 <span class="legend-box bg-green-600"></span>
-                <div class="text-base text-content-secondary-themed text-left w-full">Total Pass: <b>{{ summary[0].success }}</b></div>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Pass: <b>2</b></div>
               </div>
               <div class="flex items-center space-x-2">
                 <span class="legend-box bg-red-600"></span>
-                <div class="text-base text-content-secondary-themed text-left w-full">Total Failed: <b>{{ summary[0].failed }}</b></div>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Failed: <b>0</b></div>
               </div>
             </div>
           </div>
@@ -1037,20 +1048,29 @@
         }
     }
     
-    // Global handlers for onclick (must be in window scope)
-    window.handleDownloadCSV = function() {
-      console.log('CSV button clicked, data length:', masterTableData.length);
-      downloadCSV(masterTableData, `all_dashboard_data.csv`);
-    };
-    
-    window.handleDownloadExcel = function() {
-      console.log('Excel button clicked, data length:', masterTableData.length);
-      downloadExcel(masterTableData, `all_dashboard_data.xls`);
-    };
-
     function setupDownloadButtons() {
       // Setup download button event listeners AFTER icon injection
+      const csvBtn = document.getElementById('download-all-data-csv');
+      const excelBtn = document.getElementById('download-all-data-excel');
       const intentCsvBtn = document.getElementById('download-intent-csv-button');
+      
+      if (csvBtn) {
+        csvBtn.addEventListener('click', () => {
+          console.log('CSV button clicked, data length:', masterTableData.length);
+          downloadCSV(masterTableData, `all_dashboard_data.csv`);
+        });
+      } else {
+        console.warn('CSV button not found!');
+      }
+      
+      if (excelBtn) {
+        excelBtn.addEventListener('click', () => {
+          console.log('Excel button clicked, data length:', masterTableData.length);
+          downloadExcel(masterTableData, `all_dashboard_data.xls`);
+        });
+      } else {
+        console.warn('Excel button not found!');
+      }
       
       if (intentCsvBtn) {
         intentCsvBtn.addEventListener('click', () => {
@@ -1073,8 +1093,7 @@
         'filter-status-icon': ChevronDownIcon('w-5 h-5 text-content-tertiary-themed'),
         'filter-intent-icon': ChevronDownIcon('w-5 h-5 text-content-tertiary-themed'),
         'download-intent-csv-button': DownloadIcon('w-5 h-5'),
-        'download-all-data-csv': DownloadIcon('w-5 h-5'),
-        'download-all-data-excel': DownloadIcon('w-5 h-5'), 
+        'download-all-data-csv': DownloadIcon('w-5 h-5'), 
         'rows-per-page-icon': ChevronDownIcon('w-4 h-4 text-content-tertiary-themed'),
       };
       
@@ -1088,10 +1107,7 @@
         if (container) {
           if (id === 'download-all-data-csv') { 
               const textSpan = container.querySelector('span');
-              container.innerHTML = iconMappings[id] + ' ' + (textSpan ? textSpan.outerHTML : '<span>Download CSV</span>');
-          } else if (id === 'download-all-data-excel') { 
-              const textSpan = container.querySelector('span');
-              container.innerHTML = iconMappings[id] + ' ' + (textSpan ? textSpan.outerHTML : '<span>Download Excel</span>');
+              container.innerHTML = iconMappings[id] + ' ' + (textSpan ? textSpan.outerHTML : '<span>Download All Data (CSV)</span>');
           } else if (id === 'download-analytics-chart') { 
              // Dynamic content
           } else {
@@ -1108,8 +1124,7 @@
       setupDownloadButtons(); // Setup download buttons AFTER icon injection
       loadMasterTableDataFromHTML(); 
 
-    // Trend topic rendering removed (light-only template)
-      
+  // Trend chart removed from dashboard
       const analyticsChartDataContainer = document.getElementById('analytics-chart-container'); 
       let passFailAnalyticsData = [];
        if (analyticsChartDataContainer && analyticsChartDataContainer.dataset.chartData) {
@@ -1156,3 +1171,4 @@
   </script>
 </body>
 </html>
+

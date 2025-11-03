@@ -29,12 +29,13 @@ export class EnvFile {
     // Auto-generate HTML and Excel reports after each data write (incremental update)
     try {
       this.generateHtmlReportIncremental(reportFilename, idTest);
-      
+
       // Generate Excel report incrementally
       const { generateExcelReportIncremental } = require('./excel-report-generator');
       generateExcelReportIncremental(reportFilename, idTest);
     } catch (error) {
-      // Silent fail - don't break the test flow if report generation fails
+      // Log the error but don't throw to avoid breaking the test flow
+      console.error('❌ Error during incremental report generation:', error);
     }
   }
 
@@ -171,14 +172,22 @@ export class EnvFile {
     try {
       const reportDir = path.join('report', 'json');
       const htmlDir = path.join('report', 'html');
-      const templatePath = path.join('report', 'template', 'template.html');
-      
+      const templateHtmlPath = path.join('report', 'template', 'template.html');
+      const templateEjsPath = path.join('report', 'template', 'template.ejs');
+
       if (!fs.existsSync(htmlDir)) {
         fs.mkdirSync(htmlDir, { recursive: true });
       }
 
-      if (!fs.existsSync(templatePath)) {
-        return; // Silent fail
+      // Choose template: prefer template.html, fallback to template.ejs
+      let templatePath: string | null = null;
+      if (fs.existsSync(templateHtmlPath)) {
+        templatePath = templateHtmlPath;
+      } else if (fs.existsSync(templateEjsPath)) {
+        templatePath = templateEjsPath;
+      } else {
+        console.warn(`⚠️ No template found at ${templateHtmlPath} or ${templateEjsPath}. Skipping HTML generation.`);
+        return;
       }
 
       const botDataPath = path.join(reportDir, `${reportFilename}-${idTest}.json`);
@@ -186,6 +195,7 @@ export class EnvFile {
       const chartDataPath = path.join(reportDir, `${reportFilename}-${idTest}-chart.json`);
 
       if (!fs.existsSync(botDataPath)) {
+        console.warn(`⚠️ Bot data not ready yet at ${botDataPath}. Incremental HTML generation skipped.`);
         return; // Not ready yet
       }
 
@@ -218,33 +228,49 @@ export class EnvFile {
       const chartData = fs.existsSync(chartDataPath) ? JSON.parse(fs.readFileSync(chartDataPath, 'utf-8')) : {};
 
       const htmlTemplate = fs.readFileSync(templatePath, 'utf-8');
-      const htmlContent = this.processTemplate(htmlTemplate, botData, summaryData, chartData);
 
-      // Create folder for this report
+      // Create folder for this report early so we can resolve screenshot paths
       const reportFolderPath = path.join(htmlDir, `${reportFilename}-${idTest}`);
       if (!fs.existsSync(reportFolderPath)) {
         fs.mkdirSync(reportFolderPath, { recursive: true });
       }
 
-      // Copy screenshots to report folder
-      const screenshotDir = path.join('report', 'screenshoot');
-      if (fs.existsSync(screenshotDir)) {
-        botData.forEach(item => {
-          if (item.image_capture) {
-            const srcPath = path.join(screenshotDir, item.image_capture);
-            const destPath = path.join(reportFolderPath, item.image_capture);
-            if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
-              fs.copyFileSync(srcPath, destPath);
-            }
+      // Prepare botData so that image_capture points to a relative screenshots/ path
+      const screenshotsInReport = path.join(reportFolderPath, 'screenshots');
+      const botDataForRender = botData.map(item => {
+        if (item.image_capture) {
+          const candidate1 = path.join(screenshotsInReport, item.image_capture);
+          const candidate2 = path.join('report', 'screenshots', item.image_capture);
+          if (fs.existsSync(candidate1)) {
+            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
+          } else if (fs.existsSync(candidate2)) {
+            // If screenshots were placed into a global folder, prefer referencing screenshots/<file>
+            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
           }
-        });
+        }
+        return item;
+      });
+
+      // If template is EJS, render using EJS with proper data context
+      let htmlContent = '';
+      try {
+        if (path.extname(templatePath).toLowerCase() === '.ejs') {
+          const ejs = require('ejs');
+          htmlContent = ejs.render(htmlTemplate, { test_data: botDataForRender, summary: [summaryData], chartData }, { rmWhitespace: true });
+        } else {
+          htmlContent = this.processTemplate(htmlTemplate, botDataForRender, summaryData, chartData);
+        }
+      } catch (err) {
+        console.error('❌ Error rendering template (incremental):', err);
+        // Fallback to simple processing (best-effort)
+        htmlContent = this.processTemplate(htmlTemplate, botDataForRender, summaryData, chartData);
       }
 
       // Write HTML file
       const htmlFilePath = path.join(reportFolderPath, 'dashboard.html');
       fs.writeFileSync(htmlFilePath, htmlContent);
     } catch (error) {
-      // Silent fail - don't break test flow
+      console.error('❌ Error in generateHtmlReportIncremental:', error);
     }
   }
 
@@ -252,7 +278,7 @@ export class EnvFile {
     try {
       const reportDir = path.join('report', 'json');
       const htmlDir = path.join('report', 'html');
-      const templatePath = path.join('report', 'template', 'template.html');
+  const templatePath = path.join('report', 'template', 'template.html');
       
       if (!fs.existsSync(htmlDir)) {
         fs.mkdirSync(htmlDir, { recursive: true });
@@ -281,27 +307,40 @@ export class EnvFile {
       // Read template
       let htmlTemplate = fs.readFileSync(templatePath, 'utf-8');
 
-      // Generate HTML content using template
-      const htmlContent = this.processTemplate(htmlTemplate, botData, summaryData, chartData);
-
-      // Create folder for this report
+      // Create folder for this report early so we can resolve screenshot paths
       const reportFolderPath = path.join(htmlDir, `${reportFilename}-${idTest}`);
       if (!fs.existsSync(reportFolderPath)) {
         fs.mkdirSync(reportFolderPath, { recursive: true });
       }
 
-      // Copy screenshots to report folder
-      const screenshotDir = path.join('report', 'screenshoot');
-      if (fs.existsSync(screenshotDir)) {
-        botData.forEach(item => {
-          if (item.image_capture) {
-            const srcPath = path.join(screenshotDir, item.image_capture);
-            const destPath = path.join(reportFolderPath, item.image_capture);
-            if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
-              fs.copyFileSync(srcPath, destPath);
-            }
+      // Prepare botData so that image_capture points to a relative screenshots/ path
+      const screenshotsInReport = path.join(reportFolderPath, 'screenshots');
+      const botDataForRender = botData.map(item => {
+        if (item.image_capture) {
+          const candidate1 = path.join(screenshotsInReport, item.image_capture);
+          const candidate2 = path.join('report', 'screenshots', item.image_capture);
+          if (fs.existsSync(candidate1)) {
+            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
+          } else if (fs.existsSync(candidate2)) {
+            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
           }
-        });
+        }
+        return item;
+      });
+
+      // Generate HTML content using template, support EJS templates as well
+      let htmlContent = '';
+      try {
+        if (path.extname(templatePath).toLowerCase() === '.ejs') {
+          const ejs = require('ejs');
+          htmlContent = ejs.render(htmlTemplate, { test_data: botDataForRender, summary: [summaryData], chartData }, { rmWhitespace: true });
+        } else {
+          htmlContent = this.processTemplate(htmlTemplate, botDataForRender, summaryData, chartData);
+        }
+      } catch (err) {
+        console.error('❌ Error rendering template:', err);
+        // Fallback to simple processing
+        htmlContent = this.processTemplate(htmlTemplate, botDataForRender, summaryData, chartData);
       }
 
       // Write HTML file
@@ -349,7 +388,7 @@ export class EnvFile {
     // Process test data loop ({% for test_item in test_data %})
     const forLoopRegex = /\{\%\s*for\s+test_item\s+in\s+test_data\s*\%\}([\s\S]*?)\{\%\s*endfor\s*\%\}/g;
     processedTemplate = processedTemplate.replace(forLoopRegex, (match, loopContent) => {
-      return botData.map(item => {
+      return botData.map((item, idx) => {
         let itemContent = loopContent;
         
         // Replace test_item placeholders
@@ -358,7 +397,10 @@ export class EnvFile {
         itemContent = itemContent.replace(/\{\{\s*test_item\.response_kb\s*\}\}/g, this.escapeHtml(item.response_kb));
         itemContent = itemContent.replace(/\{\{\s*test_item\.response_llm\s*\}\}/g, this.escapeHtml(item.response_llm));
         itemContent = itemContent.replace(/\{\{\s*test_item\.explanation\s*\}\}/g, this.escapeHtml(item.explanation));
-        itemContent = itemContent.replace(/\{\{\s*test_item\.skor\s*\}\}/g, item.skor.toString());
+  itemContent = itemContent.replace(/\{\{\s*test_item\.skor\s*\}\}/g, item.skor.toString());
+  // Provide a sequential number (No). Prefer item.no if present, otherwise use index+1
+  const seqNo = (item.no && String(item.no).trim()) ? String(item.no) : String(idx + 1);
+  itemContent = itemContent.replace(/\{\{\s*test_item\.no\s*\}\}/g, seqNo);
         itemContent = itemContent.replace(/\{\{\s*test_item\.status\s*\}\}/g, item.status);
         itemContent = itemContent.replace(/\{\{\s*test_item\.duration\s*\}\}/g, item.duration);
         

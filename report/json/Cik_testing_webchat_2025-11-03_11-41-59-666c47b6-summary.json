@@ -1,0 +1,14 @@
+{
+  "id_test": "666c47b6",
+  "tester_name": "Cik testing",
+  "ai_evaluation": "Playwright TypeScript (Gemini fallback)",
+  "url": "https://chat.botika.online/tpUyiey",
+  "page_name": "Ahmad Nur Brasta",
+  "browser_name": "Chrome (Headless)",
+  "date_test": "Senin, 3 November 2025",
+  "start_time_test": "11.41.58",
+  "total_title": 2,
+  "total_question": 2,
+  "success": 0,
+  "failed": 0
+}
