@@ -21,14 +21,14 @@ on:
           - 'dhai'
           - 'dhai-wakeup'
       filename:
-        description: 'testing.xlsx'
+        description: 'Nama file hasil test'
         required: false
-        default: 'test-result'
+        default: 'testing.xlsx'
         type: string
       tester_name:
-        description: 'Cik CICD'
+        description: 'Nama tester'
         required: false
-        default: 'GitHub Actions'
+        default: 'Cik CICD'
         type: string
       greeting:
         description: 'Greeting message'
@@ -38,7 +38,7 @@ on:
       webchat_url:
         description: 'URL Webchat'
         required: false
-        default: 'https://chat.botika.online/tpUyiey
+        default: 'https://chat.botika.online/tpUyiey'
         type: string
       telegram_url:
         description: 'URL Telegram'
