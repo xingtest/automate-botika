@@ -13,13 +13,13 @@ on:
         default: 'webchat'
         type: choice
         options:
-          - 'all'
+          # - 'all'
           - 'webchat'
-          - 'telegram'
-          - 'facebook'
-          - 'instagram'
-          - 'dhai'
-          - 'dhai-wakeup'
+          # - 'telegram'
+          # - 'facebook'
+          # - 'instagram'
+          # - 'dhai'
+          # - 'dhai-wakeup'
       filename:
         description: 'Nama file hasil test'
         required: false
