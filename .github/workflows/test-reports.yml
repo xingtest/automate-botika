@@ -1,0 +1,307 @@
+name: Multi-Platform Testing with Reports
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform yang akan ditest'
+        required: false
+        default: 'webchat'
+        type: choice
+        options:
+          - 'webchat'
+          - 'telegram'
+          - 'facebook'
+          - 'instagram'
+          - 'dhai'
+          - 'dhai-wakeup'
+          - 'all'
+      filename:
+        description: 'Nama file hasil test'
+        required: false
+        default: 'test-result'
+        type: string
+      tester_name:
+        description: 'Nama tester'
+        required: false
+        default: 'GitHub Actions Bot'
+        type: string
+      greeting:
+        description: 'Greeting message'
+        required: false
+        default: 'Halo, saya ingin bertanya'
+        type: string
+      webchat_url:
+        description: 'URL Webchat'
+        required: false
+        default: 'https://chat.botika.online/tpUyiey'
+        type: string
+
+jobs:
+  test-all-platforms:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform == 'all' }}
+    strategy:
+      matrix:
+        platform: [webchat, telegram, facebook, instagram, dhai, dhai-wakeup]
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps chromium
+
+    - name: Setup test environment
+      run: |
+        cp .env.example .env
+        echo "PLATFORM=${{ matrix.platform }}" >> .env
+        echo "FILENAME=${{ github.event.inputs.filename || 'test-result' }}.json" >> .env
+        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
+        echo "GREETING=${{ github.event.inputs.greeting || 'Halo, saya ingin bertanya' }}" >> .env
+        echo "TARGET_URL=${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}" >> .env
+
+    - name: Create test data file if not exists
+      run: |
+        mkdir -p assets/json
+        if [ ! -f "assets/json/${{ github.event.inputs.filename || 'test-result' }}.json" ]; then
+          echo '[{"question": "Halo", "expected_keywords": ["halo", "hai", "selamat"]}]' > "assets/json/${{ github.event.inputs.filename || 'test-result' }}.json"
+        fi
+
+    - name: Run test for ${{ matrix.platform }}
+      run: npm run test:${{ matrix.platform }}
+      env:
+        CI: true
+        HEADLESS: true
+      continue-on-error: true
+
+    - name: Verify reports generated
+      run: |
+        echo "=== Checking generated reports ==="
+        echo "JSON reports:"
+        find report/json/ -name "*.json" -type f 2>/dev/null || echo "No JSON reports found"
+        echo ""
+        echo "HTML reports:"
+        find report/html/ -name "*.html" -type f 2>/dev/null || echo "No HTML reports found"
+        echo ""
+        echo "Report structure:"
+        ls -la report/ 2>/dev/null || echo "No report directory found"
+
+    - name: Upload test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-reports-${{ matrix.platform }}-${{ github.run_number }}
+        path: |
+          report/
+          temp_audio/
+        retention-days: 30
+
+  test-single-platform:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform != 'all' }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps chromium
+
+    - name: Setup test environment
+      run: |
+        cp .env.example .env
+        echo "PLATFORM=${{ github.event.inputs.platform || 'webchat' }}" >> .env
+        echo "FILENAME=${{ github.event.inputs.filename || 'test-result' }}.json" >> .env
+        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
+        echo "GREETING=${{ github.event.inputs.greeting || 'Halo, saya ingin bertanya' }}" >> .env
+        echo "TARGET_URL=${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}" >> .env
+
+    - name: Create test data file if not exists
+      run: |
+        mkdir -p assets/json
+        if [ ! -f "assets/json/${{ github.event.inputs.filename || 'test-result' }}.json" ]; then
+          echo '[{"question": "Halo", "expected_keywords": ["halo", "hai", "selamat"]}]' > "assets/json/${{ github.event.inputs.filename || 'test-result' }}.json"
+        fi
+
+    - name: Run test for ${{ github.event.inputs.platform || 'webchat' }}
+      run: npm run test:${{ github.event.inputs.platform || 'webchat' }}
+      env:
+        CI: true
+        HEADLESS: true
+      continue-on-error: true
+
+    - name: Verify reports generated
+      run: |
+        echo "=== Checking generated reports ==="
+        echo "JSON reports:"
+        find report/json/ -name "*.json" -type f 2>/dev/null || echo "No JSON reports found"
+        echo ""
+        echo "HTML reports:"
+        find report/html/ -name "*.html" -type f 2>/dev/null || echo "No HTML reports found"
+        echo ""
+        echo "Report structure:"
+        ls -la report/ 2>/dev/null || echo "No report directory found"
+
+    - name: Upload test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-reports-${{ github.event.inputs.platform || 'webchat' }}-${{ github.run_number }}
+        path: |
+          report/
+          temp_audio/
+        retention-days: 30
+
+  collect-all-reports:
+    runs-on: ubuntu-latest
+    needs: [test-all-platforms, test-single-platform]
+    if: always()
+    steps:
+    - name: Download all test artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+
+    - name: Organize reports
+      run: |
+        mkdir -p final-reports/html
+        mkdir -p final-reports/json
+        mkdir -p final-reports/audio
+        
+        echo "=== Organizing reports ==="
+        for artifact_dir in artifacts/test-reports-*/; do
+          if [ -d "$artifact_dir" ]; then
+            platform_name=$(basename "$artifact_dir" | sed 's/test-reports-//' | sed 's/-[0-9]*$//')
+            echo "Processing reports for: $platform_name"
+            
+            # Copy HTML reports
+            if [ -d "$artifact_dir/report/html" ]; then
+              cp -r "$artifact_dir/report/html"/* final-reports/html/ 2>/dev/null || true
+            fi
+            
+            # Copy JSON reports
+            if [ -d "$artifact_dir/report/json" ]; then
+              cp -r "$artifact_dir/report/json"/* final-reports/json/ 2>/dev/null || true
+            fi
+            
+            # Copy audio files if exist
+            if [ -d "$artifact_dir/temp_audio" ]; then
+              cp -r "$artifact_dir/temp_audio"/* final-reports/audio/ 2>/dev/null || true
+            fi
+          fi
+        done
+        
+        echo "=== Final report summary ==="
+        echo "HTML reports:"
+        find final-reports/html/ -name "*.html" -type f 2>/dev/null | wc -l
+        echo "JSON reports:"
+        find final-reports/json/ -name "*.json" -type f 2>/dev/null | wc -l
+        echo "Audio files:"
+        find final-reports/audio/ -type f 2>/dev/null | wc -l
+
+    - name: Create report index
+      run: |
+        cat > final-reports/README.md << EOF
+        # Test Reports - Build ${{ github.run_number }}
+        
+        Generated: $(date)
+        Platform: ${{ github.event.inputs.platform || 'Multiple platforms' }}
+        Tester: ${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}
+        
+        ## Report Structure
+        - \`html/\` - HTML reports with screenshots
+        - \`json/\` - Raw test data in JSON format
+        - \`audio/\` - Audio files (if any)
+        
+        ## HTML Reports
+        EOF
+        
+        find final-reports/html/ -name "*.html" -type f | while read -r file; do
+          filename=$(basename "$file")
+          echo "- [$filename](html/$filename)" >> final-reports/README.md
+        done
+
+    - name: Upload consolidated reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: complete-test-reports-${{ github.run_number }}
+        path: final-reports/
+        retention-days: 60
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [collect-all-reports]
+    if: always()
+    steps:
+    - name: Download consolidated reports
+      uses: actions/download-artifact@v4
+      with:
+        name: complete-test-reports-${{ github.run_number }}
+        path: reports/
+
+    - name: Generate test summary
+      run: |
+        echo "# 🧪 Multi-Platform Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Build Number:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Platform:** ${{ github.event.inputs.platform || 'Multiple platforms' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Tester:** ${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Test File:** ${{ github.event.inputs.filename || 'test-result' }}.json" >> $GITHUB_STEP_SUMMARY
+        echo "**Generated:** $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -d "reports" ]; then
+          html_count=$(find reports/html/ -name "*.html" -type f 2>/dev/null | wc -l)
+          json_count=$(find reports/json/ -name "*.json" -type f 2>/dev/null | wc -l)
+          audio_count=$(find reports/audio/ -type f 2>/dev/null | wc -l)
+          
+          echo "## 📊 Report Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- **HTML Reports:** $html_count files" >> $GITHUB_STEP_SUMMARY
+          echo "- **JSON Data:** $json_count files" >> $GITHUB_STEP_SUMMARY
+          echo "- **Audio Files:** $audio_count files" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 📁 Available Reports" >> $GITHUB_STEP_SUMMARY
+          find reports/html/ -name "*.html" -type f 2>/dev/null | head -10 | while read -r file; do
+            filename=$(basename "$file")
+            echo "- 📄 $filename" >> $GITHUB_STEP_SUMMARY
+          done
+          
+          remaining=$(find reports/html/ -name "*.html" -type f 2>/dev/null | wc -l)
+          if [ $remaining -gt 10 ]; then
+            more_count=$((remaining - 10))
+            echo "- ... and $more_count more reports" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📥 Download Reports" >> $GITHUB_STEP_SUMMARY
+          echo "Download the **complete-test-reports-${{ github.run_number }}** artifact to access all test results." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **No reports generated**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## ⚙️ Test Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- **Webchat URL:** ${{ github.event.inputs.webchat_url || 'Default URL' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Greeting:** ${{ github.event.inputs.greeting || 'Halo, saya ingin bertanya' }}" >> $GITHUB_STEP_SUMMARY
