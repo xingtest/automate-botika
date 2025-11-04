@@ -1,0 +1,400 @@
+name: Multi-Platform Testing (Fresh Reports Only)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform yang akan ditest'
+        required: false
+        default: 'webchat'
+        type: choice
+        options:
+          - 'webchat'
+          - 'telegram'
+          - 'facebook'
+          - 'instagram'
+          - 'dhai'
+          - 'dhai-wakeup'
+          - 'all'
+      filename:
+        description: 'Nama file hasil test'
+        required: false
+        default: 'testing'
+        type: string
+      tester_name:
+        description: 'Nama tester'
+        required: false
+        default: 'GitHub Actions Bot'
+        type: string
+      greeting:
+        description: 'Greeting message'
+        required: false
+        default: 'Haloo'
+        type: string
+      webchat_url:
+        description: 'URL Webchat'
+        required: false
+        default: 'https://chat.botika.online/tpUyiey'
+        type: string
+
+jobs:
+  test-single-platform:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform != 'all' }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Install Google Chrome
+      run: |
+        echo "🔄 Installing Google Chrome..."
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        echo "✅ Chrome installed: $(google-chrome --version)"
+
+    - name: Clean old reports and setup fresh environment
+      run: |
+        echo "🧹 Cleaning old reports for fresh CI/CD run..."
+        
+        # Remove any existing report folders to ensure fresh results
+        rm -rf report/ temp_audio/ log/ 2>/dev/null || true
+        
+        # Create fresh directories
+        mkdir -p report/html report/json temp_audio
+        
+        echo "✅ Fresh environment ready"
+
+    - name: Setup test environment
+      run: |
+        echo "⚙️ Setting up test environment..."
+        
+        # Copy and configure .env
+        cp .env.example .env
+        echo "PLATFORM=${{ github.event.inputs.platform || 'webchat' }}" >> .env
+        echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
+        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
+        echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
+        echo 'TARGET_URL="${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}"' >> .env
+        echo "ENABLE_GEMINI_EVALUATION=false" >> .env
+        
+        echo "✅ Environment configured"
+
+    - name: Ensure test data exists
+      run: |
+        echo "📋 Checking test data..."
+        
+        # List available test files
+        echo "Available test files:"
+        find assets/ -name "*.xlsx" -o -name "*.json" -o -name "*.csv" 2>/dev/null || echo "No test files found"
+        
+        # Check specific file
+        test_file="assets/xlsx/${{ github.event.inputs.filename || 'testing' }}.xlsx"
+        if [ -f "$test_file" ]; then
+          echo "✅ Test file found: $test_file"
+        else
+          echo "⚠️ Test file not found: $test_file"
+          echo "Available xlsx files:"
+          ls -la assets/xlsx/ 2>/dev/null || echo "No xlsx directory"
+        fi
+
+    - name: Run fresh test (same flow as local)
+      run: |
+        echo "🧪 Running fresh test for ${{ github.event.inputs.platform || 'webchat' }}..."
+        
+        # Build TypeScript
+        echo "📦 Building..."
+        npm run build
+        
+        # Run test (generates fresh JSON + screenshots)
+        echo "🚀 Running test..."
+        node dist/main.js ${{ github.event.inputs.platform || 'webchat' }}
+        
+        # Generate fresh HTML + Excel reports
+        echo "📊 Generating fresh reports..."
+        node dist/report-cli.js
+        
+        echo "✅ Fresh test completed"
+      env:
+        CI: true
+        HEADLESS: true
+      continue-on-error: true
+
+    - name: Verify fresh reports generated
+      run: |
+        echo "=== 📋 Fresh Reports Verification ==="
+        echo ""
+        
+        # Show report structure
+        echo "📁 Fresh report structure:"
+        if [ -d "report" ]; then
+          find report/ -type f -exec ls -lh {} \; 2>/dev/null
+        else
+          echo "❌ No report directory"
+        fi
+        
+        echo ""
+        echo "🌐 Fresh HTML reports:"
+        html_count=$(find report/html/ -name "*.html" -type f 2>/dev/null | wc -l)
+        echo "Found $html_count HTML files"
+        find report/html/ -name "*.html" -type f 2>/dev/null | head -5
+        
+        echo ""
+        echo "📊 Fresh Excel reports:"
+        excel_count=$(find report/html/ -name "*.xlsx" -type f 2>/dev/null | wc -l)
+        echo "Found $excel_count Excel files"
+        find report/html/ -name "*.xlsx" -type f 2>/dev/null
+        
+        echo ""
+        echo "📸 Fresh screenshots:"
+        screenshot_count=$(find report/html/ -name "*.png" -type f 2>/dev/null | wc -l)
+        echo "Found $screenshot_count screenshot files"
+        
+        echo ""
+        echo "📄 Fresh JSON data:"
+        json_count=$(find report/json/ -name "*.json" -type f 2>/dev/null | wc -l)
+        echo "Found $json_count JSON files"
+        
+        echo ""
+        echo "📦 Total fresh files to upload: $(find report/ temp_audio/ -type f 2>/dev/null | wc -l)"
+
+    - name: Upload fresh reports only
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: fresh-reports-${{ github.event.inputs.platform || 'webchat' }}-${{ github.run_number }}
+        path: |
+          report/
+          temp_audio/
+        retention-days: 30
+
+  test-all-platforms:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform == 'all' }}
+    strategy:
+      matrix:
+        platform: [webchat, telegram, facebook, instagram, dhai, dhai-wakeup]
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Install Google Chrome
+      run: |
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+
+    - name: Clean and setup fresh environment for ${{ matrix.platform }}
+      run: |
+        echo "🧹 Cleaning for fresh ${{ matrix.platform }} test..."
+        rm -rf report/ temp_audio/ log/ 2>/dev/null || true
+        mkdir -p report/html report/json temp_audio
+
+    - name: Setup test environment for ${{ matrix.platform }}
+      run: |
+        cp .env.example .env
+        echo "PLATFORM=${{ matrix.platform }}" >> .env
+        echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
+        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
+        echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
+        echo 'TARGET_URL="${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}"' >> .env
+        echo "ENABLE_GEMINI_EVALUATION=false" >> .env
+
+    - name: Run fresh test for ${{ matrix.platform }}
+      run: |
+        echo "🧪 Running fresh test for ${{ matrix.platform }}..."
+        npm run build
+        node dist/main.js ${{ matrix.platform }}
+        node dist/report-cli.js
+        echo "✅ Fresh ${{ matrix.platform }} test completed"
+      env:
+        CI: true
+        HEADLESS: true
+      continue-on-error: true
+
+    - name: Upload fresh reports for ${{ matrix.platform }}
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: fresh-reports-${{ matrix.platform }}-${{ github.run_number }}
+        path: |
+          report/
+          temp_audio/
+        retention-days: 30
+
+  consolidate-fresh-reports:
+    runs-on: ubuntu-latest
+    needs: [test-all-platforms, test-single-platform]
+    if: always()
+    steps:
+    - name: Download all fresh artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+
+    - name: Organize fresh reports
+      run: |
+        mkdir -p consolidated-fresh-reports
+        
+        echo "=== 📦 Consolidating Fresh Reports ==="
+        for artifact_dir in artifacts/fresh-reports-*/; do
+          if [ -d "$artifact_dir" ]; then
+            platform_name=$(basename "$artifact_dir" | sed 's/fresh-reports-//' | sed 's/-[0-9]*$//')
+            echo "📋 Processing fresh reports for: $platform_name"
+            
+            # Create platform-specific folder
+            mkdir -p "consolidated-fresh-reports/$platform_name"
+            
+            # Copy all fresh reports
+            if [ -d "$artifact_dir/report" ]; then
+              cp -r "$artifact_dir/report"/* "consolidated-fresh-reports/$platform_name/" 2>/dev/null || true
+            fi
+            
+            # Copy audio files if exist
+            if [ -d "$artifact_dir/temp_audio" ]; then
+              mkdir -p "consolidated-fresh-reports/$platform_name/audio"
+              cp -r "$artifact_dir/temp_audio"/* "consolidated-fresh-reports/$platform_name/audio/" 2>/dev/null || true
+            fi
+          fi
+        done
+        
+        echo "=== 📊 Fresh Reports Summary ==="
+        total_platforms=$(find consolidated-fresh-reports/ -maxdepth 1 -type d | grep -v "^consolidated-fresh-reports/$" | wc -l)
+        total_html=$(find consolidated-fresh-reports/ -name "*.html" -type f 2>/dev/null | wc -l)
+        total_excel=$(find consolidated-fresh-reports/ -name "*.xlsx" -type f 2>/dev/null | wc -l)
+        total_screenshots=$(find consolidated-fresh-reports/ -name "*.png" -type f 2>/dev/null | wc -l)
+        
+        echo "Platforms: $total_platforms"
+        echo "HTML reports: $total_html"
+        echo "Excel reports: $total_excel"
+        echo "Screenshots: $total_screenshots"
+
+    - name: Create fresh reports index
+      run: |
+        cat > consolidated-fresh-reports/README.md << EOF
+        # 🧪 Fresh Test Reports - Build ${{ github.run_number }}
+        
+        **Generated:** $(date)  
+        **Platform:** ${{ github.event.inputs.platform || 'Multiple platforms' }}  
+        **Tester:** ${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}  
+        **Run Type:** Fresh CI/CD Reports Only
+        
+        > ⚡ These reports contain only the latest test results from this CI/CD run.
+        > No old reports are included - completely fresh results!
+        
+        ## 📁 Fresh Report Structure
+        Each platform folder contains:
+        - \`html/\` - Fresh HTML reports with screenshots
+        - \`json/\` - Fresh JSON test data
+        - \`audio/\` - Fresh audio files (if any)
+        - \`*.xlsx\` - Fresh Excel reports
+        
+        ## 🌐 Fresh HTML Reports by Platform
+        EOF
+        
+        for platform_dir in consolidated-fresh-reports/*/; do
+          if [ -d "$platform_dir" ]; then
+            platform=$(basename "$platform_dir")
+            html_count=$(find "$platform_dir" -name "*.html" -type f 2>/dev/null | wc -l)
+            echo "### 📱 $platform ($html_count HTML files)" >> consolidated-fresh-reports/README.md
+            
+            find "$platform_dir" -name "*.html" -type f | while read -r file; do
+              relative_path=$(echo "$file" | sed "s|consolidated-fresh-reports/||")
+              filename=$(basename "$file")
+              echo "- [$filename]($relative_path)" >> consolidated-fresh-reports/README.md
+            done
+            echo "" >> consolidated-fresh-reports/README.md
+          fi
+        done
+
+    - name: Upload consolidated fresh reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: all-fresh-reports-${{ github.run_number }}
+        path: consolidated-fresh-reports/
+        retention-days: 60
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [consolidate-fresh-reports]
+    if: always()
+    steps:
+    - name: Download fresh reports
+      uses: actions/download-artifact@v4
+      with:
+        name: all-fresh-reports-${{ github.run_number }}
+        path: reports/
+
+    - name: Generate fresh reports summary
+      run: |
+        echo "# 🧪 Fresh Multi-Platform Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Build Number:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Platform:** ${{ github.event.inputs.platform || 'Multiple platforms' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Tester:** ${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Report Type:** ⚡ Fresh CI/CD Reports Only" >> $GITHUB_STEP_SUMMARY
+        echo "**Generated:** $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -d "reports" ]; then
+          platforms=$(find reports/ -maxdepth 1 -type d | grep -v "^reports/$" | wc -l)
+          html_count=$(find reports/ -name "*.html" -type f 2>/dev/null | wc -l)
+          excel_count=$(find reports/ -name "*.xlsx" -type f 2>/dev/null | wc -l)
+          screenshot_count=$(find reports/ -name "*.png" -type f 2>/dev/null | wc -l)
+          
+          echo "## 📊 Fresh Report Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platforms Tested:** $platforms" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fresh HTML Reports:** $html_count files" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fresh Excel Reports:** $excel_count files" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fresh Screenshots:** $screenshot_count files" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 📁 Fresh Reports by Platform" >> $GITHUB_STEP_SUMMARY
+          for platform_dir in reports/*/; do
+            if [ -d "$platform_dir" ]; then
+              platform=$(basename "$platform_dir")
+              platform_html=$(find "$platform_dir" -name "*.html" -type f 2>/dev/null | wc -l)
+              platform_excel=$(find "$platform_dir" -name "*.xlsx" -type f 2>/dev/null | wc -l)
+              echo "- **$platform**: $platform_html HTML, $platform_excel Excel" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📥 Download Fresh Reports" >> $GITHUB_STEP_SUMMARY
+          echo "Download **all-fresh-reports-${{ github.run_number }}** artifact for:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Fresh HTML reports with screenshots" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Fresh Excel files for analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Fresh JSON test data" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ No old reports - completely fresh results!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **No fresh reports generated**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## ⚙️ Test Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- **Webchat URL:** ${{ github.event.inputs.webchat_url || 'Default URL' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Greeting:** ${{ github.event.inputs.greeting || 'Haloo' }}" >> $GITHUB_STEP_SUMMARY
