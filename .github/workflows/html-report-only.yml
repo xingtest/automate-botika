@@ -1,0 +1,452 @@
+name: Generate HTML Reports Only
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform yang akan ditest'
+        required: false
+        default: 'webchat'
+        type: choice
+        options:
+          - 'webchat'
+          # - 'telegram'
+          # - 'facebook'
+          # - 'instagram'
+          # - 'dhai'
+          # - 'dhai-wakeup'
+          # - 'all'
+      filename:
+        description: 'Nama file hasil test'
+        required: false
+        default: 'test-result'
+        type: string
+      tester_name:
+        description: 'Nama tester'
+        required: false
+        default: 'GitHub Actions Bot'
+        type: string
+      greeting:
+        description: 'Greeting message'
+        required: false
+        default: 'Halo, saya ingin bertanya'
+        type: string
+      webchat_url:
+        description: 'URL Webchat'
+        required: false
+        default: 'https://chat.botika.online/tpUyiey'
+        type: string
+      telegram_url:
+        description: 'URL Telegram'
+        required: false
+        default: 'https://web.telegram.org'
+        type: string
+      facebook_url:
+        description: 'URL Facebook'
+        required: false
+        default: 'https://www.facebook.com'
+        type: string
+      instagram_url:
+        description: 'URL Instagram'
+        required: false
+        default: 'https://www.instagram.com'
+        type: string
+      dhai_url:
+        description: 'URL DHAI'
+        required: false
+        default: 'https://dhai.example.com'
+        type: string
+
+jobs:
+  test-platforms:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform == 'all' }}
+    
+    strategy:
+      matrix:
+        platform: [webchat, telegram, facebook, instagram, dhai, dhai-wakeup]
+    
+    steps:
+    - name: Checkout kode
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies dan build
+      run: |
+        npm ci
+        npm run build
+    
+    - name: Install Playwright
+      run: npx playwright install --with-deps chromium
+    
+    - name: Setup environment
+      run: |
+        cp .env.example .env
+        echo "PLATFORM=${{ matrix.platform }}" >> .env
+        echo "FILENAME=${{ github.event.inputs.filename || 'test-result' }}" >> .env
+        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions' }}" >> .env
+        echo "GREETING=${{ github.event.inputs.greeting || 'Halo' }}" >> .env
+        echo "WEBCHAT_URL=${{ github.event.inputs.webchat_url || 'https://example.com/webchat' }}" >> .env
+        echo "TELEGRAM_URL=${{ github.event.inputs.telegram_url || 'https://web.telegram.org' }}" >> .env
+        echo "FACEBOOK_URL=${{ github.event.inputs.facebook_url || 'https://www.facebook.com' }}" >> .env
+        echo "INSTAGRAM_URL=${{ github.event.inputs.instagram_url || 'https://www.instagram.com' }}" >> .env
+        echo "DHAI_URL=${{ github.event.inputs.dhai_url || 'https://dhai.example.com' }}" >> .env
+    
+    - name: Jalankan test platform
+      run: npm run test:${{ matrix.platform }}
+      env:
+        CI: true
+        HEADLESS: true
+    
+    - name: Verify HTML reports generated
+      if: always()
+      run: |
+        echo "Checking for HTML reports in report/html/..."
+        if [ -d "report/html" ]; then
+          echo "✅ HTML report folder exists"
+          find report/html/ -name "*.html" -type f | head -10
+          echo "Total HTML files: $(find report/html/ -name "*.html" -type f | wc -l)"
+        else
+          echo "❌ HTML report folder not found"
+          echo "Available folders in report/:"
+          ls -la report/ || echo "No report folder found"
+        fi
+    
+    - name: Upload HTML reports only
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: html-report-${{ matrix.platform }}-${{ github.run_number }}
+        path: report/html/
+        retention-days: 30
+
+  test-single:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform != 'all' }}
+    
+    steps:
+    - name: Checkout kode
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies dan build
+      run: |
+        npm ci
+        npm run build
+    
+    - name: Install Playwright
+      run: npx playwright install --with-deps chromium
+    
+    - name: Setup environment
+      run: |
+        cp .env.example .env
+        echo "PLATFORM=${{ github.event.inputs.platform }}" >> .env
+        echo "FILENAME=${{ github.event.inputs.filename || 'test-result' }}" >> .env
+        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions' }}" >> .env
+        echo "GREETING=${{ github.event.inputs.greeting || 'Halo' }}" >> .env
+        echo "WEBCHAT_URL=${{ github.event.inputs.webchat_url || 'https://example.com/webchat' }}" >> .env
+        echo "TELEGRAM_URL=${{ github.event.inputs.telegram_url || 'https://web.telegram.org' }}" >> .env
+        echo "FACEBOOK_URL=${{ github.event.inputs.facebook_url || 'https://www.facebook.com' }}" >> .env
+        echo "INSTAGRAM_URL=${{ github.event.inputs.instagram_url || 'https://www.instagram.com' }}" >> .env
+        echo "DHAI_URL=${{ github.event.inputs.dhai_url || 'https://dhai.example.com' }}" >> .env
+    
+    - name: Jalankan test
+      run: npm run test:${{ github.event.inputs.platform }}
+      env:
+        CI: true
+        HEADLESS: true
+    
+    - name: Verify HTML reports generated
+      if: always()
+      run: |
+        echo "Checking for HTML reports in report/html/..."
+        if [ -d "report/html" ]; then
+          echo "✅ HTML report folder exists"
+          find report/html/ -name "*.html" -type f | head -10
+          echo "Total HTML files: $(find report/html/ -name "*.html" -type f | wc -l)"
+        else
+          echo "❌ HTML report folder not found"
+          echo "Available folders in report/:"
+          ls -la report/ || echo "No report folder found"
+        fi
+    
+    - name: Upload HTML reports only
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: html-report-${{ github.event.inputs.platform }}-${{ github.run_number }}
+        path: report/html/
+        retention-days: 30
+
+  collect-html-reports:
+    runs-on: ubuntu-latest
+    needs: [test-platforms, test-single]
+    if: always()
+    name: Kumpulkan HTML Reports
+    
+    steps:
+    - name: Download semua HTML artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+    
+    - name: Organisir HTML reports
+      run: |
+        mkdir -p final-html-reports
+        
+        # Copy semua HTML report ke folder final
+        for dir in artifacts/html-report-*/; do
+          if [ -d "$dir" ]; then
+            platform_name=$(basename "$dir" | sed 's/html-report-//' | sed 's/-[0-9]*$//')
+            echo "Processing HTML reports for: $platform_name"
+            
+            mkdir -p "final-html-reports/$platform_name"
+            
+            # Copy HTML files
+            if [ -d "$dir" ]; then
+              cp -r "$dir"/* "final-html-reports/$platform_name/" 2>/dev/null || true
+            fi
+          fi
+        done
+        
+        # Create index HTML file
+        cat > final-html-reports/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Test Reports - Build ${{ github.run_number }}</title>
+            <meta charset="UTF-8">
+            <style>
+                body { 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                    margin: 0; 
+                    padding: 40px; 
+                    background: #f8f9fa; 
+                }
+                .container { max-width: 1200px; margin: 0 auto; }
+                .header { 
+                    background: white; 
+                    padding: 30px; 
+                    border-radius: 12px; 
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    margin-bottom: 30px;
+                }
+                .header h1 { margin: 0 0 20px 0; color: #2c3e50; }
+                .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+                .info-item { background: #f8f9fa; padding: 15px; border-radius: 8px; }
+                .info-item strong { color: #34495e; }
+                .platform { 
+                    background: white; 
+                    margin: 20px 0; 
+                    padding: 25px; 
+                    border-radius: 12px; 
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }
+                .platform h3 { 
+                    margin: 0 0 20px 0; 
+                    color: #2c3e50; 
+                    font-size: 1.4em;
+                    border-bottom: 2px solid #3498db;
+                    padding-bottom: 10px;
+                }
+                .file-grid { 
+                    display: grid; 
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+                    gap: 15px; 
+                }
+                .file-item { 
+                    background: #f8f9fa; 
+                    padding: 15px; 
+                    border-radius: 8px; 
+                    border-left: 4px solid #3498db;
+                    transition: all 0.3s ease;
+                }
+                .file-item:hover { 
+                    background: #e9ecef; 
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                }
+                .file-item a { 
+                    color: #2c3e50; 
+                    text-decoration: none; 
+                    font-weight: 500;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                .file-item a:hover { color: #3498db; }
+                .icon { font-size: 1.2em; }
+                .no-files { 
+                    text-align: center; 
+                    color: #7f8c8d; 
+                    font-style: italic; 
+                    padding: 40px;
+                }
+                .stats {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin-bottom: 30px;
+                    text-align: center;
+                }
+                .stats h2 { margin: 0 0 10px 0; }
+        EOF
+        
+        # Add dynamic content
+        echo "            </style>" >> final-html-reports/index.html
+        echo "        </head>" >> final-html-reports/index.html
+        echo "        <body>" >> final-html-reports/index.html
+        echo "            <div class=\"container\">" >> final-html-reports/index.html
+        echo "                <div class=\"header\">" >> final-html-reports/index.html
+        echo "                    <h1>🧪 Test Reports Dashboard</h1>" >> final-html-reports/index.html
+        echo "                    <div class=\"info\">" >> final-html-reports/index.html
+        echo "                        <div class=\"info-item\"><strong>Build:</strong> ${{ github.run_number }}</div>" >> final-html-reports/index.html
+        echo "                        <div class=\"info-item\"><strong>Generated:</strong> $(date)</div>" >> final-html-reports/index.html
+        echo "                        <div class=\"info-item\"><strong>Platform:</strong> ${{ github.event.inputs.platform || 'Multiple' }}</div>" >> final-html-reports/index.html
+        echo "                        <div class=\"info-item\"><strong>Tester:</strong> ${{ github.event.inputs.tester_name || 'GitHub Actions' }}</div>" >> final-html-reports/index.html
+        echo "                    </div>" >> final-html-reports/index.html
+        echo "                </div>" >> final-html-reports/index.html
+        
+        # Count platforms and files
+        platform_count=$(find final-html-reports/ -maxdepth 1 -type d | grep -v "^final-html-reports/$" | wc -l)
+        total_html_files=$(find final-html-reports/ -name "*.html" -not -name "index.html" | wc -l)
+        
+        echo "                <div class=\"stats\">" >> final-html-reports/index.html
+        echo "                    <h2>📊 Summary</h2>" >> final-html-reports/index.html
+        echo "                    <p><strong>$platform_count</strong> platforms tested • <strong>$total_html_files</strong> HTML reports generated</p>" >> final-html-reports/index.html
+        echo "                </div>" >> final-html-reports/index.html
+        
+        # Add platform sections
+        for platform_dir in final-html-reports/*/; do
+          if [ -d "$platform_dir" ] && [ "$(basename "$platform_dir")" != "index.html" ]; then
+            platform=$(basename "$platform_dir")
+            echo "                <div class=\"platform\">" >> final-html-reports/index.html
+            echo "                    <h3>📱 $(echo $platform | tr '[:lower:]' '[:upper:]')</h3>" >> final-html-reports/index.html
+            
+            # Check if there are HTML files
+            html_files=$(find "$platform_dir" -name "*.html" -type f)
+            if [ -n "$html_files" ]; then
+              echo "                    <div class=\"file-grid\">" >> final-html-reports/index.html
+              
+              find "$platform_dir" -name "*.html" -type f | while read -r file; do
+                filename=$(basename "$file")
+                relative_path="$platform/$filename"
+                echo "                        <div class=\"file-item\">" >> final-html-reports/index.html
+                echo "                            <a href=\"$relative_path\">" >> final-html-reports/index.html
+                echo "                                <span class=\"icon\">📄</span>" >> final-html-reports/index.html
+                echo "                                <span>$filename</span>" >> final-html-reports/index.html
+                echo "                            </a>" >> final-html-reports/index.html
+                echo "                        </div>" >> final-html-reports/index.html
+              done
+              
+              echo "                    </div>" >> final-html-reports/index.html
+            else
+              echo "                    <div class=\"no-files\">No HTML reports found for this platform</div>" >> final-html-reports/index.html
+            fi
+            
+            echo "                </div>" >> final-html-reports/index.html
+          fi
+        done
+        
+        # Close HTML
+        echo "            </div>" >> final-html-reports/index.html
+        echo "        </body>" >> final-html-reports/index.html
+        echo "        </html>" >> final-html-reports/index.html
+        
+        # Show summary
+        echo "=== HTML Reports Summary ==="
+        echo "Platforms processed: $platform_count"
+        echo "Total HTML files: $total_html_files"
+        echo "Final structure:"
+        find final-html-reports/ -type f -name "*.html" | head -20
+    
+    - name: Upload final HTML reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: html-reports-${{ github.run_number }}
+        path: final-html-reports/
+        retention-days: 60
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [collect-html-reports]
+    if: always()
+    
+    steps:
+    - name: Download final HTML reports
+      uses: actions/download-artifact@v4
+      with:
+        name: html-reports-${{ github.run_number }}
+        path: reports/
+    
+    - name: Buat ringkasan
+      run: |
+        echo "# 📊 HTML Test Reports Generated" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Build:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Platform:** ${{ github.event.inputs.platform || 'Multiple platforms' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Tester:** ${{ github.event.inputs.tester_name || 'GitHub Actions' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Generated:** $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Hitung jumlah platform dan HTML files
+        if [ -d "reports" ]; then
+          platform_count=$(find reports/ -maxdepth 1 -type d | grep -v "^reports/$" | wc -l)
+          total_html_files=$(find reports/ -name "*.html" -not -name "index.html" | wc -l)
+          echo "**Platforms tested:** $platform_count" >> $GITHUB_STEP_SUMMARY
+          echo "**HTML reports generated:** $total_html_files" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📁 HTML Reports by Platform" >> $GITHUB_STEP_SUMMARY
+          
+          for platform_dir in reports/*/; do
+            if [ -d "$platform_dir" ]; then
+              platform=$(basename "$platform_dir")
+              html_count=$(find "$platform_dir" -name "*.html" -type f | wc -l)
+              echo "- **$platform**: $html_count HTML files" >> $GITHUB_STEP_SUMMARY
+              
+              # List HTML files (max 5 per platform)
+              find "$platform_dir" -name "*.html" -type f | head -5 | while read -r file; do
+                filename=$(basename "$file")
+                echo "  - 📄 $filename" >> $GITHUB_STEP_SUMMARY
+              done
+              
+              # Show "and X more" if there are more files
+              remaining=$(find "$platform_dir" -name "*.html" -type f | wc -l)
+              if [ $remaining -gt 5 ]; then
+                more_count=$((remaining - 5))
+                echo "  - ... and $more_count more files" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Access Reports" >> $GITHUB_STEP_SUMMARY
+          echo "Download the **html-reports-${{ github.run_number }}** artifact to access all HTML reports." >> $GITHUB_STEP_SUMMARY
+          echo "The artifact includes an **index.html** file for easy navigation." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**Status:** ❌ No HTML reports found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 🌐 Test Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- **Webchat:** ${{ github.event.inputs.webchat_url || 'Default URL' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Telegram:** ${{ github.event.inputs.telegram_url || 'Default URL' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Facebook:** ${{ github.event.inputs.facebook_url || 'Default URL' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Instagram:** ${{ github.event.inputs.instagram_url || 'Default URL' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **DHAI:** ${{ github.event.inputs.dhai_url || 'Default URL' }}" >> $GITHUB_STEP_SUMMARY
