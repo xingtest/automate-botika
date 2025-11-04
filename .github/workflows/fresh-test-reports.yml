@@ -94,7 +94,7 @@ jobs:
         
         echo "✅ Environment configured"
 
-    - name: Ensure test data exists
+    - name: Ensure test data and templates exist
       run: |
         echo "📋 Checking test data..."
         
@@ -111,22 +111,88 @@ jobs:
           echo "Available xlsx files:"
           ls -la assets/xlsx/ 2>/dev/null || echo "No xlsx directory"
         fi
+        
+        echo ""
+        echo "🎨 Checking template files (required for dashboard.html)..."
+        
+        # Check template directory
+        if [ -d "report/template" ]; then
+          echo "✅ Template directory exists:"
+          ls -la report/template/
+          
+          # Check specific template files
+          if [ -f "report/template/template.ejs" ]; then
+            echo "✅ EJS template found"
+          elif [ -f "report/template/template.html" ]; then
+            echo "✅ HTML template found"
+          else
+            echo "⚠️ No template.ejs or template.html found"
+          fi
+          
+          if [ -f "report/template/index.html" ]; then
+            echo "✅ Index template found"
+          fi
+        else
+          echo "❌ Template directory missing!"
+          echo "This will prevent dashboard.html generation"
+          echo "Available directories in report/:"
+          ls -la report/ 2>/dev/null || echo "No report directory"
+        fi
 
     - name: Run fresh test (same flow as local)
       run: |
         echo "🧪 Running fresh test for ${{ github.event.inputs.platform || 'webchat' }}..."
         
+        # Check template files before starting
+        echo "🔍 Checking template files..."
+        if [ -d "report/template" ]; then
+          echo "✅ Template directory exists:"
+          ls -la report/template/
+        else
+          echo "❌ Template directory missing - this might cause dashboard.html generation to fail"
+        fi
+        
         # Build TypeScript
-        echo "📦 Building..."
+        echo "📦 Building TypeScript..."
         npm run build
+        
+        # Check if build was successful
+        if [ -d "dist" ]; then
+          echo "✅ Build successful, dist/ directory created"
+          ls -la dist/
+        else
+          echo "❌ Build failed, no dist/ directory"
+          exit 1
+        fi
         
         # Run test (generates fresh JSON + screenshots)
         echo "🚀 Running test..."
         node dist/main.js ${{ github.event.inputs.platform || 'webchat' }}
         
+        # Check if test generated data
+        echo "🔍 Checking test results..."
+        if [ -d "report/json" ]; then
+          echo "✅ JSON data generated:"
+          ls -la report/json/
+        else
+          echo "❌ No JSON data generated"
+        fi
+        
         # Generate fresh HTML + Excel reports
-        echo "📊 Generating fresh reports..."
+        echo "📊 Generating fresh reports (including dashboard.html)..."
         node dist/report-cli.js
+        
+        # Immediately check if dashboard.html was generated
+        echo "🔍 Checking dashboard.html generation..."
+        dashboard_count=$(find report/html/ -name "dashboard.html" -type f 2>/dev/null | wc -l)
+        if [ $dashboard_count -gt 0 ]; then
+          echo "✅ dashboard.html generated successfully!"
+          find report/html/ -name "dashboard.html" -type f -exec ls -lh {} \;
+        else
+          echo "❌ dashboard.html NOT generated!"
+          echo "Available files in report/html/:"
+          find report/html/ -type f 2>/dev/null || echo "No files in report/html/"
+        fi
         
         echo "✅ Fresh test completed"
       env:
@@ -134,43 +200,80 @@ jobs:
         HEADLESS: true
       continue-on-error: true
 
-    - name: Verify fresh reports generated
+    - name: Verify fresh reports generated (including dashboard.html)
       run: |
         echo "=== 📋 Fresh Reports Verification ==="
         echo ""
         
-        # Show report structure
-        echo "📁 Fresh report structure:"
+        # Show complete report structure
+        echo "📁 Complete fresh report structure:"
         if [ -d "report" ]; then
+          echo "Report directory contents:"
           find report/ -type f -exec ls -lh {} \; 2>/dev/null
+          echo ""
+          echo "Directory tree:"
+          find report/ -type d 2>/dev/null | sort
         else
           echo "❌ No report directory"
         fi
         
         echo ""
-        echo "🌐 Fresh HTML reports:"
+        echo "🌐 Fresh HTML reports (including dashboard.html):"
         html_count=$(find report/html/ -name "*.html" -type f 2>/dev/null | wc -l)
         echo "Found $html_count HTML files"
-        find report/html/ -name "*.html" -type f 2>/dev/null | head -5
+        
+        # Specifically check for dashboard.html
+        dashboard_files=$(find report/html/ -name "dashboard.html" -type f 2>/dev/null)
+        if [ -n "$dashboard_files" ]; then
+          echo "✅ dashboard.html found:"
+          echo "$dashboard_files" | while read -r file; do
+            echo "  📄 $file ($(ls -lh "$file" | awk '{print $5}'))"
+          done
+        else
+          echo "❌ dashboard.html NOT FOUND!"
+          echo "Available HTML files:"
+          find report/html/ -name "*.html" -type f 2>/dev/null || echo "No HTML files found"
+        fi
         
         echo ""
         echo "📊 Fresh Excel reports:"
         excel_count=$(find report/html/ -name "*.xlsx" -type f 2>/dev/null | wc -l)
         echo "Found $excel_count Excel files"
-        find report/html/ -name "*.xlsx" -type f 2>/dev/null
+        find report/html/ -name "*.xlsx" -type f 2>/dev/null | while read -r file; do
+          echo "  📊 $file ($(ls -lh "$file" | awk '{print $5}'))"
+        done
         
         echo ""
         echo "📸 Fresh screenshots:"
         screenshot_count=$(find report/html/ -name "*.png" -type f 2>/dev/null | wc -l)
         echo "Found $screenshot_count screenshot files"
+        if [ $screenshot_count -gt 0 ]; then
+          echo "Screenshot samples:"
+          find report/html/ -name "*.png" -type f 2>/dev/null | head -3 | while read -r file; do
+            echo "  📸 $file"
+          done
+        fi
         
         echo ""
         echo "📄 Fresh JSON data:"
         json_count=$(find report/json/ -name "*.json" -type f 2>/dev/null | wc -l)
         echo "Found $json_count JSON files"
+        find report/json/ -name "*.json" -type f 2>/dev/null | while read -r file; do
+          echo "  📄 $file ($(ls -lh "$file" | awk '{print $5}'))"
+        done
         
         echo ""
         echo "📦 Total fresh files to upload: $(find report/ temp_audio/ -type f 2>/dev/null | wc -l)"
+        
+        # Check template files (for debugging)
+        echo ""
+        echo "🔍 Template files check:"
+        if [ -d "report/template" ]; then
+          echo "Template directory exists:"
+          ls -la report/template/ 2>/dev/null
+        else
+          echo "No report/template directory"
+        fi
 
     - name: Upload fresh reports only
       uses: actions/upload-artifact@v4
@@ -227,9 +330,26 @@ jobs:
     - name: Run fresh test for ${{ matrix.platform }}
       run: |
         echo "🧪 Running fresh test for ${{ matrix.platform }}..."
+        
+        # Build
         npm run build
+        
+        # Run test
+        echo "🚀 Running ${{ matrix.platform }} test..."
         node dist/main.js ${{ matrix.platform }}
+        
+        # Generate reports
+        echo "📊 Generating reports for ${{ matrix.platform }}..."
         node dist/report-cli.js
+        
+        # Verify dashboard.html
+        dashboard_count=$(find report/html/ -name "dashboard.html" -type f 2>/dev/null | wc -l)
+        if [ $dashboard_count -gt 0 ]; then
+          echo "✅ dashboard.html generated for ${{ matrix.platform }}"
+        else
+          echo "❌ dashboard.html NOT generated for ${{ matrix.platform }}"
+        fi
+        
         echo "✅ Fresh ${{ matrix.platform }} test completed"
       env:
         CI: true
