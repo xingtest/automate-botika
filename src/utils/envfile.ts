@@ -84,25 +84,25 @@ export class EnvFile {
     try {
       const XLSX = require('xlsx');
       const filePath = path.join('assets', 'xlsx', filename);
-      
+
       if (!fs.existsSync(filePath)) {
         console.log(`⚠️ Excel file not found: ${filePath}`);
         return [];
       }
 
       console.log(`📊 Reading Excel file: ${filename}`);
-      
+
       // Read the Excel file
       const workbook = XLSX.readFile(filePath);
-      
+
       // Get the first sheet name
       const sheetName = workbook.SheetNames[0];
       console.log(`📋 Reading sheet: ${sheetName}`);
-      
+
       // Convert sheet to JSON
       const worksheet = workbook.Sheets[sheetName];
       const rawData = XLSX.utils.sheet_to_json(worksheet);
-      
+
       // Normalize key names to lowercase
       const jsonData = rawData.map((row: any) => {
         const normalizedRow: any = {};
@@ -112,12 +112,12 @@ export class EnvFile {
         });
         return normalizedRow;
       });
-      
+
       console.log(`✅ Successfully converted Excel to JSON: ${jsonData.length} rows`);
       console.log('📋 Sample data:', JSON.stringify(jsonData[0], null, 2));
-      
+
       return jsonData;
-      
+
     } catch (error) {
       console.error(`❌ Error reading Excel file ${filename}:`, error);
       console.log(`Please make sure the file exists at assets/xlsx/${filename}`);
@@ -128,7 +128,7 @@ export class EnvFile {
   static convertCsvToJson(filename: string): any[] {
     try {
       const csvPath = path.join('assets', 'csv', filename);
-      
+
       if (!fs.existsSync(csvPath)) {
         console.log(`⚠️ CSV file not found: ${csvPath}`);
         return [];
@@ -136,7 +136,7 @@ export class EnvFile {
 
       const csvContent = fs.readFileSync(csvPath, 'utf-8');
       const lines = csvContent.trim().split('\n');
-      
+
       if (lines.length < 2) {
         console.log(`⚠️ CSV file must have at least header and one data row`);
         return [];
@@ -144,17 +144,17 @@ export class EnvFile {
 
       // Parse header
       const headers = lines[0].split(',').map(h => h.trim());
-      
+
       // Parse data rows
       const jsonData = [];
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(',').map(v => v.trim());
         const rowData: any = {};
-        
+
         headers.forEach((header, index) => {
           rowData[header] = values[index] || '';
         });
-        
+
         jsonData.push(rowData);
       }
 
@@ -200,7 +200,7 @@ export class EnvFile {
       }
 
       const botData: BotData[] = JSON.parse(fs.readFileSync(botDataPath, 'utf-8'));
-      
+
       // Use default summary if not exists yet
       let summaryData: SummaryData;
       if (fs.existsSync(summaryDataPath)) {
@@ -278,8 +278,8 @@ export class EnvFile {
     try {
       const reportDir = path.join('report', 'json');
       const htmlDir = path.join('report', 'html');
-  const templatePath = path.join('report', 'template', 'template.html');
-      
+      const templatePath = path.join('report', 'template', 'template.html');
+
       if (!fs.existsSync(htmlDir)) {
         fs.mkdirSync(htmlDir, { recursive: true });
       }
@@ -390,20 +390,20 @@ export class EnvFile {
     processedTemplate = processedTemplate.replace(forLoopRegex, (match, loopContent) => {
       return botData.map((item, idx) => {
         let itemContent = loopContent;
-        
+
         // Replace test_item placeholders
         itemContent = itemContent.replace(/\{\{\s*test_item\.title\s*\}\}/g, this.escapeHtml(item.title));
         itemContent = itemContent.replace(/\{\{\s*test_item\.question\s*\}\}/g, this.escapeHtml(item.question));
         itemContent = itemContent.replace(/\{\{\s*test_item\.response_kb\s*\}\}/g, this.escapeHtml(item.response_kb));
         itemContent = itemContent.replace(/\{\{\s*test_item\.response_llm\s*\}\}/g, this.escapeHtml(item.response_llm));
         itemContent = itemContent.replace(/\{\{\s*test_item\.explanation\s*\}\}/g, this.escapeHtml(item.explanation));
-  itemContent = itemContent.replace(/\{\{\s*test_item\.skor\s*\}\}/g, item.skor.toString());
-  // Provide a sequential number (No). Prefer item.no if present, otherwise use index+1
-  const seqNo = (item.no && String(item.no).trim()) ? String(item.no) : String(idx + 1);
-  itemContent = itemContent.replace(/\{\{\s*test_item\.no\s*\}\}/g, seqNo);
+        itemContent = itemContent.replace(/\{\{\s*test_item\.skor\s*\}\}/g, item.skor.toString());
+        // Provide a sequential number (No). Prefer item.no if present, otherwise use index+1
+        const seqNo = (item.no && String(item.no).trim()) ? String(item.no) : String(idx + 1);
+        itemContent = itemContent.replace(/\{\{\s*test_item\.no\s*\}\}/g, seqNo);
         itemContent = itemContent.replace(/\{\{\s*test_item\.status\s*\}\}/g, item.status);
         itemContent = itemContent.replace(/\{\{\s*test_item\.duration\s*\}\}/g, item.duration);
-        
+
         // Handle image capture with conditional
         const imageConditionRegex = /\{\%\s*if\s+test_item\.image_capture\s*\%\}([\s\S]*?)\{\%\s*else\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\}/g;
         itemContent = itemContent.replace(imageConditionRegex, (match: string, ifContent: string, elseContent: string) => {
@@ -414,7 +414,7 @@ export class EnvFile {
             return elseContent;
           }
         });
-        
+
         return itemContent;
       }).join('');
     });

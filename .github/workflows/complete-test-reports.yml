@@ -1,4 +1,4 @@
-name: Multi-Platform Testing (Google Chrome)
+name: Complete Multi-Platform Testing with Full Reports
 
 on:
   push:
@@ -75,7 +75,6 @@ jobs:
       run: |
         echo "⚡ Configuring Playwright to use system Chrome..."
         echo "PLAYWRIGHT_BROWSERS_PATH=0" >> $GITHUB_ENV
-        echo "✅ Playwright configured for system Chrome"
 
     - name: Setup test environment
       run: |
@@ -93,31 +92,66 @@ jobs:
           echo '[{"question": "Halo", "expected_keywords": ["halo", "hai", "selamat"]}]' > "assets/json/${{ github.event.inputs.filename || 'test-result' }}.json"
         fi
 
-    - name: Run test for ${{ matrix.platform }}
-      run: npm run test:${{ matrix.platform }}
+    - name: Run complete test with reports for ${{ matrix.platform }}
+      run: |
+        echo "🧪 Running complete test for ${{ matrix.platform }}..."
+        
+        # Build the application
+        npm run build
+        
+        # Run the test (generates JSON data)
+        echo "📝 Running test and generating JSON data..."
+        node dist/main.js ${{ matrix.platform }}
+        
+        # Generate HTML and Excel reports
+        echo "📊 Generating HTML and Excel reports..."
+        node dist/report-cli.js
+        
+        echo "✅ Complete test and report generation finished"
       env:
         CI: true
         HEADLESS: true
         PLAYWRIGHT_BROWSERS_PATH: 0
       continue-on-error: true
 
-    - name: Verify reports generated
+    - name: Verify all reports generated
       run: |
-        echo "=== Checking generated reports ==="
-        echo "JSON reports:"
-        find report/json/ -name "*.json" -type f 2>/dev/null || echo "No JSON reports found"
+        echo "=== 📋 Complete Report Verification ==="
         echo ""
-        echo "HTML reports:"
-        find report/html/ -name "*.html" -type f 2>/dev/null || echo "No HTML reports found"
+        echo "📁 Report directory structure:"
+        ls -la report/ 2>/dev/null || echo "❌ No report directory found"
+        echo ""
+        echo "📄 JSON data files:"
+        find report/json/ -name "*.json" -type f -exec ls -lh {} \; 2>/dev/null || echo "❌ No JSON reports found"
+        echo ""
+        echo "🌐 HTML report files:"
+        find report/html/ -name "*.html" -type f -exec ls -lh {} \; 2>/dev/null || echo "❌ No HTML reports found"
+        echo ""
+        echo "📊 Excel report files:"
+        find . -name "*.xlsx" -type f -exec ls -lh {} \; 2>/dev/null || echo "❌ No Excel files found"
+        echo ""
+        echo "📸 Screenshot files:"
+        screenshot_count=$(find report/html/ -name "*.png" -type f 2>/dev/null | wc -l)
+        echo "Found $screenshot_count screenshot files"
+        if [ $screenshot_count -gt 0 ]; then
+          find report/html/ -name "*.png" -type f | head -5
+        fi
+        echo ""
+        echo "🎵 Audio files:"
+        find temp_audio/ -type f -exec ls -lh {} \; 2>/dev/null || echo "ℹ️ No audio files (normal for most platforms)"
+        echo ""
+        echo "📦 Total files to upload:"
+        find report/ temp_audio/ -type f 2>/dev/null | wc -l
 
-    - name: Upload test reports
+    - name: Upload complete test reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-reports-${{ matrix.platform }}-${{ github.run_number }}
+        name: complete-reports-${{ matrix.platform }}-${{ github.run_number }}
         path: |
           report/
           temp_audio/
+          *.xlsx
         retention-days: 30
 
   test-single-platform:
@@ -150,7 +184,6 @@ jobs:
       run: |
         echo "⚡ Configuring Playwright to use system Chrome..."
         echo "PLAYWRIGHT_BROWSERS_PATH=0" >> $GITHUB_ENV
-        echo "✅ Playwright configured for system Chrome"
 
     - name: Setup test environment
       run: |
@@ -168,34 +201,69 @@ jobs:
           echo '[{"question": "Halo", "expected_keywords": ["halo", "hai", "selamat"]}]' > "assets/json/${{ github.event.inputs.filename || 'test-result' }}.json"
         fi
 
-    - name: Run test for ${{ github.event.inputs.platform || 'webchat' }}
-      run: npm run test:${{ github.event.inputs.platform || 'webchat' }}
+    - name: Run complete test with reports for ${{ github.event.inputs.platform || 'webchat' }}
+      run: |
+        echo "🧪 Running complete test for ${{ github.event.inputs.platform || 'webchat' }}..."
+        
+        # Build the application
+        npm run build
+        
+        # Run the test (generates JSON data)
+        echo "📝 Running test and generating JSON data..."
+        node dist/main.js ${{ github.event.inputs.platform || 'webchat' }}
+        
+        # Generate HTML and Excel reports
+        echo "📊 Generating HTML and Excel reports..."
+        node dist/report-cli.js
+        
+        echo "✅ Complete test and report generation finished"
       env:
         CI: true
         HEADLESS: true
         PLAYWRIGHT_BROWSERS_PATH: 0
       continue-on-error: true
 
-    - name: Verify reports generated
+    - name: Verify all reports generated
       run: |
-        echo "=== Checking generated reports ==="
-        echo "JSON reports:"
-        find report/json/ -name "*.json" -type f 2>/dev/null || echo "No JSON reports found"
+        echo "=== 📋 Complete Report Verification ==="
         echo ""
-        echo "HTML reports:"
-        find report/html/ -name "*.html" -type f 2>/dev/null || echo "No HTML reports found"
+        echo "📁 Report directory structure:"
+        ls -la report/ 2>/dev/null || echo "❌ No report directory found"
+        echo ""
+        echo "📄 JSON data files:"
+        find report/json/ -name "*.json" -type f -exec ls -lh {} \; 2>/dev/null || echo "❌ No JSON reports found"
+        echo ""
+        echo "🌐 HTML report files:"
+        find report/html/ -name "*.html" -type f -exec ls -lh {} \; 2>/dev/null || echo "❌ No HTML reports found"
+        echo ""
+        echo "📊 Excel report files:"
+        find . -name "*.xlsx" -type f -exec ls -lh {} \; 2>/dev/null || echo "❌ No Excel files found"
+        echo ""
+        echo "📸 Screenshot files:"
+        screenshot_count=$(find report/html/ -name "*.png" -type f 2>/dev/null | wc -l)
+        echo "Found $screenshot_count screenshot files"
+        if [ $screenshot_count -gt 0 ]; then
+          find report/html/ -name "*.png" -type f | head -5
+        fi
+        echo ""
+        echo "🎵 Audio files:"
+        find temp_audio/ -type f -exec ls -lh {} \; 2>/dev/null || echo "ℹ️ No audio files (normal for most platforms)"
+        echo ""
+        echo "📦 Total files to upload:"
+        find report/ temp_audio/ -type f 2>/dev/null | wc -l
 
-    - name: Upload test reports
+    - name: Upload complete test reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-reports-${{ github.event.inputs.platform || 'webchat' }}-${{ github.run_number }}
+        name: complete-reports-${{ github.event.inputs.platform || 'webchat' }}-${{ github.run_number }}
         path: |
           report/
           temp_audio/
+          *.xlsx
         retention-days: 30
 
-  collect-all-reports:
+  consolidate-all-reports:
     runs-on: ubuntu-latest
     needs: [test-all-platforms, test-single-platform]
     if: always()
@@ -205,21 +273,28 @@ jobs:
       with:
         path: artifacts/
 
-    - name: Organize reports
+    - name: Organize complete reports
       run: |
         mkdir -p final-reports/html
         mkdir -p final-reports/json
+        mkdir -p final-reports/excel
         mkdir -p final-reports/audio
+        mkdir -p final-reports/screenshots
         
-        echo "=== Organizing reports ==="
-        for artifact_dir in artifacts/test-reports-*/; do
+        echo "=== 📦 Organizing Complete Reports ==="
+        for artifact_dir in artifacts/complete-reports-*/; do
           if [ -d "$artifact_dir" ]; then
-            platform_name=$(basename "$artifact_dir" | sed 's/test-reports-//' | sed 's/-[0-9]*$//')
-            echo "Processing reports for: $platform_name"
+            platform_name=$(basename "$artifact_dir" | sed 's/complete-reports-//' | sed 's/-[0-9]*$//')
+            echo "📋 Processing reports for: $platform_name"
             
-            # Copy HTML reports
+            # Copy HTML reports with platform prefix
             if [ -d "$artifact_dir/report/html" ]; then
-              cp -r "$artifact_dir/report/html"/* final-reports/html/ 2>/dev/null || true
+              for html_dir in "$artifact_dir/report/html"/*; do
+                if [ -d "$html_dir" ]; then
+                  dir_name=$(basename "$html_dir")
+                  cp -r "$html_dir" "final-reports/html/${platform_name}-${dir_name}" 2>/dev/null || true
+                fi
+              done
             fi
             
             # Copy JSON reports
@@ -227,62 +302,85 @@ jobs:
               cp -r "$artifact_dir/report/json"/* final-reports/json/ 2>/dev/null || true
             fi
             
+            # Copy Excel files
+            find "$artifact_dir" -name "*.xlsx" -exec cp {} final-reports/excel/ \; 2>/dev/null || true
+            
             # Copy audio files if exist
             if [ -d "$artifact_dir/temp_audio" ]; then
               cp -r "$artifact_dir/temp_audio"/* final-reports/audio/ 2>/dev/null || true
             fi
+            
+            # Extract screenshots to separate folder for easy access
+            find "$artifact_dir/report/html" -name "*.png" -exec cp {} final-reports/screenshots/ \; 2>/dev/null || true
           fi
         done
         
-        echo "=== Final report summary ==="
+        echo "=== 📊 Final Report Summary ==="
         echo "HTML reports: $(find final-reports/html/ -name "*.html" -type f 2>/dev/null | wc -l)"
         echo "JSON reports: $(find final-reports/json/ -name "*.json" -type f 2>/dev/null | wc -l)"
+        echo "Excel reports: $(find final-reports/excel/ -name "*.xlsx" -type f 2>/dev/null | wc -l)"
+        echo "Screenshots: $(find final-reports/screenshots/ -name "*.png" -type f 2>/dev/null | wc -l)"
         echo "Audio files: $(find final-reports/audio/ -type f 2>/dev/null | wc -l)"
 
-    - name: Create report index
+    - name: Create comprehensive report index
       run: |
         cat > final-reports/README.md << EOF
-        # Test Reports - Build ${{ github.run_number }}
+        # 🧪 Complete Test Reports - Build ${{ github.run_number }}
         
-        Generated: $(date)
-        Platform: ${{ github.event.inputs.platform || 'Multiple platforms' }}
-        Tester: ${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}
-        Browser: Google Chrome (system installed)
+        **Generated:** $(date)  
+        **Platform:** ${{ github.event.inputs.platform || 'Multiple platforms' }}  
+        **Tester:** ${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}  
+        **Browser:** Google Chrome (system installed)  
         
-        ## Report Structure
-        - \`html/\` - HTML reports with screenshots
+        ## 📁 Report Structure
+        - \`html/\` - Complete HTML reports with embedded screenshots
         - \`json/\` - Raw test data in JSON format
-        - \`audio/\` - Audio files (if any)
+        - \`excel/\` - Excel reports for analysis
+        - \`screenshots/\` - All screenshots extracted for easy viewing
+        - \`audio/\` - Audio files (if any, mainly for DHAI platform)
         
-        ## HTML Reports
+        ## 🌐 HTML Reports
         EOF
         
-        find final-reports/html/ -name "*.html" -type f | while read -r file; do
+        find final-reports/html/ -name "*.html" -type f | sort | while read -r file; do
           filename=$(basename "$file")
-          echo "- [$filename](html/$filename)" >> final-reports/README.md
+          dirname=$(basename "$(dirname "$file")")
+          echo "- [$dirname/$filename](html/$dirname/$filename)" >> final-reports/README.md
         done
+        
+        echo "" >> final-reports/README.md
+        echo "## 📊 Excel Reports" >> final-reports/README.md
+        find final-reports/excel/ -name "*.xlsx" -type f | while read -r file; do
+          filename=$(basename "$file")
+          echo "- [$filename](excel/$filename)" >> final-reports/README.md
+        done
+        
+        echo "" >> final-reports/README.md
+        echo "## 📸 Screenshots" >> final-reports/README.md
+        screenshot_count=$(find final-reports/screenshots/ -name "*.png" -type f 2>/dev/null | wc -l)
+        echo "Total screenshots: $screenshot_count files in \`screenshots/\` folder" >> final-reports/README.md
 
-    - name: Upload consolidated reports
+    - name: Upload consolidated complete reports
       uses: actions/upload-artifact@v4
       with:
-        name: complete-test-reports-${{ github.run_number }}
+        name: all-test-reports-${{ github.run_number }}
         path: final-reports/
         retention-days: 60
 
   summary:
     runs-on: ubuntu-latest
-    needs: [collect-all-reports]
+    needs: [consolidate-all-reports]
     if: always()
     steps:
     - name: Download consolidated reports
       uses: actions/download-artifact@v4
       with:
-        name: complete-test-reports-${{ github.run_number }}
+        name: all-test-reports-${{ github.run_number }}
         path: reports/
 
-    - name: Generate test summary
+    - name: Generate comprehensive test summary
       run: |
-        echo "# 🧪 Multi-Platform Test Results (Google Chrome)" >> $GITHUB_STEP_SUMMARY
+        echo "# 🧪 Complete Multi-Platform Test Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Build Number:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
         echo "**Platform:** ${{ github.event.inputs.platform || 'Multiple platforms' }}" >> $GITHUB_STEP_SUMMARY
@@ -295,34 +393,45 @@ jobs:
         if [ -d "reports" ]; then
           html_count=$(find reports/html/ -name "*.html" -type f 2>/dev/null | wc -l)
           json_count=$(find reports/json/ -name "*.json" -type f 2>/dev/null | wc -l)
+          excel_count=$(find reports/excel/ -name "*.xlsx" -type f 2>/dev/null | wc -l)
+          screenshot_count=$(find reports/screenshots/ -name "*.png" -type f 2>/dev/null | wc -l)
           audio_count=$(find reports/audio/ -type f 2>/dev/null | wc -l)
           
-          echo "## 📊 Report Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Complete Report Statistics" >> $GITHUB_STEP_SUMMARY
           echo "- **HTML Reports:** $html_count files" >> $GITHUB_STEP_SUMMARY
+          echo "- **Excel Reports:** $excel_count files" >> $GITHUB_STEP_SUMMARY
           echo "- **JSON Data:** $json_count files" >> $GITHUB_STEP_SUMMARY
+          echo "- **Screenshots:** $screenshot_count files" >> $GITHUB_STEP_SUMMARY
           echo "- **Audio Files:** $audio_count files" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          echo "## 📁 Available Reports" >> $GITHUB_STEP_SUMMARY
+          echo "## 📁 Available HTML Reports" >> $GITHUB_STEP_SUMMARY
           find reports/html/ -name "*.html" -type f 2>/dev/null | head -10 | while read -r file; do
             filename=$(basename "$file")
-            echo "- 📄 $filename" >> $GITHUB_STEP_SUMMARY
+            dirname=$(basename "$(dirname "$file")")
+            echo "- 📄 $dirname/$filename" >> $GITHUB_STEP_SUMMARY
           done
           
           remaining=$(find reports/html/ -name "*.html" -type f 2>/dev/null | wc -l)
           if [ $remaining -gt 10 ]; then
             more_count=$((remaining - 10))
-            echo "- ... and $more_count more reports" >> $GITHUB_STEP_SUMMARY
+            echo "- ... and $more_count more HTML reports" >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 📥 Download Reports" >> $GITHUB_STEP_SUMMARY
-          echo "Download the **complete-test-reports-${{ github.run_number }}** artifact to access all test results." >> $GITHUB_STEP_SUMMARY
+          echo "## 📥 Download Complete Reports" >> $GITHUB_STEP_SUMMARY
+          echo "Download the **all-test-reports-${{ github.run_number }}** artifact to access:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Complete HTML reports with screenshots" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Excel files for data analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Raw JSON test data" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ All screenshots in separate folder" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Audio files (if generated)" >> $GITHUB_STEP_SUMMARY
+          
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## ⚡ Performance Info" >> $GITHUB_STEP_SUMMARY
+          echo "## ⚡ Performance Optimizations" >> $GITHUB_STEP_SUMMARY
           echo "- Using system Google Chrome (faster installation)" >> $GITHUB_STEP_SUMMARY
-          echo "- No Playwright browser downloads needed" >> $GITHUB_STEP_SUMMARY
-          echo "- Reduced CI/CD time significantly" >> $GITHUB_STEP_SUMMARY
+          echo "- Complete report generation included" >> $GITHUB_STEP_SUMMARY
+          echo "- Screenshots and Excel files properly captured" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **No reports generated**" >> $GITHUB_STEP_SUMMARY
         fi
