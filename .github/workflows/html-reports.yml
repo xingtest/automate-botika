@@ -1,0 +1,259 @@
+name: Generate HTML Reports Only (Simple)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform yang akan ditest'
+        required: false
+        default: 'webchat'
+        type: choice
+        options:
+          - 'webchat'
+          - 'telegram'
+          - 'facebook'
+          - 'instagram'
+          - 'dhai'
+          - 'dhai-wakeup'
+          - 'all'
+      filename:
+        description: 'Nama file hasil test'
+        required: false
+        default: 'test-result'
+        type: string
+      tester_name:
+        description: 'Nama tester'
+        required: false
+        default: 'GitHub Actions Bot'
+        type: string
+      greeting:
+        description: 'Greeting message'
+        required: false
+        default: 'Halo, saya ingin bertanya'
+        type: string
+      webchat_url:
+        description: 'URL Webchat'
+        required: false
+        default: 'https://chat.botika.online/tpUyiey'
+        type: string
+
+jobs:
+  test-platforms:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform == 'all' }}
+    
+    strategy:
+      matrix:
+        platform: [webchat, telegram, facebook, instagram, dhai, dhai-wakeup]
+    
+    steps:
+    - name: Checkout kode
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies dan build
+      run: |
+        npm ci
+        npm run build
+    
+    - name: Install Playwright
+      run: npx playwright install --with-deps chromium
+    
+    - name: Setup environment
+      run: |
+        cp .env.example .env
+        echo "PLATFORM=${{ matrix.platform }}" >> .env
+        echo "FILENAME=${{ github.event.inputs.filename || 'test-result' }}" >> .env
+        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions' }}" >> .env
+        echo "GREETING=${{ github.event.inputs.greeting || 'Halo' }}" >> .env
+        echo "WEBCHAT_URL=${{ github.event.inputs.webchat_url || 'https://example.com/webchat' }}" >> .env
+    
+    - name: Jalankan test platform
+      run: npm run test:${{ matrix.platform }}
+      env:
+        CI: true
+        HEADLESS: true
+    
+    - name: Verify HTML reports
+      if: always()
+      run: |
+        echo "Checking HTML reports..."
+        if [ -d "report/html" ]; then
+          echo "✅ HTML reports found:"
+          find report/html/ -name "*.html" -type f
+        else
+          echo "❌ No HTML reports found"
+          ls -la report/ || echo "No report folder"
+        fi
+    
+    - name: Upload HTML reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: html-report-${{ matrix.platform }}-${{ github.run_number }}
+        path: report/html/
+        retention-days: 30
+
+  test-single:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform != 'all' }}
+    
+    steps:
+    - name: Checkout kode
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies dan build
+      run: |
+        npm ci
+        npm run build
+    
+    - name: Install Playwright
+      run: npx playwright install --with-deps chromium
+    
+    - name: Setup environment
+      run: |
+        cp .env.example .env
+        echo "PLATFORM=${{ github.event.inputs.platform }}" >> .env
+        echo "FILENAME=${{ github.event.inputs.filename || 'test-result' }}" >> .env
+        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions' }}" >> .env
+        echo "GREETING=${{ github.event.inputs.greeting || 'Halo' }}" >> .env
+        echo "WEBCHAT_URL=${{ github.event.inputs.webchat_url || 'https://example.com/webchat' }}" >> .env
+    
+    - name: Jalankan test
+      run: npm run test:${{ github.event.inputs.platform }}
+      env:
+        CI: true
+        HEADLESS: true
+    
+    - name: Verify HTML reports
+      if: always()
+      run: |
+        echo "Checking HTML reports..."
+        if [ -d "report/html" ]; then
+          echo "✅ HTML reports found:"
+          find report/html/ -name "*.html" -type f
+        else
+          echo "❌ No HTML reports found"
+          ls -la report/ || echo "No report folder"
+        fi
+    
+    - name: Upload HTML reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: html-report-${{ github.event.inputs.platform }}-${{ github.run_number }}
+        path: report/html/
+        retention-days: 30
+
+  collect-reports:
+    runs-on: ubuntu-latest
+    needs: [test-platforms, test-single]
+    if: always()
+    name: Kumpulkan HTML Reports
+    
+    steps:
+    - name: Download semua HTML artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+    
+    - name: Organisir HTML reports
+      run: |
+        mkdir -p final-reports
+        
+        # Copy HTML reports
+        for dir in artifacts/html-report-*/; do
+          if [ -d "$dir" ]; then
+            platform_name=$(basename "$dir" | sed 's/html-report-//' | sed 's/-[0-9]*$//')
+            echo "Processing: $platform_name"
+            mkdir -p "final-reports/$platform_name"
+            cp -r "$dir"/* "final-reports/$platform_name/" 2>/dev/null || true
+          fi
+        done
+        
+        # Create simple index
+        echo "<h1>Test Reports - Build ${{ github.run_number }}</h1>" > final-reports/index.html
+        echo "<p>Generated: $(date)</p>" >> final-reports/index.html
+        echo "<ul>" >> final-reports/index.html
+        
+        for platform_dir in final-reports/*/; do
+          if [ -d "$platform_dir" ]; then
+            platform=$(basename "$platform_dir")
+            echo "<li><strong>$platform</strong><ul>" >> final-reports/index.html
+            find "$platform_dir" -name "*.html" -type f | while read -r file; do
+              filename=$(basename "$file")
+              echo "<li><a href=\"$platform/$filename\">$filename</a></li>" >> final-reports/index.html
+            done
+            echo "</ul></li>" >> final-reports/index.html
+          fi
+        done
+        
+        echo "</ul>" >> final-reports/index.html
+        
+        # Show summary
+        echo "=== Summary ==="
+        find final-reports/ -name "*.html" | wc -l
+        find final-reports/ -name "*.html"
+    
+    - name: Upload final reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: html-reports-${{ github.run_number }}
+        path: final-reports/
+        retention-days: 60
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [collect-reports]
+    if: always()
+    
+    steps:
+    - name: Download reports
+      uses: actions/download-artifact@v4
+      with:
+        name: html-reports-${{ github.run_number }}
+        path: reports/
+    
+    - name: Create summary
+      run: |
+        echo "# 📊 HTML Test Reports" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Build:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Platform:** ${{ github.event.inputs.platform || 'Multiple' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Generated:** $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -d "reports" ]; then
+          total_html=$(find reports/ -name "*.html" -not -name "index.html" | wc -l)
+          echo "**Total HTML reports:** $total_html" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📁 Reports by Platform" >> $GITHUB_STEP_SUMMARY
+          
+          for platform_dir in reports/*/; do
+            if [ -d "$platform_dir" ]; then
+              platform=$(basename "$platform_dir")
+              count=$(find "$platform_dir" -name "*.html" | wc -l)
+              echo "- **$platform**: $count files" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download artifact: **html-reports-${{ github.run_number }}**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ No reports found" >> $GITHUB_STEP_SUMMARY
+        fi
