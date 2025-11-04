@@ -1,0 +1,395 @@
+name: Multi-Platform Testing with Dashboard Reports
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform yang akan ditest'
+        required: false
+        default: 'webchat'
+        type: choice
+        options:
+          - 'webchat'
+          - 'telegram'
+          - 'facebook'
+          - 'instagram'
+          - 'dhai'
+          - 'dhai-wakeup'
+          - 'all'
+      filename:
+        description: 'Nama file hasil test'
+        required: false
+        default: 'testing'
+        type: string
+      tester_name:
+        description: 'Nama tester'
+        required: false
+        default: 'GitHub Actions Bot'
+        type: string
+      greeting:
+        description: 'Greeting message'
+        required: false
+        default: 'Haloo'
+        type: string
+      webchat_url:
+        description: 'URL Webchat'
+        required: false
+        default: 'https://chat.botika.online/tpUyiey'
+        type: string
+
+jobs:
+  test-single-platform:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform != 'all' }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        echo "📦 Installing Node.js dependencies..."
+        npm install
+        
+        echo "🐍 Installing Python for Excel handling..."
+        pip install pandas openpyxl
+
+    - name: Install Google Chrome
+      run: |
+        echo "🔄 Installing Google Chrome..."
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        echo "✅ Chrome installed: $(google-chrome --version)"
+
+    - name: Setup fresh environment
+      run: |
+        echo "🧹 Setting up fresh environment..."
+        
+        # Clean old reports
+        rm -rf report/ temp_audio/ log/ 2>/dev/null || true
+        mkdir -p report/html report/json temp_audio
+        
+        # Setup .env
+        cp .env.example .env
+        echo "PLATFORM=${{ github.event.inputs.platform || 'webchat' }}" >> .env
+        echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
+        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
+        echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
+        echo 'TARGET_URL="${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}"' >> .env
+        echo "ENABLE_GEMINI_EVALUATION=false" >> .env
+        
+        echo "✅ Environment ready"
+
+    - name: Create test data if needed
+      run: |
+        echo "📋 Ensuring test data exists..."
+        
+        test_file="assets/xlsx/${{ github.event.inputs.filename || 'testing' }}.xlsx"
+        if [ -f "$test_file" ]; then
+          echo "✅ Test file found: $test_file"
+        else
+          echo "⚠️ Creating fallback test data..."
+          mkdir -p assets/xlsx
+          
+          # Create test data using Python
+          python3 << 'PYTHON_EOF'
+import pandas as pd
+import os
+
+# Ensure directory exists
+os.makedirs('assets/xlsx', exist_ok=True)
+
+# Create test data matching your local structure
+df = pd.DataFrame({
+    'no': [1, 2],
+    'title': ['Apa itu asuransi jiwa', 'Apa itu asuransi kesehatan'],
+    'pertanyaan': ['Apa itu asuransi jiwa', 'Apa itu asuransi kesehatan'],
+    'context': [
+        'Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.',
+        'Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.'
+    ]
+})
+
+# Save to Excel
+df.to_excel('assets/xlsx/testing.xlsx', index=False, sheet_name='Worksheet')
+print('✅ Created test data: assets/xlsx/testing.xlsx')
+PYTHON_EOF
+        fi
+        
+        echo "📁 Available test files:"
+        find assets/ -name "*.xlsx" -o -name "*.json" 2>/dev/null || echo "No test files"
+
+    - name: Run complete test (same as local npm run test:webchat)
+      run: |
+        echo "🧪 Running complete test flow..."
+        
+        # Show environment
+        echo "🔍 Environment check:"
+        cat .env
+        echo ""
+        
+        # Build TypeScript
+        echo "📦 Building TypeScript..."
+        npm run build
+        
+        # Verify build
+        if [ ! -d "dist" ]; then
+          echo "❌ Build failed - no dist directory"
+          exit 1
+        fi
+        echo "✅ Build successful"
+        
+        # Run test (generates JSON + screenshots)
+        echo "🚀 Running test..."
+        node dist/main.js ${{ github.event.inputs.platform || 'webchat' }}
+        
+        # Generate HTML + Excel reports
+        echo "📊 Generating reports..."
+        node dist/report-cli.js
+        
+        echo "✅ Test completed"
+      env:
+        CI: true
+        HEADLESS: true
+      continue-on-error: true
+
+    - name: Verify dashboard.html generation
+      run: |
+        echo "🔍 Verifying dashboard.html generation..."
+        
+        # Check complete report structure
+        echo "📁 Complete report structure:"
+        find report/ -type f 2>/dev/null | head -20 || echo "No report files found"
+        
+        # Specifically check for dashboard.html
+        dashboard_files=$(find report/html/ -name "dashboard.html" -type f 2>/dev/null)
+        if [ -n "$dashboard_files" ]; then
+          echo "✅ dashboard.html found:"
+          echo "$dashboard_files" | while read -r file; do
+            echo "  📄 $file ($(stat -c%s "$file") bytes)"
+          done
+          
+          # Show first few lines to verify content
+          echo ""
+          echo "📄 Dashboard.html content preview:"
+          find report/html/ -name "dashboard.html" -exec head -5 {} \;
+        else
+          echo "❌ dashboard.html NOT found!"
+          echo ""
+          echo "📁 Available HTML files:"
+          find report/ -name "*.html" -type f 2>/dev/null || echo "No HTML files found"
+          echo ""
+          echo "📁 Available files in report/html/:"
+          find report/html/ -type f 2>/dev/null || echo "No files in report/html/"
+        fi
+        
+        # Check other important files
+        echo ""
+        echo "📊 Excel files:"
+        find report/ -name "*.xlsx" -type f 2>/dev/null || echo "No Excel files found"
+        echo ""
+        echo "📸 Screenshots:"
+        find report/ -name "*.png" -type f 2>/dev/null | wc -l | xargs echo "Found screenshots:"
+
+    - name: Upload complete reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: complete-reports-${{ github.event.inputs.platform || 'webchat' }}-${{ github.run_number }}
+        path: |
+          report/
+          temp_audio/
+        retention-days: 30
+
+  test-all-platforms:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform == 'all' }}
+    strategy:
+      matrix:
+        platform: [webchat, telegram, facebook, instagram, dhai, dhai-wakeup]
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm install
+        pip install pandas openpyxl
+
+    - name: Install Google Chrome
+      run: |
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+
+    - name: Setup environment for ${{ matrix.platform }}
+      run: |
+        rm -rf report/ temp_audio/ log/ 2>/dev/null || true
+        mkdir -p report/html report/json temp_audio
+        
+        cp .env.example .env
+        echo "PLATFORM=${{ matrix.platform }}" >> .env
+        echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
+        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
+        echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
+        echo 'TARGET_URL="${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}"' >> .env
+        echo "ENABLE_GEMINI_EVALUATION=false" >> .env
+        
+        # Create test data if needed
+        if [ ! -f "assets/xlsx/testing.xlsx" ]; then
+          mkdir -p assets/xlsx
+          python3 -c "
+import pandas as pd
+df = pd.DataFrame({
+    'no': [1, 2],
+    'title': ['Apa itu asuransi jiwa', 'Apa itu asuransi kesehatan'],
+    'pertanyaan': ['Apa itu asuransi jiwa', 'Apa itu asuransi kesehatan'],
+    'context': [
+        'Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.',
+        'Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.'
+    ]
+})
+df.to_excel('assets/xlsx/testing.xlsx', index=False, sheet_name='Worksheet')
+print('Created test data for ${{ matrix.platform }}')
+"
+        fi
+
+    - name: Run test for ${{ matrix.platform }}
+      run: |
+        echo "🧪 Running test for ${{ matrix.platform }}..."
+        npm run build
+        node dist/main.js ${{ matrix.platform }}
+        node dist/report-cli.js
+        
+        # Quick verification
+        if [ -f report/html/*/dashboard.html ]; then
+          echo "✅ dashboard.html generated for ${{ matrix.platform }}"
+        else
+          echo "❌ dashboard.html missing for ${{ matrix.platform }}"
+        fi
+      env:
+        CI: true
+        HEADLESS: true
+      continue-on-error: true
+
+    - name: Upload reports for ${{ matrix.platform }}
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: complete-reports-${{ matrix.platform }}-${{ github.run_number }}
+        path: |
+          report/
+          temp_audio/
+        retention-days: 30
+
+  consolidate-reports:
+    runs-on: ubuntu-latest
+    needs: [test-single-platform, test-all-platforms]
+    if: always()
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+
+    - name: Consolidate all reports
+      run: |
+        mkdir -p final-reports
+        
+        echo "📦 Consolidating all reports..."
+        for artifact_dir in artifacts/complete-reports-*/; do
+          if [ -d "$artifact_dir" ]; then
+            platform_name=$(basename "$artifact_dir" | sed 's/complete-reports-//' | sed 's/-[0-9]*$//')
+            echo "Processing: $platform_name"
+            
+            # Copy all report content
+            if [ -d "$artifact_dir/report" ]; then
+              mkdir -p "final-reports/$platform_name"
+              cp -r "$artifact_dir/report"/* "final-reports/$platform_name/" 2>/dev/null || true
+            fi
+            
+            # Copy audio if exists
+            if [ -d "$artifact_dir/temp_audio" ]; then
+              mkdir -p "final-reports/$platform_name/audio"
+              cp -r "$artifact_dir/temp_audio"/* "final-reports/$platform_name/audio/" 2>/dev/null || true
+            fi
+          fi
+        done
+        
+        echo "📊 Final report summary:"
+        find final-reports/ -name "dashboard.html" -type f | wc -l | xargs echo "Dashboard files:"
+        find final-reports/ -name "*.xlsx" -type f | wc -l | xargs echo "Excel files:"
+        find final-reports/ -name "*.png" -type f | wc -l | xargs echo "Screenshots:"
+
+    - name: Upload consolidated reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: all-test-reports-${{ github.run_number }}
+        path: final-reports/
+        retention-days: 60
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [consolidate-reports]
+    if: always()
+    steps:
+    - name: Download consolidated reports
+      uses: actions/download-artifact@v4
+      with:
+        name: all-test-reports-${{ github.run_number }}
+        path: reports/
+
+    - name: Generate summary
+      run: |
+        echo "# 🧪 Multi-Platform Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Build:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Platform:** ${{ github.event.inputs.platform || 'Multiple' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Tester:** ${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Generated:** $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -d "reports" ]; then
+          dashboard_count=$(find reports/ -name "dashboard.html" -type f 2>/dev/null | wc -l)
+          excel_count=$(find reports/ -name "*.xlsx" -type f 2>/dev/null | wc -l)
+          screenshot_count=$(find reports/ -name "*.png" -type f 2>/dev/null | wc -l)
+          
+          echo "## 📊 Report Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dashboard Reports:** $dashboard_count files" >> $GITHUB_STEP_SUMMARY
+          echo "- **Excel Reports:** $excel_count files" >> $GITHUB_STEP_SUMMARY
+          echo "- **Screenshots:** $screenshot_count files" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 📁 Available Reports" >> $GITHUB_STEP_SUMMARY
+          for platform_dir in reports/*/; do
+            if [ -d "$platform_dir" ]; then
+              platform=$(basename "$platform_dir")
+              dashboard_files=$(find "$platform_dir" -name "dashboard.html" -type f 2>/dev/null | wc -l)
+              echo "- **$platform**: $dashboard_files dashboard.html" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📥 Download Reports" >> $GITHUB_STEP_SUMMARY
+          echo "Download **all-test-reports-${{ github.run_number }}** artifact for complete results including dashboard.html files." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ No reports generated" >> $GITHUB_STEP_SUMMARY
+        fi
