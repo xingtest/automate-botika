@@ -1,4 +1,4 @@
-name: Multi-Platform Testing with Reports
+name: Multi-Platform Testing (Google Chrome)
 
 on:
   push:
@@ -61,8 +61,21 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Install Playwright browsers
-      run: npx playwright install --with-deps chromium
+    - name: Install Google Chrome
+      run: |
+        echo "🔄 Installing Google Chrome..."
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        echo "✅ Google Chrome installed"
+        google-chrome --version
+
+    - name: Setup Playwright to use system Chrome
+      run: |
+        echo "⚡ Configuring Playwright to use system Chrome..."
+        echo "PLAYWRIGHT_BROWSERS_PATH=0" >> $GITHUB_ENV
+        echo "✅ Playwright configured for system Chrome"
 
     - name: Setup test environment
       run: |
@@ -85,6 +98,7 @@ jobs:
       env:
         CI: true
         HEADLESS: true
+        PLAYWRIGHT_BROWSERS_PATH: 0
       continue-on-error: true
 
     - name: Verify reports generated
@@ -95,9 +109,6 @@ jobs:
         echo ""
         echo "HTML reports:"
         find report/html/ -name "*.html" -type f 2>/dev/null || echo "No HTML reports found"
-        echo ""
-        echo "Report structure:"
-        ls -la report/ 2>/dev/null || echo "No report directory found"
 
     - name: Upload test reports
       uses: actions/upload-artifact@v4
@@ -125,8 +136,21 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Install Playwright browsers
-      run: npx playwright install --with-deps chromium
+    - name: Install Google Chrome
+      run: |
+        echo "🔄 Installing Google Chrome..."
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        echo "✅ Google Chrome installed"
+        google-chrome --version
+
+    - name: Setup Playwright to use system Chrome
+      run: |
+        echo "⚡ Configuring Playwright to use system Chrome..."
+        echo "PLAYWRIGHT_BROWSERS_PATH=0" >> $GITHUB_ENV
+        echo "✅ Playwright configured for system Chrome"
 
     - name: Setup test environment
       run: |
@@ -149,6 +173,7 @@ jobs:
       env:
         CI: true
         HEADLESS: true
+        PLAYWRIGHT_BROWSERS_PATH: 0
       continue-on-error: true
 
     - name: Verify reports generated
@@ -159,9 +184,6 @@ jobs:
         echo ""
         echo "HTML reports:"
         find report/html/ -name "*.html" -type f 2>/dev/null || echo "No HTML reports found"
-        echo ""
-        echo "Report structure:"
-        ls -la report/ 2>/dev/null || echo "No report directory found"
 
     - name: Upload test reports
       uses: actions/upload-artifact@v4
@@ -213,12 +235,9 @@ jobs:
         done
         
         echo "=== Final report summary ==="
-        echo "HTML reports:"
-        find final-reports/html/ -name "*.html" -type f 2>/dev/null | wc -l
-        echo "JSON reports:"
-        find final-reports/json/ -name "*.json" -type f 2>/dev/null | wc -l
-        echo "Audio files:"
-        find final-reports/audio/ -type f 2>/dev/null | wc -l
+        echo "HTML reports: $(find final-reports/html/ -name "*.html" -type f 2>/dev/null | wc -l)"
+        echo "JSON reports: $(find final-reports/json/ -name "*.json" -type f 2>/dev/null | wc -l)"
+        echo "Audio files: $(find final-reports/audio/ -type f 2>/dev/null | wc -l)"
 
     - name: Create report index
       run: |
@@ -228,6 +247,7 @@ jobs:
         Generated: $(date)
         Platform: ${{ github.event.inputs.platform || 'Multiple platforms' }}
         Tester: ${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}
+        Browser: Google Chrome (system installed)
         
         ## Report Structure
         - \`html/\` - HTML reports with screenshots
@@ -262,12 +282,13 @@ jobs:
 
     - name: Generate test summary
       run: |
-        echo "# 🧪 Multi-Platform Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "# 🧪 Multi-Platform Test Results (Google Chrome)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Build Number:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
         echo "**Platform:** ${{ github.event.inputs.platform || 'Multiple platforms' }}" >> $GITHUB_STEP_SUMMARY
         echo "**Tester:** ${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> $GITHUB_STEP_SUMMARY
         echo "**Test File:** ${{ github.event.inputs.filename || 'test-result' }}.json" >> $GITHUB_STEP_SUMMARY
+        echo "**Browser:** Google Chrome (system installed)" >> $GITHUB_STEP_SUMMARY
         echo "**Generated:** $(date)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
@@ -297,6 +318,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📥 Download Reports" >> $GITHUB_STEP_SUMMARY
           echo "Download the **complete-test-reports-${{ github.run_number }}** artifact to access all test results." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ⚡ Performance Info" >> $GITHUB_STEP_SUMMARY
+          echo "- Using system Google Chrome (faster installation)" >> $GITHUB_STEP_SUMMARY
+          echo "- No Playwright browser downloads needed" >> $GITHUB_STEP_SUMMARY
+          echo "- Reduced CI/CD time significantly" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **No reports generated**" >> $GITHUB_STEP_SUMMARY
         fi
