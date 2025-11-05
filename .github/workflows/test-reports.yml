@@ -111,21 +111,21 @@ jobs:
           
           # Create JSON fallback (more reliable than Excel in CI)
           cat > assets/json/testing.json << 'EOF'
-[
-  {
-    "no": 1,
-    "title": "Apa itu asuransi jiwa",
-    "pertanyaan": "Apa itu asuransi jiwa",
-    "context": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis."
-  },
-  {
-    "no": 2,
-    "title": "Apa itu asuransi kesehatan",
-    "pertanyaan": "Apa itu asuransi kesehatan",
-    "context": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan."
-  }
-]
-EOF
+          [
+            {
+              "no": 1,
+              "title": "Apa itu asuransi jiwa",
+              "pertanyaan": "Apa itu asuransi jiwa",
+              "context": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis."
+            },
+            {
+              "no": 2,
+              "title": "Apa itu asuransi kesehatan",
+              "pertanyaan": "Apa itu asuransi kesehatan",
+              "context": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan."
+            }
+          ]
+          EOF
           
           # Update .env to use JSON instead of Excel
           sed -i 's/FILENAME=.*\.xlsx/FILENAME=testing.json/' .env
@@ -268,21 +268,21 @@ EOF
         if [ ! -f "assets/xlsx/testing.xlsx" ] && [ ! -f "assets/json/testing.json" ]; then
           mkdir -p assets/json
           cat > assets/json/testing.json << 'EOF'
-[
-  {
-    "no": 1,
-    "title": "Apa itu asuransi jiwa",
-    "pertanyaan": "Apa itu asuransi jiwa",
-    "context": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis."
-  },
-  {
-    "no": 2,
-    "title": "Apa itu asuransi kesehatan",
-    "pertanyaan": "Apa itu asuransi kesehatan",
-    "context": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan."
-  }
-]
-EOF
+          [
+            {
+              "no": 1,
+              "title": "Apa itu asuransi jiwa",
+              "pertanyaan": "Apa itu asuransi jiwa",
+              "context": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis."
+            },
+            {
+              "no": 2,
+              "title": "Apa itu asuransi kesehatan",
+              "pertanyaan": "Apa itu asuransi kesehatan",
+              "context": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan."
+            }
+          ]
+          EOF
           sed -i 's/FILENAME=.*\.xlsx/FILENAME=testing.json/' .env
           echo "Created JSON test data for ${{ matrix.platform }}"
         fi
