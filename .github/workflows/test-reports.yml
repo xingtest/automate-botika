@@ -14,12 +14,12 @@ on:
         type: choice
         options:
           - 'webchat'
-          - 'telegram'
-          - 'facebook'
-          - 'instagram'
-          - 'dhai'
-          - 'dhai-wakeup'
-          - 'all'
+          # - 'telegram'
+          # - 'facebook'
+          # - 'instagram'
+          # - 'dhai'
+          # - 'dhai-wakeup'
+          # - 'all'
       filename:
         description: 'Nama file hasil test'
         required: false
