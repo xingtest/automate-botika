@@ -244,7 +244,7 @@ jobs:
       with:
         name: webchat-reports-${{ github.run_number }}
         path: report/html/
-        retention-days: 7
+        retention-days: 3
 
   test-all-platforms:
     runs-on: ubuntu-latest
@@ -350,6 +350,6 @@ jobs:
       with:
         name: ${{ matrix.platform }}-reports-${{ github.run_number }}
         path: report/html/
-        retention-days: 7
+        retention-days: 3
 
 
