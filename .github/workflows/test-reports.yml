@@ -88,7 +88,7 @@ jobs:
         mkdir -p report/html report/json temp_audio
         
         # Setup .env
-        cp .env.example .env
+        touch .env
         echo "PLATFORM=${{ github.event.inputs.platform || 'webchat' }}" >> .env
         echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
         echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
@@ -258,7 +258,7 @@ jobs:
         rm -rf report/ temp_audio/ log/ 2>/dev/null || true
         mkdir -p report/html report/json temp_audio
         
-        cp .env.example .env
+        touch .env
         echo "PLATFORM=${{ matrix.platform }}" >> .env
         echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
         echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
