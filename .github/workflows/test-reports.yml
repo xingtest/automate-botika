@@ -217,15 +217,34 @@ jobs:
         echo "📸 Screenshots:"
         find report/ -name "*.png" -type f 2>/dev/null | wc -l | xargs echo "Found screenshots:"
 
+    - name: Validate report generation
+      run: |
+        echo "🔍 Validating report generation..."
+        
+        if [ ! -d "report/html" ]; then
+          echo "❌ report/html directory does not exist!"
+          exit 1
+        fi
+        
+        file_count=$(find report/html -type f 2>/dev/null | wc -l)
+        if [ "$file_count" -eq 0 ]; then
+          echo "❌ report/html directory is empty!"
+          exit 1
+        fi
+        
+        echo "✅ Found $file_count files in report/html"
+        
+        # List the structure
+        echo "📁 Report structure:"
+        find report/html -type f | head -10
+
     - name: Upload complete reports
       uses: actions/upload-artifact@v4
-      if: always()
+      if: success()
       with:
-        name: complete-reports-${{ github.event.inputs.platform || 'webchat' }}-${{ github.run_number }}
-        path: |
-          report/html/
-
-        retention-days: 30
+        name: webchat-reports-${{ github.run_number }}
+        path: report/html/
+        retention-days: 7
 
   test-all-platforms:
     runs-on: ubuntu-latest
@@ -308,106 +327,29 @@ jobs:
         HEADLESS: true
       continue-on-error: true
 
+    - name: Validate report generation
+      run: |
+        echo "🔍 Validating report generation..."
+        
+        if [ ! -d "report/html" ]; then
+          echo "❌ report/html directory does not exist!"
+          exit 1
+        fi
+        
+        file_count=$(find report/html -type f 2>/dev/null | wc -l)
+        if [ "$file_count" -eq 0 ]; then
+          echo "❌ report/html directory is empty!"
+          exit 1
+        fi
+        
+        echo "✅ Found $file_count files in report/html for ${{ matrix.platform }}"
+
     - name: Upload reports for ${{ matrix.platform }}
       uses: actions/upload-artifact@v4
-      if: always()
+      if: success()
       with:
-        name: complete-reports-${{ matrix.platform }}-${{ github.run_number }}
-        path: |
-          report/html/
+        name: ${{ matrix.platform }}-reports-${{ github.run_number }}
+        path: report/html/
+        retention-days: 7
 
-        retention-days: 30
 
-  consolidate-reports:
-    runs-on: ubuntu-latest
-    needs: [test-single-platform, test-all-platforms]
-    if: always()
-    steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts/
-
-    - name: Consolidate all reports
-      run: |
-        mkdir -p final-reports
-        
-        echo "📦 Consolidating all reports..."
-        for artifact_dir in artifacts/complete-reports-*/; do
-          if [ -d "$artifact_dir" ]; then
-            platform_name=$(basename "$artifact_dir" | sed 's/complete-reports-//' | sed 's/-[0-9]*$//')
-            echo "Processing: $platform_name"
-            
-            # Copy all report content
-            if [ -d "$artifact_dir/report" ]; then
-              mkdir -p "final-reports/$platform_name"
-              cp -r "$artifact_dir/report"/* "final-reports/$platform_name/" 2>/dev/null || true
-            fi
-            
-            # Copy audio if exists
-            if [ -d "$artifact_dir/temp_audio" ]; then
-              mkdir -p "final-reports/$platform_name/audio"
-              cp -r "$artifact_dir/temp_audio"/* "final-reports/$platform_name/audio/" 2>/dev/null || true
-            fi
-          fi
-        done
-        
-        echo "📊 Final report summary:"
-        find final-reports/ -name "dashboard.html" -type f | wc -l | xargs echo "Dashboard files:"
-        find final-reports/ -name "*.xlsx" -type f | wc -l | xargs echo "Excel files:"
-        find final-reports/ -name "*.png" -type f | wc -l | xargs echo "Screenshots:"
-
-    - name: Upload consolidated reports
-      uses: actions/upload-artifact@v4
-      with:
-        name: all-test-reports-${{ github.run_number }}
-        path: final-reports/
-        retention-days: 60
-
-  summary:
-    runs-on: ubuntu-latest
-    needs: [consolidate-reports]
-    if: always()
-    steps:
-    - name: Download consolidated reports
-      uses: actions/download-artifact@v4
-      with:
-        name: all-test-reports-${{ github.run_number }}
-        path: reports/
-
-    - name: Generate summary
-      run: |
-        echo "# 🧪 Multi-Platform Test Results" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Build:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Platform:** ${{ github.event.inputs.platform || 'Multiple' }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Tester:** ${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Generated:** $(date)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        if [ -d "reports" ]; then
-          dashboard_count=$(find reports/ -name "dashboard.html" -type f 2>/dev/null | wc -l)
-          excel_count=$(find reports/ -name "*.xlsx" -type f 2>/dev/null | wc -l)
-          screenshot_count=$(find reports/ -name "*.png" -type f 2>/dev/null | wc -l)
-          
-          echo "## 📊 Report Statistics" >> $GITHUB_STEP_SUMMARY
-          echo "- **Dashboard Reports:** $dashboard_count files" >> $GITHUB_STEP_SUMMARY
-          echo "- **Excel Reports:** $excel_count files" >> $GITHUB_STEP_SUMMARY
-          echo "- **Screenshots:** $screenshot_count files" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "## 📁 Available Reports" >> $GITHUB_STEP_SUMMARY
-          for platform_dir in reports/*/; do
-            if [ -d "$platform_dir" ]; then
-              platform=$(basename "$platform_dir")
-              dashboard_files=$(find "$platform_dir" -name "dashboard.html" -type f 2>/dev/null | wc -l)
-              echo "- **$platform**: $dashboard_files dashboard.html" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 📥 Download Reports" >> $GITHUB_STEP_SUMMARY
-          echo "Download **all-test-reports-${{ github.run_number }}** artifact for complete results including dashboard.html files." >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ No reports generated" >> $GITHUB_STEP_SUMMARY
-        fi
