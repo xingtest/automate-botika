@@ -223,7 +223,7 @@ jobs:
       with:
         name: complete-reports-${{ github.event.inputs.platform || 'webchat' }}-${{ github.run_number }}
         path: |
-          report/
+          report/html/
           temp_audio/
         retention-days: 30
 
@@ -314,7 +314,7 @@ jobs:
       with:
         name: complete-reports-${{ matrix.platform }}-${{ github.run_number }}
         path: |
-          report/
+          report/html/
           temp_audio/
         retention-days: 30
 
