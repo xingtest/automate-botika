@@ -166,10 +166,27 @@ jobs:
           echo "⚠️ Test execution failed with exit code $?"
         }
         
+        # Wait for file system to sync (important for CI/CD)
+        echo ""
+        echo "⏳ Waiting for files to sync..."
+        sleep 3
+        
         # List generated files before report generation
         echo ""
         echo "📁 Files before report generation:"
         find report/ -type f 2>/dev/null | head -20 || echo "No report files yet"
+        
+        # Verify JSON files exist
+        echo ""
+        echo "🔍 Verifying JSON files..."
+        json_count=$(find report/json -name "*.json" -type f 2>/dev/null | wc -l)
+        echo "Found $json_count JSON files"
+        
+        if [ "$json_count" -eq 0 ]; then
+          echo "❌ No JSON files found! Report generation will fail."
+          echo "Listing report directory:"
+          ls -la report/ || echo "report/ directory not found"
+        fi
         
         # Generate HTML + Excel reports with verbose output
         echo ""
