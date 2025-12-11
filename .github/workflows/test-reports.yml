@@ -160,6 +160,10 @@ jobs:
         echo "✅ Build successful"
         ls -la dist/
         
+        # Create directories to ensure they exist
+        echo "📂 Ensuring report directories exist..."
+        mkdir -p report/json report/html
+
         # Run test (generates JSON + screenshots)
         echo "🧪 Running test..."
         node dist/main.js ${{ github.event.inputs.platform || 'webchat' }} || {
