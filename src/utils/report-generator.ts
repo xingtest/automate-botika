@@ -205,7 +205,7 @@ export async function generateReportFromLatestTest(openInBrowser: boolean = fals
     });
 
     // Verify template exists
-    const templatePath = path.join('report', 'template', 'template.ejs');
+    const templatePath = path.join('template', 'template.ejs');
     if (!fs.existsSync(templatePath)) {
       console.error(`❌ CRITICAL: Template file not found at: ${templatePath}`);
       console.error(`   Abs path: ${path.resolve(templatePath)}`);
