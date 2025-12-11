@@ -198,7 +198,8 @@ async function main(): Promise<void> {
 
       console.log(`URL Pengujian: ${url}\n`);
       // Show browser for DHAI with optimized viewport (1280x720)
-      const headlessMode = false; // Set to true for headless, false to see browser
+      // Check environment for HEADLESS mode (CI/CD usually sets this to true)
+      const headlessMode = process.env.HEADLESS === 'true'; // Defaults to false if not set
       const dhaiViewport = { width: 1280, height: 720 };
       const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium', headlessMode, dhaiViewport);
       await DhaiPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder);
