@@ -10,7 +10,7 @@ on:
       platform:
         description: 'Platform yang akan ditest'
         required: false
-        default: 'webchat'
+        default: 'dhai'
         type: choice
         options:
           # - 'webchat'
