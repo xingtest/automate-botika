@@ -17,10 +17,10 @@ async function generateReports() {
     console.log('\n📊 Generating Excel report...');
     const excelFile = await generateExcelReportFromLatest();
 
-    if (htmlFile || excelFile) {
+    if (htmlFile && excelFile) {
       console.log('\n✅ Reports generated successfully');
-      if (htmlFile) console.log(`   HTML: ${htmlFile}`);
-      if (excelFile) console.log(`   Excel: ${excelFile}`);
+      console.log(`   HTML: ${htmlFile}`);
+      console.log(`   Excel: ${excelFile}`);
       process.exit(0);
     } else {
       console.log('\n❌ Failed to generate reports');

@@ -34,7 +34,7 @@ interface SummaryData {
 
 function findLatestTestFiles(): { jsonFile: string | null; summaryFile: string | null; chartFile: string | null } {
   const jsonDir = 'report/json';
-  
+
   if (!fs.existsSync(jsonDir)) {
     return { jsonFile: null, summaryFile: null, chartFile: null };
   }
@@ -204,16 +204,42 @@ export async function generateReportFromLatestTest(openInBrowser: boolean = fals
       };
     });
 
-    // Render template
+    // Verify template exists
     const templatePath = path.join('report', 'template', 'template.ejs');
-    const htmlOutput = renderTemplate(templatePath, {
-      summary: [summary],
-      chart: chartData,
-      test_data: testDataForTemplate
-    });
+    if (!fs.existsSync(templatePath)) {
+      console.error(`❌ CRITICAL: Template file not found at: ${templatePath}`);
+      console.error(`   Abs path: ${path.resolve(templatePath)}`);
+      console.error(`   CWD: ${process.cwd()}`);
+      console.error(`   Dir listing of report/:`);
+      try { console.log(fs.readdirSync('report')); } catch (e) { }
+      try { console.log(fs.readdirSync('report/template')); } catch (e) { }
+      return null;
+    }
+    console.log(`📄 Template found: ${templatePath}`);
+
+    // Render template
+    console.log('🔄 Rendering template...');
+    let htmlOutput = '';
+    try {
+      htmlOutput = renderTemplate(templatePath, {
+        summary: [summary],
+        chart: chartData,
+        test_data: testDataForTemplate
+      });
+    } catch (renderError) {
+      console.error(`❌ Template render failed:`, renderError);
+      return null;
+    }
+
+    if (!htmlOutput) {
+      console.error('❌ Rendered HTML is empty!');
+      return null;
+    }
+    console.log(`✅ Template rendered (${htmlOutput.length} bytes)`);
 
     // Save HTML file
     const outputFile = path.join(testFolder, 'dashboard.html');
+    console.log(`💾 Writing to: ${outputFile}`);
     fs.writeFileSync(outputFile, htmlOutput, 'utf-8');
 
     // Create test info file
@@ -231,8 +257,15 @@ export async function generateReportFromLatestTest(openInBrowser: boolean = fals
 
     console.log(`✅ Test folder created: ${testFolder}`);
     console.log(`📁 HTML report: ${outputFile}`);
-    
-  console.log(`📋 Test info: ${summaryFilePath}`);
+
+    // Verify file exists
+    if (fs.existsSync(outputFile)) {
+      console.log(`✅ File verified on disk: ${outputFile}`);
+    } else {
+      console.error(`❌ File NOT found on disk after write: ${outputFile}`);
+    }
+
+    console.log(`📋 Test info: ${summaryFilePath}`);
 
     // Open in browser if requested
     if (openInBrowser) {
@@ -249,7 +282,8 @@ export async function generateReportFromLatestTest(openInBrowser: boolean = fals
 
     return outputFile;
   } catch (error) {
-    console.log(`❌ Error generating report: ${error}`);
+    console.error(`❌ Error generating report process:`);
+    console.error(error);
     return null;
   }
 }
