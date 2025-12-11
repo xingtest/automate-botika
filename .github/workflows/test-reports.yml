@@ -13,11 +13,11 @@ on:
         default: 'webchat'
         type: choice
         options:
-          - 'webchat'
+          # - 'webchat'
           # - 'telegram'
           # - 'facebook'
           # - 'instagram'
-          # - 'dhai'
+          - 'dhai'
           # - 'all'
       filename:
         description: 'Nama file hasil test'
