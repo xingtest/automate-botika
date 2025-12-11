@@ -191,11 +191,17 @@ jobs:
         # Generate HTML + Excel reports with verbose output
         echo ""
         echo "📊 Generating reports..."
-        node dist/report-cli.js 2>&1 || {
-          echo "❌ Report generation failed with exit code $?"
+        if ! node dist/report-cli.js 2>&1; then
+          echo "❌ Report generation failed!"
           echo "Checking for errors..."
           ls -la dist/ | grep report-cli
-        }
+          exit 1
+        fi
+        echo "✅ Report generation completed successfully"
+        
+        # Wait for file system to flush writes
+        echo "⏳ Waiting for file system to sync..."
+        sleep 2
         
         # List generated files after report generation
         echo ""
@@ -307,6 +313,29 @@ jobs:
           echo "test_status=unknown" >> $GITHUB_OUTPUT
         fi
       continue-on-error: true
+
+    - name: CRITICAL - Verify dashboard.html before upload
+      run: |
+        echo "🔍 CRITICAL CHECK: Verifying dashboard.html exists before artifact upload..."
+        
+        dashboard_count=$(find report/html/ -name "dashboard.html" -type f 2>/dev/null | wc -l)
+        
+        if [ "$dashboard_count" -eq 0 ]; then
+          echo "❌ CRITICAL ERROR: dashboard.html NOT FOUND!"
+          echo "Cannot upload artifact without dashboard.html"
+          echo ""
+          echo "📁 Available files in report/html/:"
+          find report/html/ -type f 2>/dev/null || echo "No files found"
+          exit 1
+        fi
+        
+        echo "✅ Found $dashboard_count dashboard.html file(s)"
+        echo ""
+        echo "📄 Dashboard.html details:"
+        find report/html/ -name "dashboard.html" -type f -exec ls -lh {} \;
+        echo ""
+        echo "📄 Dashboard.html preview (first 10 lines):"
+        find report/html/ -name "dashboard.html" -type f -exec head -10 {} \;
 
     - name: Upload complete reports
       uses: actions/upload-artifact@v4
