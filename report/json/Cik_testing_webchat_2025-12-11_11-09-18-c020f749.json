@@ -1,0 +1,26 @@
+[
+  {
+    "no": 1,
+    "title": "Apa itu asuransi jiwa",
+    "question": "Apa itu asuransi jiwa",
+    "response_kb": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.",
+    "response_llm": "Asuransi jiwa adalah jenis asuransi yang memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis. Jika pemegang polis berpulang, ahli waris akan menerima uang pertanggungan. Jika pemegang polis masih hidup dalam jangka waktu yang ditentukan, mereka bisa mendapatkan manfaat dalam bentuk nilai tunai. Jadi, asuransi jiwa membantu memenuhi kebutuhan sehari-hari bagi keluarga yang ditinggalkan.",
+    "status": "PASS",
+    "duration": "00:00:10",
+    "image_capture": "c020f749_pertanyaan_Apa_itu_asuransi_jiwa.png",
+    "skor": 0.743,
+    "explanation": "Auto: ✓ Jawaban baik (similarity: 74.3%). Mencakup poin-poin utama dengan tepat."
+  },
+  {
+    "no": 2,
+    "title": "Apa itu asuransi kesehatan",
+    "question": "Apa itu asuransi kesehatan",
+    "response_kb": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.",
+    "response_llm": "Asuransi kesehatan adalah jenis asuransi yang memberikan perlindungan finansial ketika Anda mengalami masalah kesehatan. Asuransi ini berguna saat Anda menjalani rawat inap, operasi, atau perawatan lainnya di rumah sakit. Penting untuk memiliki asuransi kesehatan karena dapat melindungi aset atau keuangan Anda saat menghadapi biaya pengobatan yang tidak sedikit.",
+    "status": "PASS",
+    "duration": "00:00:13",
+    "image_capture": "c020f749_pertanyaan_Apa_itu_asuransi_kesehatan.png",
+    "skor": 0.733,
+    "explanation": "Auto: ✓ Jawaban baik (similarity: 73.3%). Mencakup sebagian besar informasi. Akan lebih sempurna dengan merupakan."
+  }
+]

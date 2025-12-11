@@ -10,6 +10,8 @@ import { FacebookPlatform } from './platforms/facebook';
 import { DhaiPlatform } from './platforms/dhai';
 // import { DhaiWakeupPlatform } from './platforms/dhai-wakeup'; // Temporarily commented
 import { PlatformConfig, TestData } from './types';
+import { log } from './utils/logger';
+import { TestTracker } from './utils/test-tracker';
 
 dotenv.config();
 
@@ -55,19 +57,26 @@ async function main(): Promise<void> {
   const startDurationMeasurement = Modul.startTime();
   const idTest = Modul.idTest();
 
+  log.info(`Test ID: ${idTest}`);
+  log.info(`Date: ${today}`);
+  log.info(`Start Time: ${timeStart}`);
   console.log(`Test ID : ${idTest}\nDay : ${today}\nStart Time : ${timeStart}\n`);
+
+  // Initialize test tracker
+  const testTracker = new TestTracker();
 
   // Declare reportFilename outside try block so it's accessible in finally
   let reportFilename = '';
 
   try {
-  // Prefer CLI argument (e.g. `node dist/main.js instagram`) over .env
-  const cliPlatform = process.argv[2] || '';
-  const platform = (cliPlatform || process.env.PLATFORM || '').toLowerCase();
+    // Prefer CLI argument (e.g. `node dist/main.js instagram`) over .env
+    const cliPlatform = process.argv[2] || '';
+    const platform = (cliPlatform || process.env.PLATFORM || '').toLowerCase();
     if (!platform) {
+      log.error("Environment variable 'PLATFORM' tidak diatur");
       console.error("Error: Environment variable 'PLATFORM' tidak diatur.");
       Modul.testDone('Test Failed!');
-      return;
+      process.exit(1);
     }
 
     const filenameWithExt = process.env.FILENAME;
@@ -80,10 +89,10 @@ async function main(): Promise<void> {
     const testerNameClean = testerName.replace(/\s+/g, '_');
     reportFilename = `${testerNameClean}_${platform}_${dateStr}_${timeStr}`;
 
-  // Create test folder and screenshots folder directly (include idTest so names match report json)
-  const fullReportFolderName = `${reportFilename}-${idTest}`;
-  const testFolder = path.join('report', 'html', fullReportFolderName);
-  const screenshotsFolder = path.join(testFolder, 'screenshots');
+    // Create test folder and screenshots folder directly (include idTest so names match report json)
+    const fullReportFolderName = `${reportFilename}-${idTest}`;
+    const testFolder = path.join('report', 'html', fullReportFolderName);
+    const screenshotsFolder = path.join(testFolder, 'screenshots');
 
     if (!fs.existsSync(testFolder)) {
       fs.mkdirSync(testFolder, { recursive: true });
@@ -223,29 +232,52 @@ async function main(): Promise<void> {
     }
 
   } catch (error) {
+    log.error('Error during execution', error);
     console.error('Error during execution:', error);
     Modul.testDone('Test Failed!');
+    process.exit(1);
   } finally {
     const endDurationMeasurement = Modul.endTime(startDurationMeasurement);
     const { today: todayEnd, time: timeEnd } = Modul.todays();
     console.log(`End Time : ${timeEnd}\nDuration : ${endDurationMeasurement}\n`);
+    log.info(`Test completed - Duration: ${endDurationMeasurement}`);
 
     // Generate HTML and Excel reports even if test failed (if data exists)
     try {
       if (reportFilename && idTest) {
         console.log('📊 Generating HTML report...');
+        log.info('Generating HTML report');
         EnvFile.generateHtmlReport(reportFilename, idTest);
-        
+
         console.log('📊 Generating Excel report...');
+        log.info('Generating Excel report');
         const { generateExcelReport } = await import('./utils/excel-report-generator');
         generateExcelReport(reportFilename, idTest);
       }
     } catch (reportError) {
+      log.error('Failed to generate reports', reportError);
       console.error('⚠️ Failed to generate reports:', reportError);
+    }
+
+    // Print test summary
+    testTracker.printSummary();
+
+    // Save test results to JSON
+    if (reportFilename && idTest) {
+      const summaryPath = path.join('report', 'json', `${reportFilename}-${idTest}-summary.json`);
+      testTracker.saveResults(summaryPath);
     }
 
     Modul.testDone('Test Done!');
     console.log('Terima kasih, semoga harimu menyenangkan! 😎\n');
+
+    // Exit with appropriate code based on test results
+    const exitCode = testTracker.getExitCode();
+    if (exitCode !== 0) {
+      log.warn(`Exiting with code ${exitCode} due to test failures`);
+      console.log(`\n⚠️ Some tests failed. Exit code: ${exitCode}\n`);
+    }
+    process.exit(exitCode);
   }
 }
 

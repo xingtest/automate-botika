@@ -91,6 +91,9 @@ export class GeminiEvaluator {
   }
 
   private simpleTextEvaluation(expectedAnswer: string, actualAnswer: string, reason: string): EvaluationResult {
+    // Import fuzzball for fuzzy string matching
+    const fuzz = require('fuzzball');
+
     // Simple text-based evaluation when AI is not available
     // Focus on content quality: factual correctness, relevance, completeness
 
@@ -126,86 +129,113 @@ export class GeminiEvaluator {
     const normalizedExpected = normalizeText(expectedAnswer);
     const normalizedActual = normalizeText(actualAnswer);
 
-    // Extract keywords from expected answer (words longer than 3 characters)
+    // 1. FUZZY STRING MATCHING (Overall similarity)
+    const fuzzyRatio = fuzz.ratio(normalizedExpected, normalizedActual) / 100; // 0-1 scale
+    const partialRatio = fuzz.partial_ratio(normalizedExpected, normalizedActual) / 100;
+    const tokenSortRatio = fuzz.token_sort_ratio(normalizedExpected, normalizedActual) / 100;
+
+    // Weighted average of fuzzy scores
+    const fuzzyScore = (fuzzyRatio * 0.3) + (partialRatio * 0.3) + (tokenSortRatio * 0.4);
+
+    // 2. KEYWORD MATCHING (Content coverage)
     const expectedWords = normalizedExpected.split(' ').filter(w => w.length > 3);
     const actualWords = normalizedActual.split(' ');
 
-    // Find matching and missing keywords
     const matchedKeywords: string[] = [];
     const missingKeywords: string[] = [];
 
     for (const word of expectedWords) {
-      if (actualWords.some(aw => aw.includes(word) || word.includes(aw))) {
+      // Use fuzzy matching for keywords (allows for typos and variations)
+      const bestMatch = actualWords.reduce((best, aw) => {
+        const score = fuzz.ratio(word, aw) / 100;
+        return score > best.score ? { word: aw, score } : best;
+      }, { word: '', score: 0 });
+
+      // Consider it a match if similarity > 80%
+      if (bestMatch.score > 0.8 || actualWords.some(aw => aw.includes(word) || word.includes(aw))) {
         matchedKeywords.push(word);
       } else {
         missingKeywords.push(word);
       }
     }
 
-    // Calculate similarity percentage (0-100)
-    const similarity = expectedWords.length > 0
-      ? (matchedKeywords.length / expectedWords.length) * 100
+    // Calculate keyword coverage
+    const keywordCoverage = expectedWords.length > 0
+      ? (matchedKeywords.length / expectedWords.length)
       : 0;
 
-    // Convert to 0.0-1.0 scale with better distribution
-    let score = 0.0;
+    // 3. COMBINED SCORE (Fuzzy + Keyword)
+    // Weight: 60% fuzzy matching, 40% keyword coverage
+    const combinedScore = (fuzzyScore * 0.6) + (keywordCoverage * 0.4);
+
+    // 4. CONFIGURABLE THRESHOLDS
+    const thresholds = {
+      excellent: parseFloat(process.env.EVAL_THRESHOLD_EXCELLENT || '0.90'),
+      good: parseFloat(process.env.EVAL_THRESHOLD_GOOD || '0.70'),
+      fair: parseFloat(process.env.EVAL_THRESHOLD_FAIR || '0.60'),
+      poor: parseFloat(process.env.EVAL_THRESHOLD_POOR || '0.40'),
+      bad: parseFloat(process.env.EVAL_THRESHOLD_BAD || '0.20'),
+    };
+
+    // 5. GENERATE SCORE AND EXPLANATION
+    let finalScore = 0.0;
     let explanation = '';
 
-    // Build natural, descriptive explanation
-    const percentage = Math.round(similarity);
-    const totalKeywords = expectedWords.length;
     const matchedCount = matchedKeywords.length;
     const missingCount = missingKeywords.length;
 
-    // Analyze content to create natural description
-    const hasGoodCoverage = similarity >= 75;
-    const hasDecentCoverage = similarity >= 60;
-    const hasMinimalCoverage = similarity >= 40;
+    if (combinedScore >= thresholds.excellent) {
+      finalScore = 0.90 + (combinedScore - thresholds.excellent) * 1.0; // 0.90-1.00
+      explanation = `✓ Jawaban sangat baik dan lengkap (similarity: ${(combinedScore * 100).toFixed(1)}%). Semua informasi penting tercakup dengan akurat.`;
 
-    // Evaluate based on content coverage and provide natural explanation
-    if (similarity >= 70) {
-      score = 0.7 + (similarity - 70) * 0.01; // 0.7-1.0 range (PASS)
-      if (similarity >= 90) {
-        explanation = `✓ Jawaban sudah sangat baik dan lengkap. Semua informasi penting yang diharapkan sudah tercakup dengan akurat.`;
-      } else if (missingCount > 0 && missingCount <= 2) {
+    } else if (combinedScore >= thresholds.good) {
+      finalScore = 0.70 + ((combinedScore - thresholds.good) / (thresholds.excellent - thresholds.good)) * 0.20; // 0.70-0.90
+
+      if (missingCount > 0 && missingCount <= 2) {
         const missing = missingKeywords.slice(0, 2).join(' dan ');
-        explanation = `✓ Jawaban sudah baik dan mencakup sebagian besar informasi yang dibutuhkan. Akan lebih sempurna jika ditambahkan informasi tentang ${missing}.`;
-      } else if (missingCount > 2) {
-        const missing = missingKeywords.slice(0, 2).join(', ');
-        explanation = `✓ Jawaban sudah cukup lengkap mencakup poin-poin utama. Bisa ditambahkan detail tentang ${missing} untuk lebih komprehensif.`;
+        explanation = `✓ Jawaban baik (similarity: ${(combinedScore * 100).toFixed(1)}%). Mencakup sebagian besar informasi. Akan lebih sempurna dengan ${missing}.`;
       } else {
-        explanation = `✓ Jawaban sudah sangat baik, mencakup semua informasi penting yang diharapkan dengan lengkap dan akurat.`;
+        explanation = `✓ Jawaban baik (similarity: ${(combinedScore * 100).toFixed(1)}%). Mencakup poin-poin utama dengan tepat.`;
       }
-    } else if (similarity >= 60) {
-      score = 0.60 + (similarity - 60) * 0.01; // 0.60-0.75 range
+
+    } else if (combinedScore >= thresholds.fair) {
+      finalScore = 0.60 + ((combinedScore - thresholds.fair) / (thresholds.good - thresholds.fair)) * 0.10; // 0.60-0.70
+
       const matched = matchedKeywords.slice(0, 2).join(' dan ');
       const missing = missingKeywords.slice(0, 3).join(', ');
-      explanation = `⚠ Jawaban sudah benar untuk bagian ${matched}, tapi masih kurang lengkap. Perlu ditambahkan informasi tentang ${missing}.`;
-    } else if (similarity >= 40) {
-      score = 0.40 + (similarity - 40) * 0.01; // 0.40-0.60 range
+      explanation = `⚠ Jawaban cukup (similarity: ${(combinedScore * 100).toFixed(1)}%). Benar untuk ${matched}, tapi kurang lengkap. Perlu ${missing}.`;
+
+    } else if (combinedScore >= thresholds.poor) {
+      finalScore = 0.40 + ((combinedScore - thresholds.poor) / (thresholds.fair - thresholds.poor)) * 0.20; // 0.40-0.60
+
       const missing = missingKeywords.slice(0, 3).join(', ');
       if (matchedCount > 0) {
         const matched = matchedKeywords.slice(0, 2).join(' dan ');
-        explanation = `⚠ Jawaban hanya mencakup sebagian kecil informasi (${matched}). Banyak informasi penting yang belum disebutkan seperti ${missing}.`;
+        explanation = `⚠ Jawaban kurang lengkap (similarity: ${(combinedScore * 100).toFixed(1)}%). Hanya mencakup ${matched}. Banyak info penting seperti ${missing} belum disebutkan.`;
       } else {
-        explanation = `⚠ Jawaban kurang lengkap dan tidak mencakup informasi penting yang dibutuhkan seperti ${missing}.`;
+        explanation = `⚠ Jawaban kurang lengkap (similarity: ${(combinedScore * 100).toFixed(1)}%). Informasi penting seperti ${missing} tidak tercakup.`;
       }
-    } else if (similarity >= 20) {
-      score = 0.20 + (similarity - 20) * 0.01; // 0.20-0.40 range
+
+    } else if (combinedScore >= thresholds.bad) {
+      finalScore = 0.20 + ((combinedScore - thresholds.bad) / (thresholds.poor - thresholds.bad)) * 0.20; // 0.20-0.40
+
       const missing = missingKeywords.slice(0, 3).join(', ');
-      explanation = `✗ Jawaban tidak cukup relevan dengan yang diharapkan. Sebagian besar informasi penting seperti ${missing} tidak disebutkan.`;
+      explanation = `✗ Jawaban tidak cukup relevan (similarity: ${(combinedScore * 100).toFixed(1)}%). Sebagian besar info penting seperti ${missing} tidak disebutkan.`;
+
     } else {
-      score = similarity * 0.01; // 0.0-0.20 range
+      finalScore = combinedScore * 0.20; // 0.0-0.20
+
       const missing = missingKeywords.slice(0, 3).join(', ');
-      explanation = `✗ Jawaban tidak sesuai dengan yang diharapkan. Informasi yang dibutuhkan seperti ${missing} tidak ada dalam jawaban.`;
+      explanation = `✗ Jawaban tidak sesuai (similarity: ${(combinedScore * 100).toFixed(1)}%). Informasi yang dibutuhkan seperti ${missing} tidak ada.`;
     }
 
     return {
-      score: Math.max(0.0, Math.min(1.0, parseFloat(score.toFixed(3)))),
+      score: Math.max(0.0, Math.min(1.0, parseFloat(finalScore.toFixed(3)))),
       explanation: `Auto: ${explanation}`,
       success: false
     };
   }
+
 
   private createEvaluationPrompt(
     question: string,

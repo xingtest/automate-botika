@@ -2,7 +2,6 @@ import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
 import { GeminiEvaluator } from '../utils/gemini-evaluator';
-import { ResponseCapture } from '../utils/response-capture';
 import { TestData, BotData, SummaryData } from '../types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -77,32 +76,64 @@ export class FacebookPlatform {
       return 'Error: Page not initialized';
     }
 
-    // Retry logic: try up to 3 times with increasing wait time
-    const maxRetries = 3;
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const waitTime = attempt === 1 ? 5 : attempt * 3; // 5s, 6s, 9s
-        await Modul.waitTime(waitTime);
+    // Wait for messages to stabilize - Facebook may send multiple bubbles
+    console.log(`⏳ Waiting for all message bubbles to load...`);
 
-        console.log(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
-        
-        const response = await this.extractBotResponse(userMessage);
-        
-        if (response && response !== 'Tidak ada balasan dari bot') {
-          return response;
+    let previousResponseCount = 0;
+    let stableCount = 0;
+    const maxAttempts = 5;
+    let finalResponse = '';
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      // Wait between checks
+      const waitTime = attempt === 1 ? 5 : 3; // First wait 5s, then 3s each
+      await Modul.waitTime(waitTime);
+
+      console.log(`🔍 Checking for responses (attempt ${attempt}/${maxAttempts})...`);
+
+      const response = await this.extractBotResponse(userMessage);
+
+      // Count number of response bubbles (split by newline)
+      const currentResponseCount = response && response !== 'Tidak ada balasan dari bot'
+        ? response.split('\n').filter(r => r.trim()).length
+        : 0;
+
+      console.log(`📊 Found ${currentResponseCount} response bubble(s)`);
+
+      if (currentResponseCount > 0) {
+        finalResponse = response;
+
+        // Check if response count is stable (no new bubbles)
+        if (currentResponseCount === previousResponseCount) {
+          stableCount++;
+          console.log(`✅ Response stable (${stableCount}/2 checks)`);
+
+          // If stable for 2 consecutive checks, we're done
+          if (stableCount >= 2) {
+            console.log(`✅ All ${currentResponseCount} bubble(s) captured!`);
+            return finalResponse;
+          }
+        } else {
+          // Response count changed, reset stable counter
+          stableCount = 0;
+          console.log(`🔄 New bubble detected, continuing to wait...`);
         }
-        
-        if (attempt < maxRetries) {
-          console.log(`⏳ No response yet, retrying in ${(attempt + 1) * 3}s...`);
-        }
-      } catch (error) {
-        console.error(`Error on attempt ${attempt}:`, error);
-        if (attempt === maxRetries) {
-          return 'Error: Gagal mengambil balasan';
+
+        previousResponseCount = currentResponseCount;
+      } else {
+        // No response yet
+        if (attempt < maxAttempts) {
+          console.log(`⏳ No response yet, waiting...`);
         }
       }
     }
-    
+
+    // Return whatever we got
+    if (finalResponse && finalResponse !== 'Tidak ada balasan dari bot') {
+      console.log(`⚠️ Timeout reached, returning ${previousResponseCount} bubble(s)`);
+      return finalResponse;
+    }
+
     return 'Tidak ada balasan dari bot';
   }
 
@@ -111,214 +142,214 @@ export class FacebookPlatform {
       return 'Error: Page not initialized';
     }
 
-      // Get ALL messages including user and bot
-      // Try to get message containers first
-      const containerSelectors = [
-        'div[role="row"]',
-        'div[data-scope="messages_table"]'
-      ];
+    // Get ALL messages including user and bot
+    // Try to get message containers first
+    const containerSelectors = [
+      'div[role="row"]',
+      'div[data-scope="messages_table"]'
+    ];
 
-      let messageContainers: any[] = [];
-      
-      for (const selector of containerSelectors) {
-        try {
-          const containers = await this.page.locator(selector).all();
-          if (containers.length > 0) {
-            messageContainers = containers;
-            console.log(`📊 Found ${containers.length} message containers`);
-            break;
-          }
-        } catch {}
-      }
+    let messageContainers: any[] = [];
 
-      // If containers found, extract text from each
-      let allMessages: any[] = [];
-      
-      if (messageContainers.length > 0) {
-        // Extract text from containers
-        for (const container of messageContainers) {
-          try {
-            const textElements = await container.locator('div[dir="auto"], span[dir="auto"]').all();
-            for (const elem of textElements) {
-              allMessages.push(elem);
-            }
-          } catch {}
-        }
-        console.log(`📊 Extracted ${allMessages.length} text elements from containers`);
-      } else {
-        // Fallback: try direct text selectors
-        const textSelectors = [
-          "//div[contains(@class,'html-div') and contains(@class,'x18lvrbx')]",
-          "div[dir='auto']",
-          "span[dir='auto']"
-        ];
-        
-        for (const selector of textSelectors) {
-          try {
-            const messages = selector.startsWith('//') 
-              ? await this.page.locator(selector).all()
-              : await this.page.locator(selector).all();
-            
-            if (messages.length > 0) {
-              allMessages = messages;
-              console.log(`📊 Found ${messages.length} messages with selector: ${selector.substring(0, 50)}`);
-              break;
-            }
-          } catch {}
-        }
-      }
-
-      if (allMessages.length === 0) {
-        console.log('⚠️ No messages found with any selector');
-        return 'Tidak ada balasan dari bot';
-      }
-
-      // Extract message texts and show first few for debugging
-      const messageTexts: string[] = [];
-      for (let i = 0; i < allMessages.length; i++) {
-        const text = await allMessages[i].textContent();
-        if (text && text.trim()) {
-          messageTexts.push(text.trim());
-          if (i < 5) {
-            console.log(`  [${i}] "${text.trim().substring(0, 50)}..."`);
-          }
-        }
-      }
-
-      console.log(`📋 Total message texts: ${messageTexts.length}`);
-
-      // Find ALL occurrences of the question
-      const questionIndices: number[] = [];
-      for (let i = 0; i < messageTexts.length; i++) {
-        if (messageTexts[i].toLowerCase().includes(userMessage.toLowerCase())) {
-          questionIndices.push(i);
-        }
-      }
-
-      if (questionIndices.length === 0) {
-        console.log('⚠️ Question not found');
-        console.log(`💡 Looking for: "${userMessage}"`);
-        console.log(`💡 Available messages: ${messageTexts.length}`);
-        
-        // Show all messages for debugging
-        messageTexts.forEach((msg, idx) => {
-          console.log(`  [${idx}] "${msg.substring(0, 60)}..."`);
-        });
-        
-        // Fallback: return last 5 messages
-        const recentMessages = messageTexts.slice(-5).filter(msg => 
-          !msg.toLowerCase().includes(userMessage.toLowerCase())
-        );
-        
-        if (recentMessages.length > 0) {
-          console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
-          return recentMessages.join('\n');
-        }
-        
-        return 'Tidak ada balasan dari bot';
-      }
-
-      // Use the LAST occurrence (most recent)
-      const questionIndex = questionIndices[questionIndices.length - 1];
-      console.log(`✅ Found ${questionIndices.length} occurrence(s) of question`);
-      console.log(`✅ Using LAST occurrence at index ${questionIndex}: "${messageTexts[questionIndex].substring(0, 50)}..."`)
-
-      // Collect bot responses after question until next user message
-      const botResponses: string[] = [];
-      
-      console.log(`📝 Capturing from index ${questionIndex + 1}...`);
-      
-      // Identify user messages more carefully
-      // User messages typically start with "Apa" based on test data
-      const userMessageIndices: number[] = [questionIndex]; // Start with current question
-      
-      for (let i = questionIndex + 1; i < messageTexts.length; i++) {
-        const text = messageTexts[i];
-        // Only mark as user message if it clearly starts with question pattern
-        // Be more conservative to avoid cutting off bot responses
-        if (text.toLowerCase().startsWith('apa itu ') || 
-            text.toLowerCase().startsWith('apa yang ') ||
-            text.toLowerCase().startsWith('bagaimana ') ||
-            text.toLowerCase().startsWith('mengapa ') ||
-            text.toLowerCase().startsWith('siapa ') ||
-            text.toLowerCase().startsWith('kapan ') ||
-            text.toLowerCase().startsWith('dimana ') ||
-            text.toLowerCase().startsWith('berapa ')) {
-          userMessageIndices.push(i);
-          console.log(`🔍 Detected user question at index ${i}: "${text.substring(0, 40)}..."`);
-        }
-      }
-      
-      console.log(`📋 Found ${userMessageIndices.length} user messages`);
-      
-      // Find next user message after current question
-      let nextUserMessageIndex = messageTexts.length; // Default to end
-      for (const idx of userMessageIndices) {
-        if (idx > questionIndex) {
-          nextUserMessageIndex = idx;
-          console.log(`🛑 Next user message at index ${idx}, stopping there`);
+    for (const selector of containerSelectors) {
+      try {
+        const containers = await this.page.locator(selector).all();
+        if (containers.length > 0) {
+          messageContainers = containers;
+          console.log(`📊 Found ${containers.length} message containers`);
           break;
         }
+      } catch { }
+    }
+
+    // If containers found, extract text from each
+    let allMessages: any[] = [];
+
+    if (messageContainers.length > 0) {
+      // Extract text from containers
+      for (const container of messageContainers) {
+        try {
+          const textElements = await container.locator('div[dir="auto"], span[dir="auto"]').all();
+          for (const elem of textElements) {
+            allMessages.push(elem);
+          }
+        } catch { }
       }
-      
-      // UI noise patterns to filter out
-      const uiNoisePatterns = [
-        /^Enter$/i,
-        /^Send$/i,
-        /^Message$/i,
-        /^You sent$/i,
-        /^Sent$/i,
-        /^Delivered$/i,
-        /^Seen$/i,
-        /^Active now$/i,
-        /^Active \d+[mh] ago$/i,
-        /^[0-9]+$/,  // Just numbers
-        /^Press Enter to send$/i,
+      console.log(`📊 Extracted ${allMessages.length} text elements from containers`);
+    } else {
+      // Fallback: try direct text selectors
+      const textSelectors = [
+        "//div[contains(@class,'html-div') and contains(@class,'x18lvrbx')]",
+        "div[dir='auto']",
+        "span[dir='auto']"
       ];
-      
-      // Collect ALL bot responses between current question and next user message
-      for (let i = questionIndex + 1; i < nextUserMessageIndex; i++) {
-        let text = messageTexts[i];
-        
-        // Skip empty or very short noise
-        if (!text || text.length < 2) {
-          console.log(`  ⏭️ Skipping empty/short at ${i}`);
-          continue;
+
+      for (const selector of textSelectors) {
+        try {
+          const messages = selector.startsWith('//')
+            ? await this.page.locator(selector).all()
+            : await this.page.locator(selector).all();
+
+          if (messages.length > 0) {
+            allMessages = messages;
+            console.log(`📊 Found ${messages.length} messages with selector: ${selector.substring(0, 50)}`);
+            break;
+          }
+        } catch { }
+      }
+    }
+
+    if (allMessages.length === 0) {
+      console.log('⚠️ No messages found with any selector');
+      return 'Tidak ada balasan dari bot';
+    }
+
+    // Extract message texts and show first few for debugging
+    const messageTexts: string[] = [];
+    for (let i = 0; i < allMessages.length; i++) {
+      const text = await allMessages[i].textContent();
+      if (text && text.trim()) {
+        messageTexts.push(text.trim());
+        if (i < 5) {
+          console.log(`  [${i}] "${text.trim().substring(0, 50)}..."`);
         }
-        
-        // Check if ENTIRE text is just UI noise (skip only if exact match)
-        const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(text));
-        if (isExactNoise) {
-          console.log(`  ⏭️ Skipping UI noise at ${i}: "${text}"`);
-          continue;
-        }
-        
-        // Clean up text - remove "Enter" prefix/suffix if attached to actual content
-        text = text.replace(/^Enter\s+/i, '').replace(/\s+Enter$/i, '').trim();
-        
-        // Skip if cleaning removed everything
-        if (!text || text.length < 2) {
-          console.log(`  ⏭️ Skipping empty after cleaning at ${i}`);
-          continue;
-        }
-        
-        // Skip if this is a duplicate of the last message (Facebook DOM duplicates)
-        if (botResponses.length > 0 && botResponses[botResponses.length - 1] === text) {
-          console.log(`  ⏭️ Skipping duplicate at ${i}: "${text.substring(0, 40)}..."`);
-          continue;
-        }
-        
-        botResponses.push(text);
-        console.log(`  ✅ Bot message ${botResponses.length}: "${text.substring(0, 80)}..."`);
+      }
+    }
+
+    console.log(`📋 Total message texts: ${messageTexts.length}`);
+
+    // Find ALL occurrences of the question
+    const questionIndices: number[] = [];
+    for (let i = 0; i < messageTexts.length; i++) {
+      if (messageTexts[i].toLowerCase().includes(userMessage.toLowerCase())) {
+        questionIndices.push(i);
+      }
+    }
+
+    if (questionIndices.length === 0) {
+      console.log('⚠️ Question not found');
+      console.log(`💡 Looking for: "${userMessage}"`);
+      console.log(`💡 Available messages: ${messageTexts.length}`);
+
+      // Show all messages for debugging
+      messageTexts.forEach((msg, idx) => {
+        console.log(`  [${idx}] "${msg.substring(0, 60)}..."`);
+      });
+
+      // Fallback: return last 5 messages
+      const recentMessages = messageTexts.slice(-5).filter(msg =>
+        !msg.toLowerCase().includes(userMessage.toLowerCase())
+      );
+
+      if (recentMessages.length > 0) {
+        console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
+        return recentMessages.join('\n');
       }
 
-      if (botResponses.length === 0) {
-        console.log('⚠️ No bot responses after question');
-        return 'Tidak ada balasan dari bot';
+      return 'Tidak ada balasan dari bot';
+    }
+
+    // Use the LAST occurrence (most recent)
+    const questionIndex = questionIndices[questionIndices.length - 1];
+    console.log(`✅ Found ${questionIndices.length} occurrence(s) of question`);
+    console.log(`✅ Using LAST occurrence at index ${questionIndex}: "${messageTexts[questionIndex].substring(0, 50)}..."`)
+
+    // Collect bot responses after question until next user message
+    const botResponses: string[] = [];
+
+    console.log(`📝 Capturing from index ${questionIndex + 1}...`);
+
+    // Identify user messages more carefully
+    // User messages typically start with "Apa" based on test data
+    const userMessageIndices: number[] = [questionIndex]; // Start with current question
+
+    for (let i = questionIndex + 1; i < messageTexts.length; i++) {
+      const text = messageTexts[i];
+      // Only mark as user message if it clearly starts with question pattern
+      // Be more conservative to avoid cutting off bot responses
+      if (text.toLowerCase().startsWith('apa itu ') ||
+        text.toLowerCase().startsWith('apa yang ') ||
+        text.toLowerCase().startsWith('bagaimana ') ||
+        text.toLowerCase().startsWith('mengapa ') ||
+        text.toLowerCase().startsWith('siapa ') ||
+        text.toLowerCase().startsWith('kapan ') ||
+        text.toLowerCase().startsWith('dimana ') ||
+        text.toLowerCase().startsWith('berapa ')) {
+        userMessageIndices.push(i);
+        console.log(`🔍 Detected user question at index ${i}: "${text.substring(0, 40)}..."`);
+      }
+    }
+
+    console.log(`📋 Found ${userMessageIndices.length} user messages`);
+
+    // Find next user message after current question
+    let nextUserMessageIndex = messageTexts.length; // Default to end
+    for (const idx of userMessageIndices) {
+      if (idx > questionIndex) {
+        nextUserMessageIndex = idx;
+        console.log(`🛑 Next user message at index ${idx}, stopping there`);
+        break;
+      }
+    }
+
+    // UI noise patterns to filter out
+    const uiNoisePatterns = [
+      /^Enter$/i,
+      /^Send$/i,
+      /^Message$/i,
+      /^You sent$/i,
+      /^Sent$/i,
+      /^Delivered$/i,
+      /^Seen$/i,
+      /^Active now$/i,
+      /^Active \d+[mh] ago$/i,
+      /^[0-9]+$/,  // Just numbers
+      /^Press Enter to send$/i,
+    ];
+
+    // Collect ALL bot responses between current question and next user message
+    for (let i = questionIndex + 1; i < nextUserMessageIndex; i++) {
+      let text = messageTexts[i];
+
+      // Skip empty or very short noise
+      if (!text || text.length < 2) {
+        console.log(`  ⏭️ Skipping empty/short at ${i}`);
+        continue;
       }
 
-      console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
-      return botResponses.join('\n');
+      // Check if ENTIRE text is just UI noise (skip only if exact match)
+      const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(text));
+      if (isExactNoise) {
+        console.log(`  ⏭️ Skipping UI noise at ${i}: "${text}"`);
+        continue;
+      }
+
+      // Clean up text - remove "Enter" prefix/suffix if attached to actual content
+      text = text.replace(/^Enter\s+/i, '').replace(/\s+Enter$/i, '').trim();
+
+      // Skip if cleaning removed everything
+      if (!text || text.length < 2) {
+        console.log(`  ⏭️ Skipping empty after cleaning at ${i}`);
+        continue;
+      }
+
+      // Skip if this is a duplicate of the last message (Facebook DOM duplicates)
+      if (botResponses.length > 0 && botResponses[botResponses.length - 1] === text) {
+        console.log(`  ⏭️ Skipping duplicate at ${i}: "${text.substring(0, 40)}..."`);
+        continue;
+      }
+
+      botResponses.push(text);
+      console.log(`  ✅ Bot message ${botResponses.length}: "${text.substring(0, 80)}..."`);
+    }
+
+    if (botResponses.length === 0) {
+      console.log('⚠️ No bot responses after question');
+      return 'Tidak ada balasan dari bot';
+    }
+
+    console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
+    return botResponses.join('\n');
   }
 
   async takeScreenshot(idTest: string, key: string, question: string, screenshotsFolder: string): Promise<string> {
@@ -402,7 +433,7 @@ export class FacebookPlatform {
             respondBot,
             element.title || 'Unknown Topic'
           );
-          
+
           const skor = evaluationResult.score;
           const explanation = evaluationResult.explanation;
           const AI = evaluationResult.success ? 'Gemini AI + Playwright TypeScript' : 'Playwright TypeScript (Gemini fallback)';

@@ -6,7 +6,6 @@ import * as readline from 'readline';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
 import { GeminiEvaluator } from '../utils/gemini-evaluator';
-import { ResponseCapture } from '../utils/response-capture';
 import { TestData, BotData, SummaryData } from '../types';
 
 export class TelegramPlatform {
@@ -43,20 +42,20 @@ export class TelegramPlatform {
     });
 
     const sessionString = client.session.save();
-    
+
     // Save to session file
     const sessionDir = path.dirname(this.sessionFile);
     if (!fs.existsSync(sessionDir)) {
       fs.mkdirSync(sessionDir, { recursive: true });
     }
-    
+
     const sessionData = {
       apiId: apiId,
       apiHash: apiHash,
       sessionString: sessionString,
       createdAt: new Date().toISOString()
     };
-    
+
     fs.writeFileSync(this.sessionFile, JSON.stringify(sessionData, null, 2));
     console.log(`\n✅ Session saved to: ${this.sessionFile}`);
     console.log('⚠️  JANGAN SHARE session ini ke siapapun!\n');

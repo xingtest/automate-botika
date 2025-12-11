@@ -14,12 +14,11 @@ on:
         type: choice
         options:
           - 'webchat'
-          # - 'telegram'
-          # - 'facebook'
-          # - 'instagram'
-          # - 'dhai'
-          # - 'dhai-wakeup'
-          # - 'all'
+          - 'telegram'
+          - 'facebook'
+          - 'instagram'
+          - 'dhai'
+          - 'all'
       filename:
         description: 'Nama file hasil test'
         required: false
@@ -177,7 +176,7 @@ jobs:
       env:
         CI: true
         HEADLESS: true
-      continue-on-error: true
+      # Removed continue-on-error to properly detect failures
 
     - name: Verify dashboard.html generation
       run: |
@@ -238,20 +237,100 @@ jobs:
         echo "📁 Report structure:"
         find report/html -type f | head -10
 
+    - name: Check test results and set exit code
+      id: check_results
+      run: |
+        echo "🔍 Checking test results..."
+        
+        # Find the latest summary JSON file
+        summary_file=$(find report/json -name "*summary*.json" -type f | sort -r | head -1)
+        
+        if [ -f "$summary_file" ]; then
+          echo "📄 Found summary file: $summary_file"
+          
+          # Check if jq is available
+          if command -v jq &> /dev/null; then
+            # Extract pass/fail counts using jq
+            passed=$(jq -r '.success // 0' "$summary_file" 2>/dev/null || echo "0")
+            failed=$(jq -r '.failed // 0' "$summary_file" 2>/dev/null || echo "0")
+          else
+            # Fallback: use grep to extract values
+            passed=$(grep -oP '"success"\s*:\s*\K\d+' "$summary_file" || echo "0")
+            failed=$(grep -oP '"failed"\s*:\s*\K\d+' "$summary_file" || echo "0")
+          fi
+          
+          echo "✅ Passed: $passed"
+          echo "❌ Failed: $failed"
+          echo "test_passed=$passed" >> $GITHUB_OUTPUT
+          echo "test_failed=$failed" >> $GITHUB_OUTPUT
+          
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::❌ $failed test(s) failed!"
+            echo "test_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "✅ All tests passed!"
+            echo "test_status=passed" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "::warning::⚠️ No summary file found, cannot validate results"
+          echo "test_status=unknown" >> $GITHUB_OUTPUT
+        fi
+      continue-on-error: true
+
     - name: Upload complete reports
       uses: actions/upload-artifact@v4
-      if: success()
+      if: always()  # Upload reports even if tests failed
       with:
         name: webchat-reports-${{ github.run_number }}
         path: report/html/
         retention-days: 3
+    
+    - name: Upload test summary
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-summary-${{ github.run_number }}
+        path: report/json/
+        retention-days: 3
+    
+    - name: Comment test results on PR
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const testStatus = '${{ steps.check_results.outputs.test_status }}';
+          const passed = '${{ steps.check_results.outputs.test_passed }}';
+          const failed = '${{ steps.check_results.outputs.test_failed }}';
+          
+          let emoji = '✅';
+          let status = 'PASSED';
+          if (testStatus === 'failed') {
+            emoji = '❌';
+            status = 'FAILED';
+          } else if (testStatus === 'unknown') {
+            emoji = '⚠️';
+            status = 'UNKNOWN';
+          }
+          
+          const body = `## ${emoji} Test Results: ${status}\n\n` +
+            `- ✅ Passed: ${passed}\n` +
+            `- ❌ Failed: ${failed}\n\n` +
+            `[View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
 
   test-all-platforms:
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.platform == 'all' }}
     strategy:
       matrix:
-        platform: [webchat, telegram, facebook, instagram, dhai, dhai-wakeup]
+        platform: [webchat, telegram, facebook, instagram, dhai]
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -325,7 +404,7 @@ jobs:
       env:
         CI: true
         HEADLESS: true
-      continue-on-error: true
+      # Removed continue-on-error to properly detect failures
 
     - name: Validate report generation
       run: |
@@ -346,7 +425,7 @@ jobs:
 
     - name: Upload reports for ${{ matrix.platform }}
       uses: actions/upload-artifact@v4
-      if: success()
+      if: always()  # Upload reports even if tests failed
       with:
         name: ${{ matrix.platform }}-reports-${{ github.run_number }}
         path: report/html/

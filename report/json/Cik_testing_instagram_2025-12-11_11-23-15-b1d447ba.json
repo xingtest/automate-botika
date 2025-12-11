@@ -1,0 +1,26 @@
+[
+  {
+    "no": 1,
+    "title": "Apa itu asuransi jiwa",
+    "question": "Apa itu asuransi jiwa",
+    "response_kb": "Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.",
+    "response_llm": "bubble pertama adalah ini",
+    "status": "FAILED",
+    "duration": "00:00:21",
+    "image_capture": "b1d447ba_pertanyaan_Apa_itu_asuransi_jiwa.png",
+    "skor": 0.038,
+    "explanation": "Auto: ✗ Jawaban tidak sesuai (similarity: 19.0%). Informasi yang dibutuhkan seperti jenis, asuransi, memberikan tidak ada."
+  },
+  {
+    "no": 2,
+    "title": "Apa itu asuransi kesehatan",
+    "question": "Apa itu asuransi kesehatan",
+    "response_kb": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.",
+    "response_llm": "bubble pertama adalah ini",
+    "status": "FAILED",
+    "duration": "00:00:22",
+    "image_capture": "b1d447ba_pertanyaan_Apa_itu_asuransi_kesehatan.png",
+    "skor": 0.037,
+    "explanation": "Auto: ✗ Jawaban tidak sesuai (similarity: 18.7%). Informasi yang dibutuhkan seperti asuransi, kesehatan, merupakan tidak ada."
+  }
+]

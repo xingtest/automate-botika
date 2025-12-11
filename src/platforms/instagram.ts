@@ -2,7 +2,6 @@ import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
 import { GeminiEvaluator } from '../utils/gemini-evaluator';
-import { ResponseCapture } from '../utils/response-capture';
 import { TestData, BotData, SummaryData } from '../types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -13,17 +12,17 @@ export class InstagramPlatform {
 
   async initialize(page: Page): Promise<void> {
     this.page = page;
-    
+
     if (!fs.existsSync(this.sessionFile)) {
       throw new Error(`Session file not found at '${this.sessionFile}'. Please generate it first.`);
     }
 
     // Load session data from Python format
     const sessionData = JSON.parse(fs.readFileSync(this.sessionFile, 'utf-8'));
-    
+
     // Convert Python session format to Playwright cookies
     const cookies: any[] = [];
-    
+
     if (sessionData.cookies && sessionData.cookies.sessionid) {
       cookies.push({
         name: 'sessionid',
@@ -35,7 +34,7 @@ export class InstagramPlatform {
         sameSite: 'None'
       });
     }
-    
+
     if (sessionData.mid) {
       cookies.push({
         name: 'mid',
@@ -47,7 +46,7 @@ export class InstagramPlatform {
         sameSite: 'None'
       });
     }
-    
+
     if (sessionData.authorization_data && sessionData.authorization_data.ds_user_id) {
       cookies.push({
         name: 'ds_user_id',
@@ -59,18 +58,18 @@ export class InstagramPlatform {
         sameSite: 'None'
       });
     }
-    
+
     await page.context().addCookies(cookies);
-    
+
     try {
-      await page.goto('https://www.instagram.com/direct/inbox/', { 
+      await page.goto('https://www.instagram.com/direct/inbox/', {
         waitUntil: 'domcontentloaded',
-        timeout: 60000 
+        timeout: 60000
       });
     } catch (error) {
       console.log('Instagram navigation timeout, continuing anyway...');
     }
-    
+
     console.log('Instagram session loaded');
   }
 
@@ -83,9 +82,9 @@ export class InstagramPlatform {
     try {
       // First, go to user profile to initiate DM
       console.log(`Navigating to @${username} profile...`);
-      await this.page.goto(`https://www.instagram.com/${username}/`, { 
+      await this.page.goto(`https://www.instagram.com/${username}/`, {
         waitUntil: 'domcontentloaded',
-        timeout: 60000 
+        timeout: 60000
       });
       await Modul.waitTime(3);
 
@@ -109,24 +108,24 @@ export class InstagramPlatform {
               console.log('Message button clicked');
               break;
             }
-          } catch {}
+          } catch { }
         }
 
         if (!buttonClicked) {
           console.log('Message button not found, trying direct DM URL...');
-          await this.page.goto(`https://www.instagram.com/direct/t/${username}/`, { 
+          await this.page.goto(`https://www.instagram.com/direct/t/${username}/`, {
             waitUntil: 'domcontentloaded',
-            timeout: 60000 
+            timeout: 60000
           });
         }
       } catch (error) {
         console.log('Error clicking message button, trying direct URL...');
-        await this.page.goto(`https://www.instagram.com/direct/t/${username}/`, { 
+        await this.page.goto(`https://www.instagram.com/direct/t/${username}/`, {
           waitUntil: 'domcontentloaded',
-          timeout: 60000 
+          timeout: 60000
         });
       }
-      
+
       await Modul.waitTime(5);
 
       // Try multiple selectors for message input
@@ -148,7 +147,7 @@ export class InstagramPlatform {
             console.log(`Found input with selector: ${selector}`);
             break;
           }
-        } catch {}
+        } catch { }
       }
 
       if (!messageInput) {
@@ -161,7 +160,7 @@ export class InstagramPlatform {
       await Modul.waitTime(1);
       await messageInput.fill(text);
       await Modul.waitTime(1);
-      
+
       // Try to press Enter or find Send button
       try {
         await this.page.keyboard.press('Enter');
@@ -174,7 +173,7 @@ export class InstagramPlatform {
           console.log(`Pesan terkirim ke @${username}: ${text}`);
         }
       }
-      
+
       await Modul.waitTime(2);
       return true;
     } catch (error) {
@@ -182,7 +181,7 @@ export class InstagramPlatform {
       // Take error screenshot
       try {
         await this.page?.screenshot({ path: `error_instagram_${Date.now()}.png` });
-      } catch {}
+      } catch { }
       return false;
     }
   }
@@ -193,32 +192,64 @@ export class InstagramPlatform {
       return 'Error: Page not initialized';
     }
 
-    // Retry logic: try up to 3 times with increasing wait time
-    const maxRetries = 3;
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const waitTime = attempt === 1 ? 8 : attempt * 4; // 8s, 8s, 12s
-        await Modul.waitTime(waitTime);
+    // Wait for messages to stabilize - Instagram may send multiple bubbles
+    console.log(`⏳ Waiting for all message bubbles to load...`);
 
-        console.log(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
-        
-        const response = await this.extractBotResponse(username, userMessage, afterTimestamp);
-        
-        if (response && response !== 'Tidak ada balasan dari bot.') {
-          return response;
+    let previousResponseCount = 0;
+    let stableCount = 0;
+    const maxAttempts = 5;
+    let finalResponse = '';
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      // Wait between checks
+      const waitTime = attempt === 1 ? 5 : 3; // First wait 5s, then 3s each
+      await Modul.waitTime(waitTime);
+
+      console.log(`🔍 Checking for responses (attempt ${attempt}/${maxAttempts})...`);
+
+      const response = await this.extractBotResponse(username, userMessage, afterTimestamp);
+
+      // Count number of response bubbles (split by newline)
+      const currentResponseCount = response && response !== 'Tidak ada balasan dari bot.'
+        ? response.split('\n').filter(r => r.trim()).length
+        : 0;
+
+      console.log(`📊 Found ${currentResponseCount} response bubble(s)`);
+
+      if (currentResponseCount > 0) {
+        finalResponse = response;
+
+        // Check if response count is stable (no new bubbles)
+        if (currentResponseCount === previousResponseCount) {
+          stableCount++;
+          console.log(`✅ Response stable (${stableCount}/2 checks)`);
+
+          // If stable for 2 consecutive checks, we're done
+          if (stableCount >= 2) {
+            console.log(`✅ All ${currentResponseCount} bubble(s) captured!`);
+            return finalResponse;
+          }
+        } else {
+          // Response count changed, reset stable counter
+          stableCount = 0;
+          console.log(`🔄 New bubble detected, continuing to wait...`);
         }
-        
-        if (attempt < maxRetries) {
-          console.log(`⏳ No response yet, retrying in ${(attempt + 1) * 4}s...`);
-        }
-      } catch (error) {
-        console.error(`Error on attempt ${attempt}:`, error);
-        if (attempt === maxRetries) {
-          return 'Error: Gagal mengambil pesan';
+
+        previousResponseCount = currentResponseCount;
+      } else {
+        // No response yet
+        if (attempt < maxAttempts) {
+          console.log(`⏳ No response yet, waiting...`);
         }
       }
     }
-    
+
+    // Return whatever we got
+    if (finalResponse && finalResponse !== 'Tidak ada balasan dari bot.') {
+      console.log(`⚠️ Timeout reached, returning ${previousResponseCount} bubble(s)`);
+      return finalResponse;
+    }
+
     return 'Tidak ada balasan dari bot.';
   }
 
@@ -244,7 +275,7 @@ export class InstagramPlatform {
             console.log(`Found ${found.length} messages with selector: ${selector}`);
             break;
           }
-        } catch {}
+        } catch { }
       }
 
       console.log(`📊 Total messages: ${messages.length}`);
@@ -262,13 +293,13 @@ export class InstagramPlatform {
           if (text && (text.trim() === userMessage.trim() || text.includes(userMessage.substring(0, 20)))) {
             questionIndices.push(i);
           }
-        } catch {}
+        } catch { }
       }
 
       if (questionIndices.length === 0) {
         console.log('⚠️ Question not found in messages');
         console.log(`💡 Looking for: "${userMessage}"`);
-        
+
         // Fallback: return last 3 messages
         const recentMessages: string[] = [];
         for (let i = Math.max(0, messages.length - 3); i < messages.length; i++) {
@@ -277,14 +308,14 @@ export class InstagramPlatform {
             if (text && text.trim() && text.trim() !== userMessage.trim()) {
               recentMessages.push(text.trim());
             }
-          } catch {}
+          } catch { }
         }
-        
+
         if (recentMessages.length > 0) {
           console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
           return recentMessages.join('\n');
         }
-        
+
         return 'Tidak ada balasan dari bot.';
       }
 
@@ -296,9 +327,9 @@ export class InstagramPlatform {
       // Collect bot responses after the question
       const botResponses: string[] = [];
       const startIndex = questionIndex + 1;
-      
+
       console.log(`📝 Capturing bot responses from index ${startIndex}...`);
-      
+
       // Identify next user message to know where to stop
       const userMessageIndices: number[] = [questionIndex];
       for (let i = questionIndex + 1; i < messages.length; i++) {
@@ -307,21 +338,21 @@ export class InstagramPlatform {
           if (text) {
             const cleanText = text.trim();
             // Detect user questions
-            if (cleanText.toLowerCase().startsWith('apa itu ') || 
-                cleanText.toLowerCase().startsWith('apa yang ') ||
-                cleanText.toLowerCase().startsWith('bagaimana ') ||
-                cleanText.toLowerCase().startsWith('mengapa ') ||
-                cleanText.toLowerCase().startsWith('siapa ') ||
-                cleanText.toLowerCase().startsWith('kapan ') ||
-                cleanText.toLowerCase().startsWith('dimana ') ||
-                cleanText.toLowerCase().startsWith('berapa ')) {
+            if (cleanText.toLowerCase().startsWith('apa itu ') ||
+              cleanText.toLowerCase().startsWith('apa yang ') ||
+              cleanText.toLowerCase().startsWith('bagaimana ') ||
+              cleanText.toLowerCase().startsWith('mengapa ') ||
+              cleanText.toLowerCase().startsWith('siapa ') ||
+              cleanText.toLowerCase().startsWith('kapan ') ||
+              cleanText.toLowerCase().startsWith('dimana ') ||
+              cleanText.toLowerCase().startsWith('berapa ')) {
               userMessageIndices.push(i);
               console.log(`🔍 Detected user question at index ${i}`);
             }
           }
-        } catch {}
+        } catch { }
       }
-      
+
       // Find next user message after current question
       let nextUserMessageIndex = messages.length;
       for (const idx of userMessageIndices) {
@@ -331,7 +362,7 @@ export class InstagramPlatform {
           break;
         }
       }
-      
+
       // UI noise to filter - ONLY match exact short phrases, not words within sentences
       const uiNoisePatterns = [
         /^You sent$/i,
@@ -347,27 +378,27 @@ export class InstagramPlatform {
         /^[0-9]+$/,  // Just numbers
         /^Press Enter to send$/i,
       ];
-      
+
       for (let i = startIndex; i < nextUserMessageIndex; i++) {
         try {
           const text = await messages[i].textContent();
           if (!text || !text.trim()) continue;
-          
+
           let cleanText = text.trim();
-          
+
           // Skip if it's the user's message
           if (cleanText === userMessage.trim()) {
             console.log(`  ⏭️ Skipping user message at ${i}`);
             continue;
           }
-          
+
           // Check if ENTIRE text is just UI noise (skip only if exact match)
           const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(cleanText));
           if (isExactNoise) {
             console.log(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
             continue;
           }
-          
+
           // Clean/hide noise words from within the text (but keep the rest)
           cleanText = cleanText
             .replace(/ahmadnurbrasta2\.2/gi, '')  // Remove username
@@ -379,19 +410,19 @@ export class InstagramPlatform {
             .replace(/respond/gi, '')  // Remove "respond"
             .replace(/\s+/g, ' ')  // Normalize spaces
             .trim();
-          
+
           // Skip if cleaning removed everything
           if (!cleanText || cleanText.length < 2) {
             console.log(`  ⏭️ Skipping empty after cleaning at ${i}`);
             continue;
           }
-          
+
           // Skip if this is a duplicate of the last message
           if (botResponses.length > 0 && botResponses[botResponses.length - 1] === cleanText) {
             console.log(`  ⏭️ Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
             continue;
           }
-          
+
           // Accept messages with at least 2 characters (to catch "Hi", "Ok", etc)
           botResponses.push(cleanText);
           console.log(`  ✅ Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
@@ -503,7 +534,7 @@ export class InstagramPlatform {
             respondBot,
             element.title || 'Unknown Topic'
           );
-          
+
           const skor = evaluationResult.score;
           const explanation = evaluationResult.explanation;
           const AI = evaluationResult.success ? 'Gemini AI + Playwright TypeScript' : 'Playwright TypeScript (Gemini fallback)';

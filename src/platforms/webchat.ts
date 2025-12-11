@@ -2,8 +2,9 @@ import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
 import { GeminiEvaluator } from '../utils/gemini-evaluator';
-import { ResponseCapture } from '../utils/response-capture';
 import { TestData, BotData, SummaryData } from '../types';
+import { log } from '../utils/logger';
+import { WebchatResponseCapture } from '../strategies/webchat/response-capture.manager';
 
 export class WebchatPlatform {
   static async prechatForm(
@@ -19,58 +20,58 @@ export class WebchatPlatform {
     let webform = false;
     let fieldsFound = 0;
 
-    console.log('🔍 Checking for pre-chat form fields...');
+    log.platform.action('Checking for pre-chat form fields');
 
     try {
       const nameInput = await page.locator('#registername');
       if (await nameInput.isVisible()) {
         await nameInput.fill(name);
-        console.log('\x1b[32m ✅ pre-chat form name available\x1b[0m');
+        log.info('✅ Pre-chat form name field available');
         webform = true;
         fieldsFound++;
       }
     } catch (error) {
-      console.log('Name field not found or not visible');
+      log.debug('Name field not found or not visible');
     }
 
     try {
       const emailInput = await page.locator('#registeremail');
       if (await emailInput.isVisible()) {
         await emailInput.fill(email);
-        console.log('\x1b[32m ✅ pre-chat form email available\x1b[0m');
+        log.info('✅ Pre-chat form email field available');
         webform = true;
         fieldsFound++;
       }
     } catch (error) {
-      console.log('Email field not found or not visible');
+      log.debug('Email field not found or not visible');
     }
 
     try {
       const phoneInput = await page.locator('#registerphone');
       if (await phoneInput.isVisible()) {
         await phoneInput.fill(phone);
-        console.log('\x1b[32m ✅ pre-chat form phone available\x1b[0m');
+        log.info('✅ Pre-chat form phone field available');
         webform = true;
         fieldsFound++;
       }
     } catch (error) {
-      console.log('Phone field not found or not visible');
+      log.debug('Phone field not found or not visible');
     }
 
     if (webform && fieldsFound > 0) {
-      console.log(`✅ Pre-chat form detected with ${fieldsFound} fields`);
+      log.info(`✅ Pre-chat form detected with ${fieldsFound} fields`);
 
       try {
         const submitBtn = await page.locator('button[type="submit"]');
         if (await submitBtn.isVisible()) {
-          console.log('📤 Submitting pre-chat form...');
+          log.platform.action('Submitting pre-chat form');
           await submitBtn.click();
           await Modul.waitTime(2);
-          console.log('✅ Pre-chat form submitted successfully');
+          log.info('✅ Pre-chat form submitted successfully');
           // Wait for bot response after form submission
           await this.waitReply(page, greeting, 30000);
         } else {
-          console.log('⚠️ Submit button not found, trying alternative methods');
+          log.warn('⚠️ Submit button not found, trying alternative methods');
           // Try pressing Enter on the last field
           try {
             await page.keyboard.press('Enter');
@@ -79,21 +80,21 @@ export class WebchatPlatform {
           } catch { }
         }
       } catch (error) {
-        console.log('❌ Error submitting form:', error);
+        log.error('Error submitting form', error);
       }
     } else {
-      console.log('\x1b[31m❌ Pre-chat form not available or no fields found\x1b[0m');
-      console.log('🔄 Using direct message input instead...');
+      log.warn('❌ Pre-chat form not available or no fields found');
+      log.info('🔄 Using direct message input instead');
 
       try {
         await page.locator('#input-message').fill(greeting);
         await page.keyboard.press('Enter');
         await Modul.waitTime(2);
-        console.log('✅ Greeting sent via direct input');
+        log.info('✅ Greeting sent via direct input');
         // Wait for bot response after greeting
         await this.waitReply(page, greeting, 30000);
       } catch (error) {
-        console.log('❌ Error sending greeting:', error);
+        log.error('Error sending greeting', error);
       }
     }
   }
@@ -192,191 +193,17 @@ export class WebchatPlatform {
   }
 
   static async getReplyChat(page: Page, question: string): Promise<string[]> {
-    const replies: string[] = [];
+    // Use new response capture manager with strategy pattern
+    const captureManager = new WebchatResponseCapture();
+    const result = await captureManager.capture(page, question);
 
-    try {
-      console.log(`🔍 Looking for bot response to: "${question}"`);
-
-      // Wait a moment for messages to stabilize
-      await Modul.waitTime(2);
-
-      // Get all message wrappers
-      const allMessages = await page.locator('.message-content-wrapper').all();
-      console.log(`📊 Total message wrappers: ${allMessages.length}`);
-
-      // Find the index of our question
-      let questionIndex = -1;
-      for (let i = allMessages.length - 1; i >= 0; i--) {
-        try {
-          const contents = await allMessages[i].locator('.content').all();
-          for (const content of contents) {
-            const text = await content.textContent();
-            if (text && text.trim().toLowerCase() === question.trim().toLowerCase()) {
-              questionIndex = i;
-              console.log(`✅ Found question at index ${i}: "${text}"`);
-              break;
-            }
-          }
-          if (questionIndex >= 0) break;
-        } catch { }
-      }
-
-      if (questionIndex < 0) {
-        console.log('⚠️ Question not found in message history');
-        return replies;
-      }
-
-      // Capture ALL bot responses after our question until we hit another user message or end
-      console.log(`📝 Capturing responses from index ${questionIndex + 1} onwards...`);
-
-      for (let i = questionIndex + 1; i < allMessages.length; i++) {
-        try {
-          const messageWrapper = allMessages[i];
-
-          // Check if this is a user message - if yes, STOP here
-          const hasUserClass = await messageWrapper.evaluate((el) => {
-            return el.classList.contains('user') ||
-              el.closest('.user') !== null ||
-              el.querySelector('.user') !== null;
-          });
-
-          if (hasUserClass) {
-            console.log(`🛑 Stopped at index ${i} - found next user message`);
-            break;
-          }
-
-          // Get all content parts from this bot message
-          const contentParts = await messageWrapper.locator('.content').all();
-          for (const part of contentParts) {
-            const text = await part.textContent();
-            if (text && text.trim() &&
-              !text.includes('Ketik pesan') &&
-              text.trim().length > 2) {
-              replies.push(text.trim());
-              console.log(`✅ Captured bubble ${replies.length}: "${text.substring(0, 60)}..."`);
-            }
-          }
-        } catch (error: any) {
-          console.log(`⚠️ Error at index ${i}:`, error.message);
-        }
-      }
-
-      // Try different approaches to find bot messages
-      const strategies = [
-        // Strategy 1: Already captured above - skip if we have replies
-        async () => {
-          if (replies.length > 0) {
-            console.log(`✅ Already captured ${replies.length} replies, skipping Strategy 1`);
-            return;
-          }
-
-          const botMessages = await page.locator('.message:not(.user):not(.system) .content').all();
-          console.log(`Strategy 1 Fallback: Found ${botMessages.length} potential bot messages`);
-
-          for (const msg of botMessages.slice(-6)) {
-            try {
-              const text = await msg.textContent();
-              if (text && text.trim() &&
-                text.trim().toLowerCase() !== question.trim().toLowerCase() &&
-                !text.includes('Ketik pesan')) {
-                replies.push(text.trim());
-                console.log(`✅ Bot message: "${text.substring(0, 50)}..."`);
-              }
-            } catch { }
-          }
-        },
-
-        // Strategy 2: Look for messages that are NOT user messages
-        async () => {
-          if (replies.length > 0) return;
-
-          const allMessages = await page.locator('.message-content-wrapper').all();
-          console.log(`Strategy 2: Checking ${allMessages.length} total messages`);
-
-          // Find our question first
-          let questionIndex = -1;
-          for (let i = allMessages.length - 1; i >= 0; i--) {
-            try {
-              const content = await allMessages[i].locator('.content').first().textContent();
-              if (content && content.trim().toLowerCase() === question.trim().toLowerCase()) {
-                questionIndex = i;
-                console.log(`Found question at index ${i}`);
-                break;
-              }
-            } catch { }
-          }
-
-          // Get messages after our question
-          if (questionIndex >= 0) {
-            for (let i = questionIndex + 1; i < allMessages.length; i++) {
-              try {
-                const messageWrapper = allMessages[i];
-
-                // Check if this is a user message (skip if it is)
-                const isUserMessage = await messageWrapper.locator('.user, [class*="user"]').count() > 0;
-                if (isUserMessage) {
-                  console.log(`Skipping user message at index ${i}`);
-                  continue;
-                }
-
-                // Get all content parts from this message
-                const contentParts = await messageWrapper.locator('.content').all();
-                for (const part of contentParts) {
-                  const text = await part.textContent();
-                  if (text && text.trim() && !text.includes('Ketik pesan')) {
-                    replies.push(text.trim());
-                    console.log(`✅ Bot response part: "${text.substring(0, 50)}..."`);
-                  }
-                }
-              } catch (error: any) {
-                console.log(`Error at index ${i}:`, error.message);
-              }
-            }
-          }
-        },
-
-        // Strategy 3: Fallback - get recent non-question messages
-        async () => {
-          if (replies.length > 0) return;
-
-          console.log('Strategy 3: Fallback method');
-          const recentMessages = await page.locator('.message-content-wrapper .content').all();
-          const lastFew = recentMessages.slice(-6); // Last 6 content elements
-
-          for (const msg of lastFew) {
-            try {
-              const text = await msg.textContent();
-              if (text && text.trim() &&
-                text.trim().toLowerCase() !== question.trim().toLowerCase() &&
-                !text.includes('Ketik pesan') &&
-                text.length > 5) {
-                replies.push(text.trim());
-                console.log(`✅ Fallback found: "${text.substring(0, 50)}..."`);
-              }
-            } catch { }
-          }
-        }
-      ];
-
-      // Execute strategies in order until we get replies
-      for (const strategy of strategies) {
-        await strategy();
-        if (replies.length > 0) break;
-      }
-
-    } catch (error) {
-      console.error('Error getting reply:', error);
+    if (!result.success || result.responses.length === 0) {
+      log.capture.noResponse(question);
+      return [];
     }
 
-    // Remove duplicates and questions
-    const uniqueReplies = [...new Set(replies)].filter(reply =>
-      reply.toLowerCase() !== question.trim().toLowerCase()
-    );
-
-    console.log(`📋 Final bot responses (${uniqueReplies.length}):`,
-      uniqueReplies.map(r => `"${r.substring(0, 40)}..."`));
-
-    return uniqueReplies;
+    log.info(`📋 Captured ${result.responses.length} responses using ${result.strategyUsed}`);
+    return result.responses;
   }
 
   static async takeScreenshot(page: Page, idTest: string, key: string, question: string, screenshotsFolder: string): Promise<string> {
@@ -450,8 +277,8 @@ export class WebchatPlatform {
           const imageCapture = await this.takeScreenshot(page, idTest, key, question, screenshotsFolder);
           console.log(`📸 Screenshot saved: ${imageCapture}`);
 
-          // Then capture response using utility
-          const respondBotArray = await ResponseCapture.captureWebchatResponses(page, question);
+          // Then capture response using new strategy pattern
+          const respondBotArray = await this.getReplyChat(page, question);
           let respondBot = respondBotArray.join('\n').trim();
 
           console.log(`📝 Final response: "${respondBot ? respondBot.substring(0, 80) + '...' : 'NO RESPONSE'}"`);

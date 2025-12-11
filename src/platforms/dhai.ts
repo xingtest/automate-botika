@@ -2,7 +2,6 @@ import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
 import { GeminiEvaluator } from '../utils/gemini-evaluator';
-import { ResponseCapture } from '../utils/response-capture';
 import { TestData, BotData, SummaryData } from '../types';
 
 export class DhaiPlatform {
@@ -51,13 +50,13 @@ export class DhaiPlatform {
         await Modul.waitTime(waitTime);
 
         console.log(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
-        
+
         const responses = await this.extractBotResponse(page, userMessage);
-        
+
         if (responses.length > 0) {
           return responses;
         }
-        
+
         if (attempt < maxRetries) {
           console.log(`⏳ No response yet, retrying in ${(attempt + 1) * 3}s...`);
         }
@@ -68,7 +67,7 @@ export class DhaiPlatform {
         }
       }
     }
-    
+
     return [];
   }
 
@@ -93,7 +92,7 @@ export class DhaiPlatform {
             console.log(`📊 Found ${found.length} messages with selector: ${selector}`);
             break;
           }
-        } catch {}
+        } catch { }
       }
 
       console.log(`📊 Total messages: ${chatMessages.length}`);
@@ -110,7 +109,7 @@ export class DhaiPlatform {
 
         if (questionIndices.length === 0) {
           console.log('⚠️ Question not found');
-          
+
           // Fallback: return last 3 messages
           const recentMessages: string[] = [];
           for (let i = Math.max(0, chatMessages.length - 3); i < chatMessages.length; i++) {
@@ -119,12 +118,12 @@ export class DhaiPlatform {
               recentMessages.push(text.trim());
             }
           }
-          
+
           if (recentMessages.length > 0) {
             console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
             return recentMessages;
           }
-          
+
           return [];
         }
 
@@ -136,15 +135,15 @@ export class DhaiPlatform {
         // Collect bot responses after the question
         const botResponses: string[] = [];
         const startIndex = questionIndex + 1;
-        
+
         console.log(`📝 Capturing from index ${startIndex} to ${chatMessages.length}...`);
-        
+
         // Check if there are messages after the question
         if (startIndex >= chatMessages.length) {
           console.log('⚠️ No messages after question, question is at the end');
           return [];
         }
-        
+
         // UI noise patterns
         const uiNoisePatterns = [
           /^Enter$/i,
@@ -153,32 +152,32 @@ export class DhaiPlatform {
           /^\d{2}:\d{2}$/,  // Time stamps
           /^[0-9]+$/,  // Just numbers
         ];
-        
+
         for (let i = startIndex; i < chatMessages.length; i++) {
           const text = await chatMessages[i].textContent();
           if (!text || !text.trim()) continue;
-          
+
           let cleanText = text.trim();
-          
+
           // Skip if it's the user's message
           if (cleanText.includes(userMessage)) {
             console.log(`  ⏭️ Skipping user message at ${i}`);
             continue;
           }
-          
+
           // Check if ENTIRE text is just UI noise
           const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(cleanText));
           if (isExactNoise) {
             console.log(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
             continue;
           }
-          
+
           // Skip if this is a duplicate of the last message
           if (botResponses.length > 0 && botResponses[botResponses.length - 1] === cleanText) {
             console.log(`  ⏭️ Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
             continue;
           }
-          
+
           botResponses.push(cleanText);
           console.log(`  ✅ Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
         }
@@ -199,14 +198,14 @@ export class DhaiPlatform {
             const trimmed = line.trim();
             return trimmed && !/^\d{2}:\d{2}$/.test(trimmed) && !trimmed.includes(userMessage);
           });
-          
+
           if (lines.length > 0) {
             console.log(`📊 Captured ${lines.length} lines from bubble-msg`);
             return lines.map(l => l.trim());
           }
         }
-      } catch {}
-      
+      } catch { }
+
       // Last resort: get all text content from body
       try {
         console.log('💡 Last resort: scanning all text in page');
@@ -215,14 +214,14 @@ export class DhaiPlatform {
           const fullText = allText.join('\n');
           const lines = fullText.split('\n').filter(line => {
             const trimmed = line.trim();
-            return trimmed && 
-                   trimmed.length > 10 &&  // At least 10 chars
-                   !/^\d{2}:\d{2}$/.test(trimmed) && 
-                   !trimmed.includes(userMessage) &&
-                   !trimmed.includes('Tap to Start') &&
-                   !trimmed.includes('Send');
+            return trimmed &&
+              trimmed.length > 10 &&  // At least 10 chars
+              !/^\d{2}:\d{2}$/.test(trimmed) &&
+              !trimmed.includes(userMessage) &&
+              !trimmed.includes('Tap to Start') &&
+              !trimmed.includes('Send');
           });
-          
+
           if (lines.length > 0) {
             // Take last 3 lines as bot response
             const recentLines = lines.slice(-3);
@@ -230,7 +229,7 @@ export class DhaiPlatform {
             return recentLines.map(l => l.trim());
           }
         }
-      } catch {}
+      } catch { }
 
       console.log('⚠️ No bot responses captured');
       return [];
@@ -240,21 +239,21 @@ export class DhaiPlatform {
     }
   }
 
-    static async takeScreenshot(page: Page, idTest: string, key: string, question: string, screenshotsFolder: string): Promise<string> {
-      const fs = require('fs');
-      const path = require('path');
-      const screenshotDir = screenshotsFolder || 'report/screenshoot';
-      if (!fs.existsSync(screenshotDir)) {
-        fs.mkdirSync(screenshotDir, { recursive: true });
-      }
-
-      const sanitizedQuestion = question.substring(0, 30).replace(/[^a-z0-9]/gi, '_');
-      const filename = `${idTest}_${key}_${sanitizedQuestion}.png`;
-      const filepath = path.join(screenshotDir, filename);
-
-      await page.screenshot({ path: filepath, fullPage: true });
-      return filename;
+  static async takeScreenshot(page: Page, idTest: string, key: string, question: string, screenshotsFolder: string): Promise<string> {
+    const fs = require('fs');
+    const path = require('path');
+    const screenshotDir = screenshotsFolder || 'report/screenshoot';
+    if (!fs.existsSync(screenshotDir)) {
+      fs.mkdirSync(screenshotDir, { recursive: true });
     }
+
+    const sanitizedQuestion = question.substring(0, 30).replace(/[^a-z0-9]/gi, '_');
+    const filename = `${idTest}_${key}_${sanitizedQuestion}.png`;
+    const filepath = path.join(screenshotDir, filename);
+
+    await page.screenshot({ path: filepath, fullPage: true });
+    return filename;
+  }
 
   static calculateStatus(score: number): string {
     return score >= 0.7 ? 'PASS' : 'FAILED';
@@ -330,7 +329,7 @@ export class DhaiPlatform {
               respondBot,
               element.title || 'Unknown Topic'
             );
-            
+
             const skor = evaluationResult.score;
             const explanation = evaluationResult.explanation;
             const AI = evaluationResult.success ? 'Gemini AI + Playwright TypeScript' : 'Playwright TypeScript (Gemini fallback)';
