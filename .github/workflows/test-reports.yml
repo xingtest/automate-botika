@@ -162,15 +162,28 @@ jobs:
         
         # Run test (generates JSON + screenshots)
         echo "🧪 Running test..."
-        if ! node dist/main.js ${{ github.event.inputs.platform || 'webchat' }}; then
-          echo "⚠️ Test execution had issues, but continuing..."
-        fi
+        node dist/main.js ${{ github.event.inputs.platform || 'webchat' }} || {
+          echo "⚠️ Test execution failed with exit code $?"
+        }
         
-        # Generate HTML + Excel reports
+        # List generated files before report generation
+        echo ""
+        echo "📁 Files before report generation:"
+        find report/ -type f 2>/dev/null | head -20 || echo "No report files yet"
+        
+        # Generate HTML + Excel reports with verbose output
+        echo ""
         echo "📊 Generating reports..."
-        if ! node dist/report-cli.js; then
-          echo "⚠️ Report generation had issues, but continuing..."
-        fi
+        node dist/report-cli.js 2>&1 || {
+          echo "❌ Report generation failed with exit code $?"
+          echo "Checking for errors..."
+          ls -la dist/ | grep report-cli
+        }
+        
+        # List generated files after report generation
+        echo ""
+        echo "📁 Files after report generation:"
+        find report/html/ -type f 2>/dev/null | head -20 || echo "No HTML files found"
         
         echo "✅ Test flow completed"
       env:
