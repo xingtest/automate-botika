@@ -13,11 +13,11 @@ on:
         default: 'dhai'
         type: choice
         options:
-          - webchat
-          - telegram
-          - facebook
-          - instagram
-          - dhai
+          # - webchat
+          # - telegram
+          # - facebook
+          # - instagram
+          # - dhai
       filename:
         description: 'Nama file hasil test'
         required: false
