@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CI/CD Dashboard - Chatbot Testing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <i class="fas fa-robot"></i>
+                    <h1>CI/CD Dashboard</h1>
+                </div>
+                <div class="status-badge">
+                    <i class="fas fa-circle pulse"></i>
+                    <span>Ready</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- Info Card -->
+            <div class="info-card">
+                <i class="fas fa-info-circle"></i>
+                <p>Trigger GitHub Actions workflow to run automated chatbot tests across multiple platforms</p>
+            </div>
+
+            <!-- Configuration Section -->
+            <div class="config-section">
+                <h2 class="section-title">
+                    <i class="fas fa-cog"></i>
+                    Test Configuration
+                </h2>
+
+                <div class="form-grid">
+                    <!-- Platform Selection -->
+                    <div class="form-group full-width">
+                        <label for="platformSelect">
+                            <i class="fas fa-layer-group"></i>
+                            Platform
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="platformSelect" class="form-control platform-select">
+                                <option value="webchat">🌐 WebChat</option>
+                                <option value="telegram">✈️ Telegram</option>
+                                <option value="instagram">📷 Instagram</option>
+                                <option value="facebook">👥 Facebook</option>
+                                <option value="dhai">🤖 DHAI</option>
+                                <option value="all">🚀 All Platforms</option>
+                            </select>
+                            <i class="fas fa-chevron-down select-icon"></i>
+                        </div>
+                    </div>
+
+                    <!-- GitHub Token -->
+                    <div class="form-group full-width">
+                        <label for="tokenInput">
+                            <i class="fas fa-key"></i>
+                            GitHub Personal Access Token
+                            <a href="https://github.com/settings/tokens" target="_blank" class="token-help">
+                                <i class="fas fa-question-circle"></i>
+                                Get Token
+                            </a>
+                        </label>
+                        <div class="token-input-wrapper">
+                            <input id="tokenInput" class="form-control" type="password"
+                                placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+                            <button type="button" id="toggleTokenBtn" class="toggle-token-btn">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="form-hint">
+                            <i class="fas fa-shield-alt"></i>
+                            Required scopes: <code>repo</code>, <code>workflow</code>
+                            <span class="separator">•</span>
+                            Token is stored in browser memory only
+                        </small>
+                    </div>
+
+                    <!-- Test Data Upload -->
+                    <div class="form-group full-width">
+                        <label for="fileUpload">
+                            <i class="fas fa-upload"></i>
+                            Upload Test Data (Optional)
+                        </label>
+                        <div class="file-upload-wrapper">
+                            <input id="fileUpload" class="file-input" type="file" accept=".xlsx,.xls,.csv" />
+                            <label for="fileUpload" class="file-upload-label">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <span id="fileUploadText">Choose Excel or CSV file</span>
+                            </label>
+                            <button id="clearFileBtn" class="clear-file-btn" style="display: none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <small class="form-hint">Upload .xlsx, .xls, or .csv file. If not uploaded, will use existing
+                            file from repository.</small>
+                    </div>
+
+                    <!-- Filename (only shown if no file uploaded) -->
+                    <div class="form-group" id="filenameGroup">
+                        <label for="filenameInput">
+                            <i class="fas fa-file-alt"></i>
+                            Test File Name
+                        </label>
+                        <input id="filenameInput" class="form-control" type="text" placeholder="testing"
+                            value="testing" />
+                        <small class="form-hint">Without extension (.xlsx)</small>
+                    </div>
+
+                    <!-- Tester Name -->
+                    <div class="form-group">
+                        <label for="testerNameInput">
+                            <i class="fas fa-user"></i>
+                            Tester Name
+                        </label>
+                        <input id="testerNameInput" class="form-control" type="text" placeholder="GitHub Actions Bot"
+                            value="GitHub Actions Bot" />
+                    </div>
+
+                    <!-- Greeting -->
+                    <div class="form-group">
+                        <label for="greetingInput">
+                            <i class="fas fa-comment-dots"></i>
+                            Greeting Message
+                        </label>
+                        <input id="greetingInput" class="form-control" type="text" placeholder="Haloo" value="Haloo" />
+                    </div>
+
+                    <!-- Dynamic Platform URLs -->
+                    <div class="form-group platform-url" id="webchatUrlGroup">
+                        <label for="webchatUrlInput">
+                            <i class="fas fa-link"></i>
+                            WebChat URL
+                        </label>
+                        <input id="webchatUrlInput" class="form-control" type="url"
+                            placeholder="https://chat.botika.online/tpUyiey"
+                            value="https://chat.botika.online/tpUyiey" />
+                    </div>
+
+                    <div class="form-group platform-url" id="telegramUrlGroup" style="display: none;">
+                        <label for="telegramBotInput">
+                            <i class="fas fa-link"></i>
+                            Telegram Bot Username
+                        </label>
+                        <input id="telegramBotInput" class="form-control" type="text" placeholder="@YourBotName"
+                            value="" />
+                    </div>
+
+                    <div class="form-group platform-url" id="instagramUrlGroup" style="display: none;">
+                        <label for="instagramUrlInput">
+                            <i class="fas fa-link"></i>
+                            Instagram Account URL
+                        </label>
+                        <input id="instagramUrlInput" class="form-control" type="url"
+                            placeholder="https://www.instagram.com/your_account" value="" />
+                    </div>
+
+                    <div class="form-group platform-url" id="facebookUrlGroup" style="display: none;">
+                        <label for="facebookUrlInput">
+                            <i class="fas fa-link"></i>
+                            Facebook Page URL
+                        </label>
+                        <input id="facebookUrlInput" class="form-control" type="url"
+                            placeholder="https://www.facebook.com/your_page" value="" />
+                    </div>
+
+                    <div class="form-group platform-url" id="dhaiUrlGroup" style="display: none;">
+                        <label for="dhaiUrlInput">
+                            <i class="fas fa-link"></i>
+                            DHAI URL
+                        </label>
+                        <input id="dhaiUrlInput" class="form-control" type="url" placeholder="https://dhai.example.com"
+                            value="" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Section -->
+            <div class="action-section">
+                <button id="runBtn" class="btn-primary">
+                    <i class="fas fa-play-circle"></i>
+                    <span>Run Tests</span>
+                </button>
+                <button id="clearBtn" class="btn-secondary">
+                    <i class="fas fa-redo"></i>
+                    <span>Reset</span>
+                </button>
+            </div>
+
+            <!-- Output Section -->
+            <div class="output-section" id="outputSection" style="display: none;">
+                <h2 class="section-title">
+                    <i class="fas fa-terminal"></i>
+                    Execution Log
+                </h2>
+                <div class="output-container">
+                    <pre id="output" class="output-content"></pre>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <p>
+                <i class="fas fa-code"></i>
+                Powered by GitHub Actions
+                <span class="separator">•</span>
+                <i class="fas fa-github"></i>
+                <a href="https://github.com/katanyaaman/migrasiplaywright12345" target="_blank">View Repository</a>
+            </p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
