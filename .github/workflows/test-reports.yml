@@ -14,11 +14,11 @@ on:
         type: choice
         options:
           - 'webchat'
-          - 'telegram'
-          - 'facebook'
-          - 'instagram'
-          - 'dhai'
-          - 'all'
+          # - 'telegram'
+          # - 'facebook'
+          # - 'instagram'
+          # - 'dhai'
+          # - 'all'
       filename:
         description: 'Nama file hasil test'
         required: false
