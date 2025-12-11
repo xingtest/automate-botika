@@ -283,7 +283,11 @@ jobs:
       if: always()  # Upload reports even if tests failed
       with:
         name: webchat-reports-${{ github.run_number }}
-        path: report/html/
+        path: |
+          report/html/**/*
+          report/html/**/dashboard.html
+          report/html/**/*.xlsx
+          report/html/**/screenshots/*.png
         retention-days: 3
     
     - name: Upload test summary
