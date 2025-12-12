@@ -14,7 +14,7 @@ on:
         type: choice
         options:
           # - webchat
-          # - telegram
+          - telegram
           # - facebook
           # - instagram
           # - dhai
