@@ -10,7 +10,7 @@ on:
       platform:
         description: 'Platform yang akan ditest'
         required: false
-        default: 'dhai'
+        default: 'telegram'
         type: choice
         options:
           # - webchat
