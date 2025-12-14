@@ -14,8 +14,8 @@ on:
         options:
           # - webchat
           # - telegram
-          - facebook
-          # - instagram
+          # - facebook
+          - instagram
           # - dhai
       filename:
         description: 'Nama file hasil test'
