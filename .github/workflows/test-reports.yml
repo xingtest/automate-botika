@@ -37,6 +37,26 @@ on:
         required: false
         default: 'https://chat.botika.online/tpUyiey'
         type: string
+      telegram_username:
+        description: 'Telegram Bot Username (tanpa @)'
+        required: false
+        default: ''
+        type: string
+      instagram_username:
+        description: 'Instagram Username (tanpa @)'
+        required: false
+        default: 'ahmadnurbrasta2.2'
+        type: string
+      facebook_id:
+        description: 'Facebook Fanpage ID'
+        required: false
+        default: ''
+        type: string
+      dhai_url:
+        description: 'DHAI URL'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   test-single-platform:
@@ -91,6 +111,10 @@ jobs:
         echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
         echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
         echo 'TARGET_URL="${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}"' >> .env
+        echo "TARGET_BOT_USERNAME=${{ github.event.inputs.telegram_username }}" >> .env
+        echo "TARGET_USERNAME=${{ github.event.inputs.instagram_username }}" >> .env
+        echo "TARGET_FANPAGE_ID=${{ github.event.inputs.facebook_id }}" >> .env
+        echo "DHAI_TARGET_URL=${{ github.event.inputs.dhai_url }}" >> .env
         echo "ENABLE_GEMINI_EVALUATION=false" >> .env
         
         echo "✅ Environment ready"
@@ -427,6 +451,10 @@ jobs:
         echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
         echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
         echo 'TARGET_URL="${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}"' >> .env
+        echo "TARGET_BOT_USERNAME=${{ github.event.inputs.telegram_username }}" >> .env
+        echo "TARGET_USERNAME=${{ github.event.inputs.instagram_username }}" >> .env
+        echo "TARGET_FANPAGE_ID=${{ github.event.inputs.facebook_id }}" >> .env
+        echo "DHAI_TARGET_URL=${{ github.event.inputs.dhai_url }}" >> .env
         echo "ENABLE_GEMINI_EVALUATION=false" >> .env
         
         # Create test data if needed
