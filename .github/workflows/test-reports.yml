@@ -9,14 +9,13 @@ on:
     inputs:
       platform:
         description: 'Platform yang akan ditest'
-        required: false
-        default: 'Instagram'
+        required: true
         type: choice
         options:
           # - webchat
           # - telegram
-          # - facebook
-          - instagram
+          - facebook
+          # - instagram
           # - dhai
       filename:
         description: 'Nama file hasil test'
@@ -87,7 +86,7 @@ jobs:
         
         # Setup .env
         touch .env
-        echo "PLATFORM=${{ github.event.inputs.platform || 'Instagram' }}" >> .env
+        echo "PLATFORM=${{ github.event.inputs.platform }}" >> .env
         echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
         echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
         echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
@@ -165,7 +164,7 @@ jobs:
 
         # Run test (generates JSON + screenshots)
         echo "🧪 Running test..."
-        node dist/main.js ${{ github.event.inputs.platform || 'Instagram' }} || {
+        node dist/main.js ${{ github.event.inputs.platform }} || {
           echo "⚠️ Test execution failed with exit code $?"
         }
         
