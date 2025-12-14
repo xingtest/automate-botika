@@ -165,7 +165,7 @@ jobs:
 
         # Run test (generates JSON + screenshots)
         echo "🧪 Running test..."
-        node dist/main.js ${{ github.event.inputs.platform || 'telegram' }} || {
+        node dist/main.js ${{ github.event.inputs.platform || 'Instagram' }} || {
           echo "⚠️ Test execution failed with exit code $?"
         }
         
