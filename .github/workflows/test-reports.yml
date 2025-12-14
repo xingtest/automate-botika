@@ -10,14 +10,14 @@ on:
       platform:
         description: 'Platform yang akan ditest'
         required: false
-        default: 'telegram'
+        default: 'Instagram'
         type: choice
         options:
-          - webchat
-          - telegram
-          - facebook
+          # - webchat
+          # - telegram
+          # - facebook
           - instagram
-          - dhai
+          # - dhai
       filename:
         description: 'Nama file hasil test'
         required: false
@@ -87,7 +87,7 @@ jobs:
         
         # Setup .env
         touch .env
-        echo "PLATFORM=${{ github.event.inputs.platform || 'telegram' }}" >> .env
+        echo "PLATFORM=${{ github.event.inputs.platform || 'Instagram' }}" >> .env
         echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
         echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
         echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
@@ -344,7 +344,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()  # Upload reports even if tests failed
       with:
-        name: webchat-reports-${{ github.run_number }}
+        name: All-reports-${{ github.run_number }}
         path: |
           report/html/**/*
           report/html/**/dashboard.html
