@@ -12,9 +12,9 @@ on:
         required: true
         type: choice
         options:
-          # - webchat
+          - webchat
           # - telegram
-          - facebook
+          # - facebook
           # - instagram
           # - dhai
       filename:
@@ -36,26 +36,6 @@ on:
         description: 'URL Webchat'
         required: false
         default: 'https://chat.botika.online/tpUyiey'
-        type: string
-      telegram_username:
-        description: 'Telegram Bot Username (tanpa @)'
-        required: false
-        default: ''
-        type: string
-      instagram_username:
-        description: 'Instagram Username (tanpa @)'
-        required: false
-        default: 'ahmadnurbrasta2.2'
-        type: string
-      facebook_id:
-        description: 'Facebook Fanpage ID'
-        required: false
-        default: '114552848299710'
-        type: string
-      dhai_url:
-        description: 'DHAI URL'
-        required: false
-        default: ''
         type: string
 
 jobs:
@@ -111,10 +91,6 @@ jobs:
         echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
         echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
         echo 'TARGET_URL="${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}"' >> .env
-        echo "TARGET_BOT_USERNAME=${{ github.event.inputs.telegram_username }}" >> .env
-        echo "TARGET_USERNAME=${{ github.event.inputs.instagram_username }}" >> .env
-        echo "TARGET_FANPAGE_ID=${{ github.event.inputs.facebook_id }}" >> .env
-        echo "DHAI_TARGET_URL=${{ github.event.inputs.dhai_url }}" >> .env
         echo "ENABLE_GEMINI_EVALUATION=false" >> .env
         
         echo "✅ Environment ready"
@@ -157,40 +133,6 @@ jobs:
         
         echo "📁 Available test files:"
         find assets/ -name "*.xlsx" -o -name "*.json" 2>/dev/null || echo "No test files"
-        
-        echo "🔑 Setting up session files..."
-        mkdir -p session
-        
-        # Facebook Session
-        if [ -n "${{ secrets.SESSION_FACEBOOK_BASE64 }}" ]; then
-          echo "${{ secrets.SESSION_FACEBOOK_BASE64 }}" | base64 -d > session/session-facebook.json
-          echo "✅ Created session-facebook.json from secret"
-        elif [ -f "session/session-facebook.json" ]; then
-          echo "⚠️ Using existing repo file for session-facebook.json"
-        else
-          echo "❌ No session found for Facebook (Secret nor File)"
-        fi
-        
-        # Instagram Session
-        if [ -n "${{ secrets.SESSION_INSTAGRAM_BASE64 }}" ]; then
-          echo "${{ secrets.SESSION_INSTAGRAM_BASE64 }}" | base64 -d > session/session-instagram.json
-          echo "✅ Created session-instagram.json from secret"
-        elif [ -f "session/session-instagram.json" ]; then
-          echo "⚠️ Using existing repo file for session-instagram.json"
-        else
-          echo "❌ No session found for Instagram (Secret nor File)"
-        fi
-
-        # Telegram Session
-        if [ -n "${{ secrets.TELEGRAM_SESSION }}" ]; then
-           # Telegram session is usually a string in .env, not a file, but if your code reads a file:
-           # If your code expects a file for telegram, handle it here. 
-           # Based on main.ts, telegram uses TELEGRAM_SESSION env var directly.
-           echo "✅ Telegram session is handled via ENV variable"
-        fi
-        
-        echo "📂 Session directory content (sanitized):"
-        ls -la session/
 
     - name: Run complete test (same as local npm run test:webchat)
       run: |
@@ -485,10 +427,6 @@ jobs:
         echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
         echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
         echo 'TARGET_URL="${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}"' >> .env
-        echo "TARGET_BOT_USERNAME=${{ github.event.inputs.telegram_username }}" >> .env
-        echo "TARGET_USERNAME=${{ github.event.inputs.instagram_username }}" >> .env
-        echo "TARGET_FANPAGE_ID=${{ github.event.inputs.facebook_id }}" >> .env
-        echo "DHAI_TARGET_URL=${{ github.event.inputs.dhai_url }}" >> .env
         echo "ENABLE_GEMINI_EVALUATION=false" >> .env
         
         # Create test data if needed
@@ -513,15 +451,6 @@ jobs:
           "
           sed -i 's/FILENAME=.*\.xlsx/FILENAME=testing.json/' .env
           echo "Created JSON test data for ${{ matrix.platform }}"
-        fi
-        
-        echo "🔑 Setting up session files..."
-        mkdir -p session
-        if [ -n "${{ secrets.SESSION_FACEBOOK_BASE64 }}" ]; then
-          echo "${{ secrets.SESSION_FACEBOOK_BASE64 }}" | base64 -d > session/session-facebook.json
-        fi
-        if [ -n "${{ secrets.SESSION_INSTAGRAM_BASE64 }}" ]; then
-          echo "${{ secrets.SESSION_INSTAGRAM_BASE64 }}" | base64 -d > session/session-instagram.json
         fi
 
     - name: Run test for ${{ matrix.platform }}
