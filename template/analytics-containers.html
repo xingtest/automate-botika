@@ -1,0 +1,367 @@
+<!-- 
+  ANALYTICS ENHANCEMENT HTML CONTAINERS
+  Insert this into template.ejs after the stat cards grid
+-->
+
+<!-- Success Badge Container (Phase 1) -->
+<div id="success-badge-container" class="mb-8">
+    <!-- Success badge will be rendered here by JavaScript -->
+</div>
+
+<!-- Insights Panel (Phase 6) -->
+<div id="insights-container">
+    <!-- Insights will be rendered here by JavaScript -->
+</div>
+
+<!-- Main Analytics Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+
+    <!-- Left Column: Activities Panel (existing) -->
+    <div class="lg:col-span-3 h-full">
+        <!-- Keep existing Activities panel here -->
+    </div>
+
+    <!-- Right Column: Enhanced Analytics -->
+    <div class="lg:col-span-9 space-y-6">
+
+        <!-- Chart Type Toggle & Download (Phase 3 & 1) -->
+        <div class="bg-primary-themed p-6 rounded-3xl shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold text-content-primary-themed">📊 Analytics Overview</h2>
+                <div class="flex items-center space-x-3">
+                    <!-- Chart Type Toggle -->
+                    <div id="chart-type-toggle-container"></div>
+
+                    <!-- Download Chart Button -->
+                    <button onclick="downloadChartImage('analytics-chart-main', 'analytics-chart.png')"
+                        class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-md flex items-center space-x-2 transition-colors text-sm font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                            stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        <span>Download Chart</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Analytics Chart -->
+            <div id="analytics-chart-main" style="height: 400px;">
+                <!-- React chart will be rendered here -->
+            </div>
+
+            <!-- Enhanced Legend with Icons & Percentages (Phase 1) -->
+            <div id="enhanced-legend" class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Quality Score Card (Phase 2) -->
+        <div id="quality-score-container">
+            <!-- Quality score will be rendered here -->
+        </div>
+
+        <!-- Performance Metrics (Phase 2) -->
+        <div id="performance-metrics-container">
+            <!-- Performance metrics will be rendered here -->
+        </div>
+
+    </div>
+</div>
+
+<!-- Historical Trends Section (Phase 4) -->
+<div id="historical-trend-container" class="mb-8">
+    <!-- Historical trend chart will be rendered here -->
+</div>
+
+<!-- Score Distribution & Advanced Analytics (Phase 6) -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+
+    <!-- Score Distribution -->
+    <div id="score-distribution-container">
+        <!-- Score distribution chart will be rendered here -->
+    </div>
+
+    <!-- Comparison with Previous Run (Phase 2) -->
+    <div id="comparison-container" class="bg-primary-themed p-6 rounded-3xl shadow-xl">
+        <h3 class="text-xl font-semibold text-content-primary-themed mb-4">📊 Comparison with Previous Run</h3>
+        <div id="comparison-content">
+            <!-- Comparison data will be rendered here -->
+        </div>
+    </div>
+
+</div>
+
+<!-- CSS Animations for Enhancements -->
+<style>
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-fade-in {
+        animation: fade-in 0.5s ease-out;
+    }
+
+    @keyframes bounce {
+
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .animate-bounce {
+        animation: bounce 1s infinite;
+    }
+
+    /* Chart transition animations */
+    .chart-transition {
+        transition: all 0.3s ease-in-out;
+    }
+
+    /* Hover effects for interactive elements */
+    .chart-segment:hover {
+        opacity: 0.8;
+        cursor: pointer;
+        transform: scale(1.05);
+        transition: all 0.2s ease;
+    }
+
+    /* Success celebration confetti effect */
+    @keyframes confetti {
+        0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 1;
+        }
+
+        100% {
+            transform: translateY(100vh) rotate(720deg);
+            opacity: 0;
+        }
+    }
+
+    .confetti {
+        position: fixed;
+        width: 10px;
+        height: 10px;
+        background: #f0f;
+        animation: confetti 3s linear infinite;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        #chart-type-toggle-container {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .chart-type-btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<!-- Enhanced Chart Rendering Script -->
+<script type="module">
+    import React from 'react';
+    import ReactDOM from 'react-dom/client';
+    import {
+        PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
+        BarChart, Bar, XAxis, YAxis, CartesianGrid,
+        LineChart, Line, Area, AreaChart
+    } from 'recharts';
+    import html2canvas from 'html2canvas';
+
+    // Enhanced Pie Chart with better tooltips and labels
+    function EnhancedPieChart({ data, chartType = 'pie' }) {
+        const COLORS = {
+            'Pass': '#059669',
+            'Failed': '#DC2626',
+            'Total Topic': '#0EA5E9',
+            'Total Question': '#14B8A6'
+        };
+
+        const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+            const RADIAN = Math.PI / 180;
+            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+            return (
+                <text
+                    x={x}
+                    y={y}
+                    fill="white"
+                    textAnchor={x > cx ? 'start' : 'end'}
+                    dominantBaseline="central"
+                    className="font-bold text-sm"
+                >
+                    {`${(percent * 100).toFixed(0)}%`}
+                </text>
+            );
+        };
+
+        const CustomTooltip = ({ active, payload }) => {
+            if (active && payload && payload.length) {
+                return (
+                    <div className="bg-white p-4 rounded-lg shadow-xl border-2 border-gray-200">
+                        <p className="font-bold text-lg">{payload[0].name}</p>
+                        <p className="text-2xl font-bold" style={{ color: payload[0].payload.color }}>
+                            {payload[0].value}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            {((payload[0].value / data.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%
+                        </p>
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        if (chartType === 'bar') {
+            return (
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="value" fill="#8884d8">
+                            {data.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            );
+        }
+
+        const innerRadius = chartType === 'donut' ? 80 : 0;
+
+        return (
+            <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                    <Pie
+                        data={data}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={renderCustomLabel}
+                        outerRadius={150}
+                        innerRadius={innerRadius}
+                        fill="#8884d8"
+                        dataKey="value"
+                        onClick={(data, index) => {
+                            // Trigger drill-down event
+                            window.dispatchEvent(new CustomEvent('chartSegmentClick', {
+                                detail: { segment: data.name.toLowerCase() }
+                            }));
+                        }}
+                    >
+                        {data.map((entry, index) => (
+                            <Cell
+                                key={`cell-${index}`}
+                                fill={entry.color}
+                                className="chart-segment"
+                            />
+                        ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+            </ResponsiveContainer>
+        );
+    }
+
+    // Historical Trend Line Chart
+    function HistoricalTrendChart({ data }) {
+        return (
+            <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                        type="monotone"
+                        dataKey="passRate"
+                        stroke="#059669"
+                        strokeWidth={3}
+                        name="Pass Rate (%)"
+                    />
+                    <Line
+                        type="monotone"
+                        dataKey="avgScore"
+                        stroke="#2563EB"
+                        strokeWidth={3}
+                        name="Avg Score (%)"
+                    />
+                </LineChart>
+            </ResponsiveContainer>
+        );
+    }
+
+    // Score Distribution Bar Chart
+    function ScoreDistributionChart({ data }) {
+        return (
+            <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="range" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#2563EB" />
+                </BarChart>
+            </ResponsiveContainer>
+        );
+    }
+
+    // Export chart components
+    window.EnhancedPieChart = EnhancedPieChart;
+    window.HistoricalTrendChart = HistoricalTrendChart;
+    window.ScoreDistributionChart = ScoreDistributionChart;
+    window.React = React;
+    window.ReactDOM = ReactDOM;
+
+    // Download chart as image
+    window.downloadChartImage = async function (elementId, filename) {
+        const element = document.getElementById(elementId);
+        if (!element) {
+            console.error('Chart element not found:', elementId);
+            return;
+        }
+
+        try {
+            const canvas = await html2canvas(element, {
+                backgroundColor: '#FFFFFF',
+                scale: 2,
+                logging: false
+            });
+
+            const image = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = image;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            console.log('✅ Chart downloaded:', filename);
+        } catch (error) {
+            console.error('Failed to download chart:', error);
+            alert('Failed to download chart. Please try again.');
+        }
+    };
+</script>

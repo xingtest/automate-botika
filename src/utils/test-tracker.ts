@@ -55,13 +55,13 @@ export class TestTracker {
     const totalTests = this.results.length;
     const passed = this.results.filter(r => r.status === 'PASS').length;
     const failed = this.results.filter(r => r.status === 'FAILED').length;
-    
+
     const passRate = totalTests > 0 ? (passed / totalTests) * 100 : 0;
     const failRate = totalTests > 0 ? (failed / totalTests) * 100 : 0;
-    
+
     const totalScore = this.results.reduce((sum, r) => sum + r.score, 0);
     const averageScore = totalTests > 0 ? totalScore / totalTests : 0;
-    
+
     const totalDuration = this.calculateTotalDuration();
 
     return {
@@ -80,7 +80,7 @@ export class TestTracker {
    */
   printSummary(): void {
     const summary = this.getSummary();
-    
+
     console.log('\n' + '='.repeat(60));
     console.log('📊 TEST SUMMARY');
     console.log('='.repeat(60));
@@ -132,11 +132,11 @@ export class TestTracker {
   assertMinimumPassRate(minimumRate: number): boolean {
     const summary = this.getSummary();
     const passed = summary.passRate >= minimumRate;
-    
+
     if (!passed) {
       console.error(`❌ Pass rate ${summary.passRate}% is below minimum ${minimumRate}%`);
     }
-    
+
     return passed;
   }
 
@@ -146,11 +146,11 @@ export class TestTracker {
   private calculateTotalDuration(): string {
     const endTime = Date.now();
     const durationMs = endTime - this.startTime;
-    
+
     const seconds = Math.floor(durationMs / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
     } else if (minutes > 0) {
@@ -162,23 +162,53 @@ export class TestTracker {
 
   /**
    * Save results to JSON file
+   * Merges with existing summary data to preserve metadata
    */
   saveResults(filepath: string): void {
     const fs = require('fs');
     const path = require('path');
-    
+
     const dir = path.dirname(filepath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    
-    const data = {
-      summary: this.getSummary(),
+
+    // Read existing summary data if it exists
+    let existingData: any = {};
+    if (fs.existsSync(filepath)) {
+      try {
+        const fileContent = fs.readFileSync(filepath, 'utf-8');
+        existingData = JSON.parse(fileContent);
+        console.log(`📖 Reading existing summary data from: ${filepath}`);
+      } catch (error) {
+        console.warn(`⚠️ Could not read existing summary file, creating new one`);
+      }
+    }
+
+    // Get new summary statistics
+    const newSummary = this.getSummary();
+
+    // Merge: preserve existing metadata, update statistics
+    const mergedData = {
+      // Preserve existing metadata fields (from platform-specific code)
+      ...existingData,
+      // Update summary statistics (from TestTracker)
+      summary: {
+        ...(existingData.summary || {}),
+        totalTests: newSummary.totalTests,
+        passed: newSummary.passed,
+        failed: newSummary.failed,
+        passRate: newSummary.passRate,
+        failRate: newSummary.failRate,
+        averageScore: newSummary.averageScore,
+        totalDuration: newSummary.totalDuration
+      },
       results: this.results,
       timestamp: new Date().toISOString()
     };
-    
-    fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
+
+    fs.writeFileSync(filepath, JSON.stringify(mergedData, null, 2));
     console.log(`💾 Test results saved to: ${filepath}`);
+    console.log(`   ✅ Merged with existing metadata`);
   }
 }
