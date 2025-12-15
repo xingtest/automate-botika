@@ -6,69 +6,16 @@ on:
   pull_request:
     branches: [main]
 
-    # =====================================================
-    # 🔥 SETTINGAN UNTUK DASHBOARD
-    # =====================================================
-  workflow_dispatch:
-    inputs:
-      SELECTED_PLATFORM:
-        description: 'Platform to test (webchat|dhai|instagram|facebook|telegram)'
-        required: true
-        default: 'webchat'
-        type: choice
-        options:
-        - webchat
-        - dhai
-        - instagram
-        - facebook
-        - telegram
-      FILENAME:
-        description: 'Test data filename (e.g. testing.xlsx)'
-        required: false
-        default: 'testing.xlsx'
-      TESTER_NAME:
-        description: 'Name of the tester'
-        required: false
-        default: 'GitHub Actions Bot'
-      GREETING:
-        description: 'Greeting message'
-        required: false
-        default: 'Haloo'
-      WEBCHAT_URL:
-        description: 'WebChat URL'
-        required: false
-        default: 'https://chat.botika.online/tpUyiey'
-      DHAI_TARGET_URL:
-        description: 'DHAI Target URL'
-        required: false
-        default: 'https://client.botika.online/virtual-avatar-luna/?mode=wake-word'
-      DHAI_WAKE_WORD:
-        description: 'DHAI Wake Word'
-        required: false
-        default: 'halo luna'
-      INSTAGRAM_USERNAME:
-        description: 'Instagram Target Username'
-        required: false
-        default: 'ahmadnurbrasta2.2'
-      FACEBOOK_FANPAGE_ID:
-        description: 'Facebook Fanpage ID'
-        required: false
-        default: '114552848299710'
-      TELEGRAM_BOT_USERNAME:
-        description: 'Telegram Bot Username'
-        required: false
-        default: 'TestingNewIntegrasiBot'
-
 jobs:
   test-single-platform:
     runs-on: ubuntu-latest
 
     # =====================================================
-    # 🔥 GANTI PLATFORM DI SINI SAJA UNTUK MANUAL
+    # 🔥 GANTI PLATFORM DI SINI SAJA
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: facebook
+      SELECTED_PLATFORM: telegram
       DEFAULT_FILENAME: testing.xlsx
       DEFAULT_TESTER_NAME: Ini apaan dah Bot
       DEFAULT_GREETING: Haloo
