@@ -15,9 +15,9 @@ jobs:
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: facebook
+      SELECTED_PLATFORM: instagram
       DEFAULT_FILENAME: testing.xlsx
-      DEFAULT_TESTER_NAME: test facebook
+      DEFAULT_TESTER_NAME: test instagram
       DEFAULT_GREETING: Haloo
 
       # -----------------------------
