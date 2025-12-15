@@ -2,497 +2,171 @@ name: test
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-    inputs:
-      platform:
-        description: 'Platform yang akan ditest'
-        required: false
-        default: 'webchat'
-        type: choice
-        options:
-          - webchat
-          # - telegram
-          # - facebook
-          # - instagram
-          # - dhai
-      filename:
-        description: 'Nama file hasil test'
-        required: false
-        default: 'testing'
-        type: string
-      tester_name:
-        description: 'Nama tester'
-        required: false
-        default: 'GitHub Actions Bot'
-        type: string
-      greeting:
-        description: 'Greeting message'
-        required: false
-        default: 'Haloo'
-        type: string
-      webchat_url:
-        description: 'URL Webchat'
-        required: false
-        default: 'https://chat.botika.online/tpUyiey'
-        type: string
+    branches: [main]
 
 jobs:
   test-single-platform:
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.platform != 'all' }}
+
+    # =====================================================
+    # 🔥 GANTI PLATFORM DI SINI SAJA
+    # pilihan: webchat | dhai | instagram | facebook | telegram
+    # =====================================================
+    env:
+      SELECTED_PLATFORM: webchat
+      DEFAULT_FILENAME: testing.xlsx
+      DEFAULT_TESTER_NAME: test webchat
+      DEFAULT_GREETING: Haloo
+
+      # -----------------------------
+      # TARGET URL / ID / USERNAME
+      # -----------------------------
+      WEBCHAT_URL: "https://chat.botika.online/tpUyiey"
+      DHAI_TARGET_URL: "https://client.botika.online/virtual-avatar-luna/?mode=wake-word"
+      DHAI_WAKE_WORD: "halo luna"
+      INSTAGRAM_USERNAME: "ahmadnurbrasta2.2"
+      FACEBOOK_FANPAGE_ID: "114552848299710"
+      TELEGRAM_BOT_USERNAME: "TestingNewIntegrasiBot"
+
+      # -----------------------------
+      # GEMINI EVALUATION
+      # -----------------------------
+      API_KEY_GEMINI: "AIzaSyAn7_5FYqOUbHGGVGam48wxv14zXmh1dr0"
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
 
-    - name: Install dependencies
-      run: |
-        echo "📦 Installing Node.js dependencies..."
-        npm install
+      - name: Install dependencies
+        run: |
+          echo "📦 Installing Node.js dependencies..."
+          npm install
 
-    - name: Install Google Chrome
-      run: |
-        echo "🔄 Installing Google Chrome..."
-        
-        # Update package list first
-        sudo apt-get update
-        
-        # Install Chrome using the modern method
-        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
-        
-        # Verify installation
-        echo "✅ Chrome installed: $(google-chrome --version)"
-        
-        # Set Chrome path for Playwright
-        echo "CHROME_BIN=/usr/bin/google-chrome" >> $GITHUB_ENV
+      - name: Install Google Chrome
+        run: |
+          echo "🔄 Installing Google Chrome..."
+          sudo apt-get update
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          echo "CHROME_BIN=/usr/bin/google-chrome" >> $GITHUB_ENV
+          google-chrome --version
 
-    - name: Setup fresh environment
-      run: |
-        echo "🧹 Setting up fresh environment..."
-        
-        # Clean old reports
-        rm -rf report/ temp_audio/ log/ 2>/dev/null || true
-        mkdir -p report/html report/json temp_audio
-        
-        # Setup .env
-        touch .env
-        echo "PLATFORM=${{ github.event.inputs.platform || 'webchat' }}" >> .env
-        echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
-        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
-        echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
-        echo 'TARGET_URL="${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}"' >> .env
-        echo "ENABLE_GEMINI_EVALUATION=false" >> .env
-        
-        echo "✅ Environment ready"
+      # =====================================================
+      # 🧹 SETUP ENVIRONMENT (.env)
+      # =====================================================
+      - name: Setup fresh environment
+        run: |
+          echo "🧹 Setting up fresh environment..."
 
-    - name: Create test data if needed
-      run: |
-        echo "📋 Ensuring test data exists..."
-        
-        test_file="assets/xlsx/${{ github.event.inputs.filename || 'testing' }}.xlsx"
-        if [ -f "$test_file" ]; then
-          echo "✅ Test file found: $test_file"
-        else
-          echo "⚠️ Creating fallback test data..."
-          mkdir -p assets/xlsx assets/json
-          
-          # Create JSON fallback using Node.js (more reliable than heredoc)
-          node -e "
-            const testData = [
-              {
-                no: 1,
-                title: 'Apa itu asuransi jiwa',
-                pertanyaan: 'Apa itu asuransi jiwa',
-                context: 'Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.'
-              },
-              {
-                no: 2,
-                title: 'Apa itu asuransi kesehatan',
-                pertanyaan: 'Apa itu asuransi kesehatan',
-                context: 'Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.'
-              }
-            ];
-            require('fs').writeFileSync('assets/json/testing.json', JSON.stringify(testData, null, 2));
-            console.log('✅ Created JSON test data');
-          "
-          
-          # Update .env to use JSON instead of Excel
-          sed -i 's/FILENAME=.*\.xlsx/FILENAME=testing.json/' .env
-          echo "✅ Created JSON test data and updated .env"
-        fi
-        
-        echo "📁 Available test files:"
-        find assets/ -name "*.xlsx" -o -name "*.json" 2>/dev/null || echo "No test files"
+          rm -rf report/ temp_audio/ log/ 2>/dev/null || true
+          mkdir -p report/html report/json temp_audio
 
-    - name: Run complete test (same as local npm run test:webchat)
-      run: |
-        echo "🧪 Running complete test flow..."
-        
-        # Show environment
-        echo "🔍 Environment check:"
-        cat .env
-        echo ""
-        
-        # Build TypeScript
-        echo "📦 Building TypeScript..."
-        if ! npm run build; then
-          echo "❌ Build failed"
-          exit 1
-        fi
-        
-        # Verify build
-        if [ ! -d "dist" ]; then
-          echo "❌ Build failed - no dist directory"
-          exit 1
-        fi
-        echo "✅ Build successful"
-        ls -la dist/
-        
-        # Create directories to ensure they exist
-        echo "📂 Ensuring report directories exist..."
-        mkdir -p report/json report/html
+          # buat file .env baru
+          touch .env
 
-        # Run test (generates JSON + screenshots)
-        echo "🧪 Running test..."
-        node dist/main.js ${{ github.event.inputs.platform || 'telegram' }} || {
-          echo "⚠️ Test execution failed with exit code $?"
-        }
-        
-        # Wait for file system to sync (important for CI/CD)
-        echo ""
-        echo "⏳ Waiting for files to sync..."
-        sleep 3
-        
-        # List generated files before report generation
-        echo ""
-        echo "📁 Files before report generation:"
-        find report/ -type f 2>/dev/null | head -20 || echo "No report files yet"
-        
-        # Verify JSON files exist
-        echo ""
-        echo "🔍 Verifying JSON files..."
-        json_count=$(find report/json -name "*.json" -type f 2>/dev/null | wc -l)
-        echo "Found $json_count JSON files"
-        
-        if [ "$json_count" -eq 0 ]; then
-          echo "❌ No JSON files found! Report generation will fail."
-          echo "Listing report directory:"
-          ls -la report/ || echo "report/ directory not found"
-        fi
-        
-        # Generate HTML + Excel reports with verbose output
-        echo ""
-        echo "📊 Generating reports..."
-        if ! node dist/report-cli.js 2>&1; then
-          echo "❌ Report generation failed!"
-          echo "Checking for errors..."
-          ls -la dist/ | grep report-cli
-          exit 1
-        fi
-        echo "✅ Report generation completed successfully"
-        
-        # Wait for file system to flush writes
-        echo "⏳ Waiting for file system to sync..."
-        sleep 2
-        
-        # List generated files after report generation
-        echo ""
-        echo "📁 Files after report generation:"
-        find report/html/ -type f 2>/dev/null | head -20 || echo "No HTML files found"
-        
-        echo "✅ Test flow completed"
-      env:
-        CI: true
-        HEADLESS: true
-      # Removed continue-on-error to properly detect failures
+          echo "PLATFORM=${SELECTED_PLATFORM}" >> .env
+          echo "FILENAME=${DEFAULT_FILENAME}" >> .env
+          echo "TESTER_NAME=${DEFAULT_TESTER_NAME}" >> .env
+          echo "GREETING=\"${DEFAULT_GREETING}\"" >> .env
+          echo "API_KEY_GEMINI=${API_KEY_GEMINI}" >> .env
 
-    - name: Verify dashboard.html generation
-      run: |
-        echo "🔍 Verifying dashboard.html generation..."
-        
-        # Check complete report structure
-        echo "📁 Complete report structure:"
-        find report/ -type f 2>/dev/null | head -20 || echo "No report files found"
-        
-        # Specifically check for dashboard.html
-        dashboard_files=$(find report/html/ -name "dashboard.html" -type f 2>/dev/null)
-        if [ -n "$dashboard_files" ]; then
-          echo "✅ dashboard.html found:"
-          echo "$dashboard_files" | while read -r file; do
-            echo "  📄 $file ($(stat -c%s "$file") bytes)"
-          done
-          
-          # Show first few lines to verify content
-          echo ""
-          echo "📄 Dashboard.html content preview:"
-          find report/html/ -name "dashboard.html" -exec head -5 {} \;
-        else
-          echo "❌ dashboard.html NOT found!"
-          echo ""
-          echo "📁 Available HTML files:"
-          find report/ -name "*.html" -type f 2>/dev/null || echo "No HTML files found"
-          echo ""
-          echo "📁 Available files in report/html/:"
-          find report/html/ -type f 2>/dev/null || echo "No files in report/html/"
-        fi
-        
-        # Check other important files
-        echo ""
-        echo "📊 Excel files:"
-        find report/ -name "*.xlsx" -type f 2>/dev/null || echo "No Excel files found"
-        echo ""
-        echo "📸 Screenshots:"
-        find report/ -name "*.png" -type f 2>/dev/null | wc -l | xargs echo "Found screenshots:"
+          # =====================================================
+          # PLATFORM-SPECIFIC TARGET CONFIG
+          # =====================================================
+          case "${SELECTED_PLATFORM}" in
+            webchat)
+              echo "TARGET_URL=${WEBCHAT_URL}" >> .env
+              ;;
+            dhai)
+              echo "DHAI_TARGET_URL=${DHAI_TARGET_URL}" >> .env
+              echo "DHAI_WAKE_WORD=${DHAI_WAKE_WORD}" >> .env
+              ;;
+            instagram)
+              echo "TARGET_USERNAME=${INSTAGRAM_USERNAME}" >> .env
+              ;;
+            facebook)
+              echo "TARGET_FANPAGE_ID=${FACEBOOK_FANPAGE_ID}" >> .env
+              ;;
+            telegram)
+              echo "TARGET_BOT_USERNAME=${TELEGRAM_BOT_USERNAME}" >> .env
+              ;;
+            *)
+              echo "❌ Unknown platform: ${SELECTED_PLATFORM}"
+              exit 1
+              ;;
+          esac
 
-    - name: Validate report generation
-      run: |
-        echo "🔍 Validating report generation..."
-        
-        if [ ! -d "report/html" ]; then
-          echo "❌ report/html directory does not exist!"
-          exit 1
-        fi
-        
-        file_count=$(find report/html -type f 2>/dev/null | wc -l)
-        if [ "$file_count" -eq 0 ]; then
-          echo "❌ report/html directory is empty!"
-          exit 1
-        fi
-        
-        echo "✅ Found $file_count files in report/html"
-        
-        # List the structure
-        echo "📁 Report structure:"
-        find report/html -type f | head -10
+          echo "✅ Environment ready"
+          echo "🔍 Final .env:"
+          cat .env
 
-    - name: Check test results and set exit code
-      id: check_results
-      run: |
-        echo "🔍 Checking test results..."
-        
-        # Find the latest summary JSON file
-        summary_file=$(find report/json -name "*summary*.json" -type f | sort -r | head -1)
-        
-        if [ -f "$summary_file" ]; then
-          echo "📄 Found summary file: $summary_file"
-          
-          # Check if jq is available
-          if command -v jq &> /dev/null; then
-            # Extract pass/fail counts using jq
-            passed=$(jq -r '.success // 0' "$summary_file" 2>/dev/null || echo "0")
-            failed=$(jq -r '.failed // 0' "$summary_file" 2>/dev/null || echo "0")
-          else
-            # Fallback: use grep to extract values
-            passed=$(grep -oP '"success"\s*:\s*\K\d+' "$summary_file" || echo "0")
-            failed=$(grep -oP '"failed"\s*:\s*\K\d+' "$summary_file" || echo "0")
+      # =====================================================
+      # 📋 ENSURE TEST DATA
+      # =====================================================
+      - name: Create test data if needed
+        run: |
+          echo "📋 Ensuring test data exists..."
+          if [ ! -f "assets/xlsx/${DEFAULT_FILENAME}" ] && [ ! -f "assets/json/testing.json" ]; then
+            mkdir -p assets/json
+            node -e "
+              const data = [
+                { no: 1, title: 'Apa itu asuransi jiwa', pertanyaan: 'Apa itu asuransi jiwa', context: 'Perlindungan finansial terhadap risiko kehidupan.' },
+                { no: 2, title: 'Apa itu asuransi kesehatan', pertanyaan: 'Apa itu asuransi kesehatan', context: 'Perlindungan finansial ketika sakit.' }
+              ];
+              require('fs').writeFileSync('assets/json/testing.json', JSON.stringify(data, null, 2));
+            "
+            sed -i 's/FILENAME=.*/FILENAME=testing.json/' .env
+            echo "⚠️ Excel not found, fallback to JSON"
           fi
-          
-          echo "✅ Passed: $passed"
-          echo "❌ Failed: $failed"
-          echo "test_passed=$passed" >> $GITHUB_OUTPUT
-          echo "test_failed=$failed" >> $GITHUB_OUTPUT
-          
-          if [ "$failed" -gt 0 ]; then
-            echo "::error::❌ $failed test(s) failed!"
-            echo "test_status=failed" >> $GITHUB_OUTPUT
+
+      # =====================================================
+      # 🧪 RUN TEST
+      # =====================================================
+      - name: Run complete test
+        run: |
+          echo "🧪 Running test for ${SELECTED_PLATFORM}..."
+
+          npm run build
+
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed"
             exit 1
-          else
-            echo "✅ All tests passed!"
-            echo "test_status=passed" >> $GITHUB_OUTPUT
           fi
-        else
-          echo "::warning::⚠️ No summary file found, cannot validate results"
-          echo "test_status=unknown" >> $GITHUB_OUTPUT
-        fi
-      continue-on-error: true
 
-    - name: CRITICAL - Verify dashboard.html before upload
-      run: |
-        echo "🔍 CRITICAL CHECK: Verifying dashboard.html exists before artifact upload..."
-        
-        dashboard_count=$(find report/html/ -name "dashboard.html" -type f 2>/dev/null | wc -l)
-        
-        if [ "$dashboard_count" -eq 0 ]; then
-          echo "❌ CRITICAL ERROR: dashboard.html NOT FOUND!"
-          echo "Cannot upload artifact without dashboard.html"
-          echo ""
-          echo "📁 Available files in report/html/:"
-          find report/html/ -type f 2>/dev/null || echo "No files found"
-          exit 1
-        fi
-        
-        echo "✅ Found $dashboard_count dashboard.html file(s)"
-        echo ""
-        echo "📄 Dashboard.html details:"
-        find report/html/ -name "dashboard.html" -type f -exec ls -lh {} \;
-        echo ""
-        echo "📄 Dashboard.html preview (first 10 lines):"
-        find report/html/ -name "dashboard.html" -type f -exec head -10 {} \;
+          node dist/main.js ${SELECTED_PLATFORM}
 
-    - name: Upload complete reports
-      uses: actions/upload-artifact@v4
-      if: always()  # Upload reports even if tests failed
-      with:
-        name: All-reports-${{ github.run_number }}
-        path: |
-          report/html/**/*
-          report/html/**/dashboard.html
-          report/html/**/*.xlsx
-          report/html/**/screenshots/*.png
-        retention-days: 3
-    
-    - name: Upload test summary
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-summary-${{ github.run_number }}
-        path: report/json/
-        retention-days: 3
-    
-    - name: Comment test results on PR
-      if: github.event_name == 'pull_request' && always()
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const testStatus = '${{ steps.check_results.outputs.test_status }}';
-          const passed = '${{ steps.check_results.outputs.test_passed }}';
-          const failed = '${{ steps.check_results.outputs.test_failed }}';
-          
-          let emoji = '✅';
-          let status = 'PASSED';
-          if (testStatus === 'failed') {
-            emoji = '❌';
-            status = 'FAILED';
-          } else if (testStatus === 'unknown') {
-            emoji = '⚠️';
-            status = 'UNKNOWN';
-          }
-          
-          const body = `## ${emoji} Test Results: ${status}\n\n` +
-            `- ✅ Passed: ${passed}\n` +
-            `- ❌ Failed: ${failed}\n\n` +
-            `[View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: body
-          });
+          sleep 3
+          node dist/report-cli.js
 
-  test-all-platforms:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.platform == 'all' }}
-    strategy:
-      matrix:
-        platform: [webchat, telegram, facebook, instagram, dhai]
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      # =====================================================
+      # 🔍 VERIFY REPORT
+      # =====================================================
+      - name: Verify dashboard.html
+        run: |
+          echo "🔍 Verifying dashboard.html..."
+          if ! find report/html -name "dashboard.html" | grep -q .; then
+            echo "❌ dashboard.html not found"
+            exit 1
+          fi
+          echo "✅ dashboard.html found"
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm install
-
-    - name: Install Google Chrome
-      run: |
-        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
-
-    - name: Setup environment for ${{ matrix.platform }}
-      run: |
-        rm -rf report/ temp_audio/ log/ 2>/dev/null || true
-        mkdir -p report/html report/json temp_audio
-        
-        touch .env
-        echo "PLATFORM=${{ matrix.platform }}" >> .env
-        echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
-        echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
-        echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
-        echo 'TARGET_URL="${{ github.event.inputs.webchat_url || 'https://chat.botika.online/tpUyiey' }}"' >> .env
-        echo "ENABLE_GEMINI_EVALUATION=false" >> .env
-        
-        # Create test data if needed
-        if [ ! -f "assets/xlsx/testing.xlsx" ] && [ ! -f "assets/json/testing.json" ]; then
-          mkdir -p assets/json
-          node -e "
-            const testData = [
-              {
-                no: 1,
-                title: 'Apa itu asuransi jiwa',
-                pertanyaan: 'Apa itu asuransi jiwa',
-                context: 'Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.'
-              },
-              {
-                no: 2,
-                title: 'Apa itu asuransi kesehatan',
-                pertanyaan: 'Apa itu asuransi kesehatan',
-                context: 'Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.'
-              }
-            ];
-            require('fs').writeFileSync('assets/json/testing.json', JSON.stringify(testData, null, 2));
-          "
-          sed -i 's/FILENAME=.*\.xlsx/FILENAME=testing.json/' .env
-          echo "Created JSON test data for ${{ matrix.platform }}"
-        fi
-
-    - name: Run test for ${{ matrix.platform }}
-      run: |
-        echo "🧪 Running test for ${{ matrix.platform }}..."
-        npm run build
-        node dist/main.js ${{ matrix.platform }}
-        node dist/report-cli.js
-        
-        # Quick verification
-        if [ -f report/html/*/dashboard.html ]; then
-          echo "✅ dashboard.html generated for ${{ matrix.platform }}"
-        else
-          echo "❌ dashboard.html missing for ${{ matrix.platform }}"
-        fi
-      env:
-        CI: true
-        HEADLESS: true
-      # Removed continue-on-error to properly detect failures
-
-    - name: Validate report generation
-      run: |
-        echo "🔍 Validating report generation..."
-        
-        if [ ! -d "report/html" ]; then
-          echo "❌ report/html directory does not exist!"
-          exit 1
-        fi
-        
-        file_count=$(find report/html -type f 2>/dev/null | wc -l)
-        if [ "$file_count" -eq 0 ]; then
-          echo "❌ report/html directory is empty!"
-          exit 1
-        fi
-        
-        echo "✅ Found $file_count files in report/html for ${{ matrix.platform }}"
-
-    - name: Upload reports for ${{ matrix.platform }}
-      uses: actions/upload-artifact@v4
-      if: always()  # Upload reports even if tests failed
-      with:
-        name: ${{ matrix.platform }}-reports-${{ github.run_number }}
-        path: report/html/
-        retention-days: 3
+      # =====================================================
+      # 📦 UPLOAD ARTIFACT
+      # =====================================================
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports-${{ github.run_number }}
+          path: report/html/
+          retention-days: 3
