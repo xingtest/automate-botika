@@ -64,20 +64,20 @@ jobs:
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: ${{ github.event.inputs.SELECTED_PLATFORM || 'dhai' }}
-      DEFAULT_FILENAME: ${{ github.event.inputs.FILENAME || 'testing.xlsx' }}
-      DEFAULT_TESTER_NAME: ${{ github.event.inputs.TESTER_NAME || 'test dhai' }}
-      DEFAULT_GREETING: ${{ github.event.inputs.GREETING || 'Haloo' }}
+      SELECTED_PLATFORM: telegram
+      DEFAULT_FILENAME: testing.xlsx
+      DEFAULT_TESTER_NAME: Ini apaan dah Bot
+      DEFAULT_GREETING: Haloo
 
       # -----------------------------
       # TARGET URL / ID / USERNAME
       # -----------------------------
-      WEBCHAT_URL: ${{ github.event.inputs.WEBCHAT_URL || 'https://chat.botika.online/tpUyiey' }}
-      DHAI_TARGET_URL: ${{ github.event.inputs.DHAI_TARGET_URL || 'https://client.botika.online/virtual-avatar-luna/?mode=wake-word' }}
-      DHAI_WAKE_WORD: ${{ github.event.inputs.DHAI_WAKE_WORD || 'halo luna' }}
-      INSTAGRAM_USERNAME: ${{ github.event.inputs.INSTAGRAM_USERNAME || 'ahmadnurbrasta2.2' }}
-      FACEBOOK_FANPAGE_ID: ${{ github.event.inputs.FACEBOOK_FANPAGE_ID || '114552848299710' }}
-      TELEGRAM_BOT_USERNAME: ${{ github.event.inputs.TELEGRAM_BOT_USERNAME || 'TestingNewIntegrasiBot' }}
+      WEBCHAT_URL: "https://chat.botika.online/tpUyiey"
+      DHAI_TARGET_URL: "https://client.botika.online/virtual-avatar-luna/?mode=wake-word"
+      DHAI_WAKE_WORD: "halo luna"
+      INSTAGRAM_USERNAME: "ahmadnurbrasta2.2"
+      FACEBOOK_FANPAGE_ID: "114552848299710"
+      TELEGRAM_BOT_USERNAME: "TestingNewIntegrasiBot"
 
       # -----------------------------
       # GEMINI EVALUATION
