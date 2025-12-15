@@ -19,6 +19,7 @@ const telegramBotInput = document.getElementById('telegramBotInput');
 const instagramUrlInput = document.getElementById('instagramUrlInput');
 const facebookUrlInput = document.getElementById('facebookUrlInput');
 const dhaiUrlInput = document.getElementById('dhaiUrlInput');
+const dhaiWakeWordInput = document.getElementById('dhaiWakeWordInput'); // New element
 
 // File upload elements
 const fileUpload = document.getElementById('fileUpload');
@@ -161,11 +162,19 @@ function getCurrentPlatformUrl() {
 
 function getFormData() {
     return {
-        platform: platformSelect.value,
-        filename: uploadedFile ? uploadedFile.name.replace(/\.(xlsx|xls|csv)$/i, '') : (filenameInput.value || 'testing'),
-        tester_name: testerNameInput.value || 'GitHub Actions Bot',
-        greeting: greetingInput.value || 'Haloo',
-        webchat_url: getCurrentPlatformUrl()
+        // Matches YAML Env Variables
+        SELECTED_PLATFORM: platformSelect.value,
+        FILENAME: uploadedFile ? uploadedFile.name.replace(/\.(xlsx|xls|csv)$/i, '') : (filenameInput.value || 'testing.xlsx'),
+        TESTER_NAME: testerNameInput.value || 'GitHub Actions Bot',
+        GREETING: greetingInput.value || 'Haloo',
+
+        // Specific inputs mapping
+        WEBCHAT_URL: webchatUrlInput.value || 'https://chat.botika.online/tpUyiey',
+        DHAI_TARGET_URL: dhaiUrlInput.value || 'https://client.botika.online/virtual-avatar-luna/?mode=wake-word',
+        DHAI_WAKE_WORD: dhaiWakeWordInput ? dhaiWakeWordInput.value : 'halo luna',
+        INSTAGRAM_USERNAME: instagramUrlInput.value || '',
+        FACEBOOK_FANPAGE_ID: facebookUrlInput.value || '',
+        TELEGRAM_BOT_USERNAME: telegramBotInput.value || ''
     };
 }
 
@@ -304,18 +313,18 @@ async function triggerWorkflow() {
     const formData = getFormData();
 
     showOutput('🚀 Step 2/2: Triggering GitHub Actions workflow...', 'info');
-    showOutput(`Platform: ${formData.platform}`, 'info');
+    showOutput(`Platform: ${formData.SELECTED_PLATFORM}`, 'info');
 
     if (uploadedFile) {
         showOutput(`Uploaded File: ${uploadedFile.name}`, 'info');
         showOutput('⚠️ Note: File upload to GitHub Actions requires additional setup', 'warning');
         showOutput('The uploaded file will be used locally, but workflow will use repository file', 'warning');
     } else {
-        showOutput(`Test File: ${formData.filename}.xlsx`, 'info');
+        showOutput(`Test File: ${formData.FILENAME}`, 'info');
     }
 
-    showOutput(`Tester: ${formData.tester_name}`, 'info');
-    showOutput(`Platform URL: ${formData.webchat_url || 'Default'}`, 'info');
+    showOutput(`Tester: ${formData.TESTER_NAME}`, 'info');
+    showOutput(`Platform URL: ${formData.WEBCHAT_URL || 'Default'}`, 'info');
 
     try {
         const url = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/actions/workflows/${CONFIG.workflow_id}/dispatches`;

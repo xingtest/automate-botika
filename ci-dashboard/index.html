@@ -161,20 +161,21 @@
 
                     <div class="form-group platform-url" id="instagramUrlGroup" style="display: none;">
                         <label for="instagramUrlInput">
-                            <i class="fas fa-link"></i>
-                            Instagram Account URL
+                            <i class="fas fa-at"></i>
+                            Instagram Username
                         </label>
-                        <input id="instagramUrlInput" class="form-control" type="url"
-                            placeholder="https://www.instagram.com/your_account" value="" />
+                        <input id="instagramUrlInput" class="form-control" type="text" placeholder="username"
+                            value="" />
+                        <small class="form-hint">Enter target username (without @)</small>
                     </div>
 
                     <div class="form-group platform-url" id="facebookUrlGroup" style="display: none;">
                         <label for="facebookUrlInput">
-                            <i class="fas fa-link"></i>
-                            Facebook Page URL
+                            <i class="fas fa-id-card"></i>
+                            Facebook Fanpage ID
                         </label>
-                        <input id="facebookUrlInput" class="form-control" type="url"
-                            placeholder="https://www.facebook.com/your_page" value="" />
+                        <input id="facebookUrlInput" class="form-control" type="text" placeholder="e.g. 114552848299710"
+                            value="" />
                     </div>
 
                     <div class="form-group platform-url" id="dhaiUrlGroup" style="display: none;">
@@ -182,8 +183,18 @@
                             <i class="fas fa-link"></i>
                             DHAI URL
                         </label>
-                        <input id="dhaiUrlInput" class="form-control" type="url" placeholder="https://dhai.example.com"
-                            value="" />
+                        <input id="dhaiUrlInput" class="form-control" type="url"
+                            placeholder="https://client.botika.online/..." value="" />
+
+                        <div style="margin-top: 10px;">
+                            <label for="dhaiWakeWordInput"
+                                style="margin-bottom: 5px; display: block; font-weight: 500;">
+                                <i class="fas fa-microphone"></i>
+                                Wake Word
+                            </label>
+                            <input id="dhaiWakeWordInput" class="form-control" type="text" placeholder="halo luna"
+                                value="" />
+                        </div>
                     </div>
                 </div>
             </div>
