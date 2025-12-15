@@ -10,14 +10,14 @@ on:
       platform:
         description: 'Platform yang akan ditest'
         required: false
-        default: 'dhai'
+        default: 'webchat'
         type: choice
         options:
-          # - webchat
+          - webchat
           # - telegram
           # - facebook
           # - instagram
-          - dhai
+          # - dhai
       filename:
         description: 'Nama file hasil test'
         required: false
@@ -87,7 +87,7 @@ jobs:
         
         # Setup .env
         touch .env
-        echo "PLATFORM=${{ github.event.inputs.platform || 'dhai' }}" >> .env
+        echo "PLATFORM=${{ github.event.inputs.platform || 'webchat' }}" >> .env
         echo "FILENAME=${{ github.event.inputs.filename || 'testing' }}.xlsx" >> .env
         echo "TESTER_NAME=${{ github.event.inputs.tester_name || 'GitHub Actions Bot' }}" >> .env
         echo 'GREETING="${{ github.event.inputs.greeting || 'Haloo' }}"' >> .env
