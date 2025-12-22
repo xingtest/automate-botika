@@ -164,7 +164,8 @@ function getFormData() {
     return {
         // Matches YAML Env Variables
         SELECTED_PLATFORM: platformSelect.value,
-        FILENAME: uploadedFile ? uploadedFile.name.replace(/\.(xlsx|xls|csv)$/i, '') : (filenameInput.value || 'testing.xlsx'),
+        // Keep full filename with extension for proper format detection
+        FILENAME: uploadedFile ? uploadedFile.name : (filenameInput.value ? filenameInput.value + '.xlsx' : 'testing.xlsx'),
         TESTER_NAME: testerNameInput.value || 'GitHub Actions Bot',
         GREETING: greetingInput.value || 'Haloo',
 
