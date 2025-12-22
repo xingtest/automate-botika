@@ -5,17 +5,59 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      SELECTED_PLATFORM:
+        description: 'Platform to test'
+        required: false
+        default: ''
+      FILENAME:
+        description: 'Test file name'
+        required: false
+        default: ''
+      TESTER_NAME:
+        description: 'Tester name'
+        required: false
+        default: ''
+      GREETING:
+        description: 'Greeting message'
+        required: false
+        default: ''
+      WEBCHAT_URL:
+        description: 'WebChat URL'
+        required: false
+        default: ''
+      INSTAGRAM_USERNAME:
+        description: 'Instagram username'
+        required: false
+        default: ''
+      FACEBOOK_FANPAGE_ID:
+        description: 'Facebook Fanpage ID'
+        required: false
+        default: ''
+      TELEGRAM_BOT_USERNAME:
+        description: 'Telegram Bot Username'
+        required: false
+        default: ''
+      DHAI_TARGET_URL:
+        description: 'DHAI Target URL'
+        required: false
+        default: ''
+      DHAI_WAKE_WORD:
+        description: 'DHAI Wake Word'
+        required: false
+        default: ''
 
 jobs:
   test-single-platform:
     runs-on: ubuntu-latest
 
     # =====================================================
-    # 🔥 GANTI PLATFORM DI SINI SAJA
+    # 🔥 GANTI PLATFORM DI SINI SAJA (untuk push/PR)
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: instagram
+      SELECTED_PLATFORM: dhai
       DEFAULT_FILENAME: testing.xlsx
       DEFAULT_TESTER_NAME: Cik telegram
       DEFAULT_GREETING: Haloo tele
@@ -63,6 +105,7 @@ jobs:
 
       # =====================================================
       # 🧹 SETUP ENVIRONMENT (.env)
+      # Dashboard inputs override env defaults if provided
       # =====================================================
       - name: Setup fresh environment
         run: |
@@ -71,40 +114,68 @@ jobs:
           rm -rf report/ temp_audio/ log/ 2>/dev/null || true
           mkdir -p report/html report/json temp_audio
 
+          # Use inputs if provided, otherwise use env defaults
+          PLATFORM="${{ github.event.inputs.SELECTED_PLATFORM }}"
+          [ -z "$PLATFORM" ] && PLATFORM="${SELECTED_PLATFORM}"
+          
+          FILENAME="${{ github.event.inputs.FILENAME }}"
+          [ -z "$FILENAME" ] && FILENAME="${DEFAULT_FILENAME}"
+          
+          TESTER="${{ github.event.inputs.TESTER_NAME }}"
+          [ -z "$TESTER" ] && TESTER="${DEFAULT_TESTER_NAME}"
+          
+          GREET="${{ github.event.inputs.GREETING }}"
+          [ -z "$GREET" ] && GREET="${DEFAULT_GREETING}"
+
           # buat file .env baru
           touch .env
 
-          echo "PLATFORM=${SELECTED_PLATFORM}" >> .env
-          echo "FILENAME=${DEFAULT_FILENAME}" >> .env
-          echo "TESTER_NAME=${DEFAULT_TESTER_NAME}" >> .env
-          echo "GREETING=\"${DEFAULT_GREETING}\"" >> .env
+          echo "PLATFORM=${PLATFORM}" >> .env
+          echo "FILENAME=${FILENAME}" >> .env
+          echo "TESTER_NAME=${TESTER}" >> .env
+          echo "GREETING=\"${GREET}\"" >> .env
           echo "API_KEY_GEMINI=${API_KEY_GEMINI}" >> .env
 
           # =====================================================
-          # PLATFORM-SPECIFIC TARGET CONFIG
+          # PLATFORM-SPECIFIC TARGET CONFIG (inputs override env)
           # =====================================================
-          case "${SELECTED_PLATFORM}" in
+          case "${PLATFORM}" in
             webchat)
-              echo "TARGET_URL=${WEBCHAT_URL}" >> .env
+              URL="${{ github.event.inputs.WEBCHAT_URL }}"
+              [ -z "$URL" ] && URL="${WEBCHAT_URL}"
+              echo "TARGET_URL=${URL}" >> .env
               ;;
             dhai)
-              echo "DHAI_TARGET_URL=${DHAI_TARGET_URL}" >> .env
-              echo "DHAI_WAKE_WORD=${DHAI_WAKE_WORD}" >> .env
+              URL="${{ github.event.inputs.DHAI_TARGET_URL }}"
+              [ -z "$URL" ] && URL="${DHAI_TARGET_URL}"
+              WAKE="${{ github.event.inputs.DHAI_WAKE_WORD }}"
+              [ -z "$WAKE" ] && WAKE="${DHAI_WAKE_WORD}"
+              echo "DHAI_TARGET_URL=${URL}" >> .env
+              echo "DHAI_WAKE_WORD=${WAKE}" >> .env
               ;;
             instagram)
-              echo "TARGET_USERNAME=${INSTAGRAM_USERNAME}" >> .env
+              USER="${{ github.event.inputs.INSTAGRAM_USERNAME }}"
+              [ -z "$USER" ] && USER="${INSTAGRAM_USERNAME}"
+              echo "TARGET_USERNAME=${USER}" >> .env
               ;;
             facebook)
-              echo "TARGET_FANPAGE_ID=${FACEBOOK_FANPAGE_ID}" >> .env
+              FANPAGE="${{ github.event.inputs.FACEBOOK_FANPAGE_ID }}"
+              [ -z "$FANPAGE" ] && FANPAGE="${FACEBOOK_FANPAGE_ID}"
+              echo "TARGET_FANPAGE_ID=${FANPAGE}" >> .env
               ;;
             telegram)
-              echo "TARGET_BOT_USERNAME=${TELEGRAM_BOT_USERNAME}" >> .env
+              BOT="${{ github.event.inputs.TELEGRAM_BOT_USERNAME }}"
+              [ -z "$BOT" ] && BOT="${TELEGRAM_BOT_USERNAME}"
+              echo "TARGET_BOT_USERNAME=${BOT}" >> .env
               ;;
             *)
-              echo "❌ Unknown platform: ${SELECTED_PLATFORM}"
+              echo "❌ Unknown platform: ${PLATFORM}"
               exit 1
               ;;
           esac
+
+          # Export SELECTED_PLATFORM for later steps
+          echo "SELECTED_PLATFORM=${PLATFORM}" >> $GITHUB_ENV
 
           echo "✅ Environment ready"
           echo "🔍 Final .env:"
