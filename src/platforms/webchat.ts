@@ -2,11 +2,226 @@ import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
 import { GeminiEvaluator } from '../utils/gemini-evaluator';
-import { TestData, BotData, SummaryData } from '../types';
+import { TestData, BotData, SummaryData } from '../main';
 import { log } from '../utils/logger';
-import { WebchatResponseCapture } from '../strategies/webchat/response-capture.manager';
 
 export class WebchatPlatform {
+  /**
+   * Capture responses using DirectMessage strategy
+   * Primary method for capturing bot responses based on position after question
+   */
+  private static async captureDirectMessage(page: Page, question: string): Promise<string[]> {
+    const replies: string[] = [];
+
+    try {
+      log.debug('[DirectMessage] Starting capture for question', { question });
+
+      // Wait for messages to stabilize
+      await page.waitForTimeout(2000);
+
+      // Get all message wrappers
+      const allMessages = await page.locator('.message-content-wrapper').all();
+      log.debug(`[DirectMessage] Found ${allMessages.length} message wrappers`);
+
+      // Find the index of our question
+      let questionIndex = -1;
+      for (let i = allMessages.length - 1; i >= 0; i--) {
+        try {
+          const contents = await allMessages[i].locator('.content').all();
+          for (const content of contents) {
+            const text = await content.textContent();
+            if (text && text.trim().toLowerCase() === question.trim().toLowerCase()) {
+              questionIndex = i;
+              log.debug(`[DirectMessage] Found question at index ${i}`);
+              break;
+            }
+          }
+          if (questionIndex >= 0) break;
+        } catch (error) {
+          // Continue searching
+        }
+      }
+
+      if (questionIndex < 0) {
+        log.warn('[DirectMessage] Question not found in message history');
+        return replies;
+      }
+
+      // Capture ALL bot responses after our question until we hit another user message
+      log.debug(`[DirectMessage] Capturing responses from index ${questionIndex + 1} onwards`);
+
+      for (let i = questionIndex + 1; i < allMessages.length; i++) {
+        try {
+          const messageWrapper = allMessages[i];
+
+          // Check if this is a user message - if yes, STOP here
+          const hasUserClass = await messageWrapper.evaluate((el) => {
+            return el.classList.contains('user') ||
+              el.closest('.user') !== null ||
+              el.querySelector('.user') !== null;
+          });
+
+          if (hasUserClass) {
+            log.debug(`[DirectMessage] Stopped at index ${i} - found next user message`);
+            break;
+          }
+
+          // Get all content parts from this bot message
+          const contentParts = await messageWrapper.locator('.content').all();
+          for (const part of contentParts) {
+            const text = await part.textContent();
+            if (text && text.trim() &&
+              !text.includes('Ketik pesan') &&
+              text.trim().length > 2) {
+              replies.push(text.trim());
+              log.debug(`[DirectMessage] Captured bubble ${replies.length}`, {
+                preview: text.substring(0, 60) + '...'
+              });
+            }
+          }
+        } catch (error: any) {
+          log.warn(`[DirectMessage] Error at index ${i}`, { error: error.message });
+        }
+      }
+
+      log.capture.strategy('DirectMessage', replies.length > 0, replies.length);
+      return replies;
+
+    } catch (error: any) {
+      log.error('[DirectMessage] Capture failed', error);
+      return replies;
+    }
+  }
+
+  /**
+   * Capture responses using Fallback strategy
+   * Used when DirectMessage fails to capture responses
+   */
+  private static async captureFallback(page: Page, question: string): Promise<string[]> {
+    const replies: string[] = [];
+
+    try {
+      log.debug('[Fallback] Starting fallback capture');
+
+      // Strategy 1: Look for bot messages (not user, not system)
+      const botMessages = await page.locator('.message:not(.user):not(.system) .content').all();
+      log.debug(`[Fallback] Found ${botMessages.length} potential bot messages`);
+
+      // Take last 6 messages to avoid capturing old messages
+      const recentMessages = botMessages.slice(-6);
+
+      for (const msg of recentMessages) {
+        try {
+          const text = await msg.textContent();
+          if (text && text.trim() &&
+            text.trim().toLowerCase() !== question.trim().toLowerCase() &&
+            !text.includes('Ketik pesan') &&
+            text.length > 5) {
+            replies.push(text.trim());
+            log.debug('[Fallback] Captured message', {
+              preview: text.substring(0, 50) + '...'
+            });
+          }
+        } catch (error) {
+          // Continue with next message
+        }
+      }
+
+      // If still no replies, try Strategy 2: Get recent content elements
+      if (replies.length === 0) {
+        log.debug('[Fallback] Trying alternative method');
+
+        const recentContent = await page.locator('.message-content-wrapper .content').all();
+        const lastFew = recentContent.slice(-6);
+
+        for (const msg of lastFew) {
+          try {
+            const text = await msg.textContent();
+            if (text && text.trim() &&
+              text.trim().toLowerCase() !== question.trim().toLowerCase() &&
+              !text.includes('Ketik pesan') &&
+              text.length > 5) {
+              replies.push(text.trim());
+            }
+          } catch (error) {
+            // Continue
+          }
+        }
+      }
+
+      log.capture.strategy('Fallback', replies.length > 0, replies.length);
+      return replies;
+
+    } catch (error: any) {
+      log.error('[Fallback] Fallback capture failed', error);
+      return replies;
+    }
+  }
+
+  /**
+   * Main capture method that tries DirectMessage first, then Fallback
+   */
+  private static async captureResponses(page: Page, question: string): Promise<{ responses: string[]; strategyUsed: string; success: boolean }> {
+    log.debug('Starting response capture', { question });
+
+    // Try DirectMessage strategy first
+    try {
+      log.debug('Trying strategy: DirectMessage');
+      const responses = await this.captureDirectMessage(page, question);
+
+      if (responses.length > 0) {
+        // Remove duplicates and filter out the question itself
+        const uniqueResponses = [...new Set(responses)].filter(
+          r => r.toLowerCase() !== question.trim().toLowerCase()
+        );
+
+        if (uniqueResponses.length > 0) {
+          log.info(`✅ Successfully captured ${uniqueResponses.length} responses using DirectMessage`);
+          return {
+            responses: uniqueResponses,
+            strategyUsed: 'DirectMessage',
+            success: true
+          };
+        }
+      }
+      log.debug('Strategy DirectMessage returned no valid responses');
+    } catch (error: any) {
+      log.warn('Strategy DirectMessage failed', { error: error.message });
+    }
+
+    // Try Fallback strategy
+    try {
+      log.debug('Trying strategy: Fallback');
+      const responses = await this.captureFallback(page, question);
+
+      if (responses.length > 0) {
+        const uniqueResponses = [...new Set(responses)].filter(
+          r => r.toLowerCase() !== question.trim().toLowerCase()
+        );
+
+        if (uniqueResponses.length > 0) {
+          log.info(`✅ Successfully captured ${uniqueResponses.length} responses using Fallback`);
+          return {
+            responses: uniqueResponses,
+            strategyUsed: 'Fallback',
+            success: true
+          };
+        }
+      }
+      log.debug('Strategy Fallback returned no valid responses');
+    } catch (error: any) {
+      log.warn('Strategy Fallback failed', { error: error.message });
+    }
+
+    // All strategies failed
+    log.capture.noResponse(question);
+    return {
+      responses: [],
+      strategyUsed: 'none',
+      success: false
+    };
+  }
+
   static async prechatForm(
     page: Page,
     greeting: string,
@@ -193,9 +408,8 @@ export class WebchatPlatform {
   }
 
   static async getReplyChat(page: Page, question: string): Promise<string[]> {
-    // Use new response capture manager with strategy pattern
-    const captureManager = new WebchatResponseCapture();
-    const result = await captureManager.capture(page, question);
+    // Use internal capture method
+    const result = await this.captureResponses(page, question);
 
     if (!result.success || result.responses.length === 0) {
       log.capture.noResponse(question);

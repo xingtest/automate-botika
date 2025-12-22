@@ -1,0 +1,2412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class', // Enable class-based dark mode
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            'brand-primary': '#2563EB', // Blue 600
+            'brand-primary-hover': '#1D4ED8', // Blue 700
+            'brand-secondary': '#059669', // Emerald 600 (Success)
+            'brand-danger': '#DC2626', // Red 600 (Fail)
+            'brand-warning': '#F59E0B', // Amber 500
+            'brand-info': '#0EA5E9', // Sky 500 (Total Intent)
+            'brand-teal': '#14B8A6', // Teal 500 (Total Sample Text)
+
+            // Light mode content colors (default)
+            'content-primary': '#111827', // Gray 900
+            'content-secondary': '#374151', // Gray 700
+            'content-tertiary': '#6B7280', // Gray 500
+
+            // Light mode border colors (default)
+            'border-primary': '#D1D5DB', // Gray 300
+            'border-secondary': '#E5E7EB', // Gray 200
+
+            // Light mode background colors (default)
+            'bg-primary': '#FFFFFF', // White
+            'bg-secondary': '#F9FAFB', // Gray 50
+            'bg-muted': '#F3F4F6', // Gray 100
+            'bg-page': '#E5E7EB', // Gray 200
+
+            'icon-default': '#4B5563', // Gray 600
+
+            'amber-600': '#D97706',
+            'amber-700': '#B45309',
+            'orange-50': '#FFF7ED',
+            'orange-100': '#FFEDD5',
+
+            // Dark mode specific colors (can be overridden by CSS vars if needed)
+            dark: {
+              'content-primary': '#F9FAFB', // Gray 50
+              'content-secondary': '#D1D5DB', // Gray 300
+              'content-tertiary': '#9CA3AF', // Gray 400
+
+              'border-primary': '#4B5563', // Gray 600
+              'border-secondary': '#374151', // Gray 700
+
+              'bg-primary': '#1F2937', // Gray 800
+              'bg-secondary': '#374151', // Gray 700
+              'bg-muted': '#4B5563', // Gray 600
+              'bg-page': '#111827', // Gray 900
+              'icon-default': '#9CA3AF', // Gray 400
+            }
+          },
+          borderRadius: {
+            '3xl': '1.5rem',
+            '2xl': '1rem',
+            'xl': '0.75rem',
+            'lg': '0.5rem',
+          },
+          boxShadow: {
+            'xl': '0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.07)',
+            'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          }
+        }
+      }
+    }
+  </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/client": "https://esm.sh/react-dom@^19.1.0/client",
+    "recharts": "https://esm.sh/recharts@^2.15.3",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react/": "https://esm.sh/react@^19.1.0/"
+  }
+}
+</script>
+  <style>
+    :root {
+      --content-primary: #111827;
+      --content-secondary: #374151;
+      --content-tertiary: #6B7280;
+      --border-primary: #D1D5DB;
+      --border-secondary: #E5E7EB;
+      --bg-primary: #FFFFFF;
+      --bg-secondary: #F9FAFB;
+      --bg-muted: #F3F4F6;
+      --bg-page: #E5E7EB;
+      --icon-default: #4B5563;
+      --card-pattern-color: rgba(0, 0, 0, 0.015);
+
+      /* Chart specific CSS variables for light mode */
+      --chart-tick-color: #6B7280;
+      /* content-tertiary */
+      --chart-grid-color: #E5E7EB;
+      /* border-secondary */
+      --chart-tooltip-bg: #FFFFFF;
+      /* bg-primary */
+      --chart-tooltip-border: #D1D5DB;
+      /* border-primary */
+      --chart-legend-text-color: #374151;
+      /* content-secondary */
+      --chart-area-stroke-color: #F59E0B;
+      /* brand-warning */
+      --chart-area-fill-stop-1-color: #F59E0B;
+      --chart-area-fill-stop-2-color: #FEF3C7;
+      /* Lighter amber */
+    }
+
+    /* Dark-mode CSS removed; template is light-only */
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-page);
+      color: var(--content-primary);
+      transition-property: background-color, color;
+      transition-duration: 300ms;
+    }
+
+    .recharts-default-legend {
+      padding-bottom: 10px !important;
+    }
+
+    .recharts-tooltip-wrapper {
+      outline: none !important;
+      z-index: 1000;
+      background-color: var(--chart-tooltip-bg) !important;
+      border-color: var(--chart-tooltip-border) !important;
+      border-radius: 0.5rem !important;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.07) !important;
+    }
+
+    .recharts-tooltip-label {
+      color: var(--content-primary) !important;
+      font-weight: 600 !important;
+    }
+
+    .recharts-cartesian-axis-tick-value {
+      fill: var(--chart-tick-color) !important;
+    }
+
+    .recharts-legend-item-text {
+      color: var(--chart-legend-text-color) !important;
+    }
+
+    .table-cell-truncate {
+      max-width: 160px;
+      white-space: normal;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      word-break: break-word;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background-color: var(--bg-muted);
+      border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background-color: var(--border-primary);
+      border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: var(--content-tertiary);
+    }
+
+    .recharts-responsive-container {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .card-bg-pattern {
+      background-image: linear-gradient(45deg, var(--card-pattern-color) 25%, transparent 25%, transparent 50%, var(--card-pattern-color) 50%, var(--card-pattern-color) 75%, transparent 75%, transparent);
+      background-size: 25px 25px;
+    }
+
+    .shadow-none-temp {
+      box-shadow: none !important;
+    }
+
+    /* Utility classes for applying CSS variables if Tailwind dark: prefixes are not enough */
+    .bg-primary-themed {
+      background-color: var(--bg-primary);
+    }
+
+    .bg-secondary-themed {
+      background-color: var(--bg-secondary);
+    }
+
+    .bg-muted-themed {
+      background-color: var(--bg-muted);
+    }
+
+    .text-content-primary-themed {
+      color: var(--content-primary);
+    }
+
+    .text-content-secondary-themed {
+      color: var(--content-secondary);
+    }
+
+    .text-content-tertiary-themed {
+      color: var(--content-tertiary);
+    }
+
+    .border-primary-themed {
+      border-color: var(--border-primary);
+    }
+
+    .border-secondary-themed {
+      border-color: var(--border-secondary);
+    }
+
+    .table-header-themed {
+      background-color: #B45309;
+    }
+
+    /* amber-700 for better contrast (WCAG AA compliant) */
+    .table-row-odd-themed {
+      background-color: var(--orange-50);
+    }
+
+    /* Orange-50 from config */
+    .table-row-hover-themed:hover {
+      background-color: var(--orange-100);
+    }
+
+    /* Orange-100 from config */
+
+    /* dark-mode table row/header selectors removed */
+
+    .legend-box {
+      width: 25px;
+      height: 8px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    /* ANALYTICS ENHANCEMENT ANIMATIONS */
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.5s ease-out;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-10px);
+      }
+    }
+
+    .animate-bounce {
+      animation: bounce 1s infinite;
+    }
+
+    /* Chart transition animations */
+    .chart-transition {
+      transition: all 0.3s ease-in-out;
+    }
+
+    /* Hover effects for interactive chart elements */
+    .chart-segment:hover {
+      opacity: 0.8;
+      cursor: pointer;
+      transform: scale(1.05);
+      transition: all 0.2s ease;
+    }
+
+    /* Responsive adjustments for mobile */
+    @media (max-width: 768px) {
+      #chart-type-toggle-container {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .chart-type-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="dashboard-container" class="min-h-screen p-4 sm:p-6 lg:p-8">
+    <header class="mb-8 flex flex-col sm:flex-row justify-between items-center">
+      <h1 id="main-title" class="text-4xl font-bold text-content-primary-themed mb-4 sm:mb-0">Hello, Champ!</h1>
+      <div class="flex items-center space-x-2">
+        <!-- Theme toggle removed (light-only) -->
+        <button id="manual-refresh-button"
+          class="p-1.5 rounded-md text-content-tertiary-themed hover:text-brand-primary hover:bg-secondary-themed transition-colors"
+          aria-label="Refresh dashboard">
+          <!-- RefreshIcon will be injected by JS -->
+        </button>
+        <span id="last-updated-text" class="text-sm text-content-secondary-themed">Last updated: Just now</span>
+        <!-- CogIcon will be injected by JS -->
+        </span>
+      </div>
+    </header>
+
+    <div id="stat-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+      <div
+        class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern">
+        <div class="flex justify-between items-start mb-3">
+          <h3
+            class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">
+            Success</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <p class="text-4xl font-bold text-content-primary-themed">
+            2
+          </p>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor"
+            class="w-12 h-12 text-brand-secondary group-hover:scale-105 transition-transform duration-200">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9 12.75L11.25 15 15 9.75M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" />
+          </svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #059669;"></div>
+      </div>
+      <div
+        class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern">
+        <div class="flex justify-between items-start mb-3">
+          <h3
+            class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">
+            Failed</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <p class="text-4xl font-bold text-content-primary-themed">
+            0
+          </p>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor"
+            class="w-12 h-12 text-brand-danger group-hover:scale-105 transition-transform duration-200">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #DC2626;"></div>
+      </div>
+      <!-- NEW: Pass Rate Card -->
+      <div
+        class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern"
+        id="pass-rate-card">
+        <div class="flex justify-between items-start mb-3">
+          <h3
+            class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">
+            Pass Rate</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <div>
+            <p class="text-4xl font-bold" id="pass-rate-value">0%</p>
+            <span class="text-xs text-content-tertiary-themed">Target: 80%</span>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor" class="w-12 h-12 group-hover:scale-105 transition-transform duration-200"
+            id="pass-rate-icon">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+          </svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" id="pass-rate-bar"></div>
+      </div>
+      <div
+        class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern">
+        <div class="flex justify-between items-start mb-3">
+          <h3
+            class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">
+            Total Topic</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <p class="text-4xl font-bold text-content-primary-themed">
+            2
+          </p>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor"
+            class="w-12 h-12 text-brand-info group-hover:scale-105 transition-transform duration-200">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #0EA5E9;"></div>
+      </div>
+      <div
+        class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern">
+        <div class="flex justify-between items-start mb-3">
+          <h3
+            class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">
+            Total Question</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <p class="text-4xl font-bold text-content-primary-themed">
+            2
+          </p>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor"
+            class="w-12 h-12 text-brand-teal group-hover:scale-105 transition-transform duration-200">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3.543-3.091a9.117 9.117 0 01-1.255 0H8.25c-.836 0-1.598-.574-1.899-1.385A5.964 5.964 0 016 11.75a5.96 5.96 0 013.355-5.337m8.208 2.258V7.579a5.962 5.962 0 00-5.902-5.903h-3.299c-.122.213-.248.431-.38.654a5.962 5.962 0 01-1.15 2.431A5.97 5.97 0 014.5 11.75c0 .599.081 1.17.236 1.708a5.991 5.991 0 011.263 3.388c.118.42.279.829.47 1.213a5.962 5.962 0 001.995 2.542h9.621c.748 0 1.385-.544 1.385-1.218V16.58c.41-.187.774-.418 1.08-.693A5.971 5.971 0 0022.5 11.75c0-.847-.173-1.652-.492-2.388z" />
+          </svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #14B8A6;"></div>
+      </div>
+      <div
+        class="bg-primary-themed p-5 rounded-3xl shadow-xl flex flex-col justify-between h-full group relative overflow-hidden card-bg-pattern">
+        <div class="flex justify-between items-start mb-3">
+          <h3
+            class="text-lg font-semibold text-content-primary-themed group-hover:text-brand-primary transition-colors duration-200">
+            Duration</h3>
+        </div>
+        <div class="flex justify-between items-end">
+          <p class="text-4xl font-bold text-content-primary-themed">
+            00:00:29
+          </p>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor"
+            class="w-12 h-12 text-brand-warning group-hover:scale-105 transition-transform duration-200">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-3xl" style="background-color: #F59E0B;"></div>
+      </div>
+    </div>
+
+    <!-- SUCCESS BADGE CONTAINER (Phase 1) -->
+    <div id="success-badge-container" class="mb-8">
+      <!-- Success badge will be rendered here by JavaScript -->
+    </div>
+
+    <!-- INSIGHTS PANEL (Phase 6) -->
+    <div id="insights-container">
+      <!-- Insights will be rendered here by JavaScript -->
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div class="lg:col-span-3 h-full">
+        <div id="activities-panel-card" class="bg-primary-themed p-6 rounded-3xl shadow-xl h-full flex flex-col">
+          <div class="flex justify-between items-center mb-4">
+            <h2 id="activities-title" class="text-2xl font-semibold text-content-primary-themed flex items-center">
+              Activities</h2>
+          </div>
+          <div id="activities-panel-content" class="space-y-1 flex-grow">
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">Test ID</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words flex items-center ml-1">
+                <span class="cursor-pointer hover:text-brand-primary hover:underline" data-copy-text="TEST-001"
+                  data-copy-type="Test ID">
+                  dd1638ff
+                </span>
+                <button data-copy-text="dd1638ff" data-copy-type="Test ID"
+                  class="ml-2 text-content-tertiary-themed hover:text-brand-primary copy-button opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Copy Test ID">
+                  <!-- ClipboardIcon -->
+                </button>
+              </span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">Tester Name</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">
+                Cik testing
+              </span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">Date</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">
+                Senin, 22 Desember 2025
+              </span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">AI Evaluation</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">
+                Playwright TypeScript (Gemini fallback)
+              </span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">Browser</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">
+                Chrome (Headless)
+              </span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">URL</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">
+                <a href="https://chat.botika.online/tpUyiey" target="_blank" rel="noopener noreferrer"
+                  class="text-brand-primary hover:underline">
+                  https://chat.botika.online/tpUyiey
+                </a>
+              </span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">Start Time</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">
+                14.08.41
+              </span>
+            </div>
+            <div class="flex items-start text-sm py-2.5 border-b border-secondary-themed last:border-b-0 group">
+              <span class="text-content-secondary-themed w-28 shrink-0">End Time</span>
+              <span class="text-content-secondary-themed w-4 shrink-0 text-center">:</span>
+              <span class="text-content-primary-themed flex-1 break-words ml-1">
+                14.10.06
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-9 space-y-6">
+        <!-- ENHANCED ANALYTICS CHART (Phase 1, 3) -->
+        <div class="bg-primary-themed p-6 rounded-3xl shadow-xl">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-semibold text-content-primary-themed">📊 Analytics Overview</h2>
+            <div class="flex items-center space-x-3">
+              <!-- Chart Type Toggle (Phase 3) -->
+              <div id="chart-type-toggle-container"></div>
+
+              <!-- Download Chart Button (Phase 1) -->
+              <button onclick="downloadChartImage('analytics-chart-main', 'analytics-chart.png')"
+                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-md flex items-center space-x-2 transition-colors text-sm font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                  stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                <span>Download</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Main Analytics Chart -->
+          <div id="analytics-chart-main"
+            data-chart-data='[{"name":"Pass","value":2,"color":"#059669"},{"name":"Failed","value":0,"color":"#DC2626"}]'
+            style="height: 400px;">
+            <!-- React chart will be rendered here -->
+          </div>
+
+          <!-- Enhanced Legend with Icons & Percentages (Phase 1) -->
+          <div id="enhanced-legend" class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Will be populated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- QUALITY SCORE CARD (Phase 2) -->
+        <div id="quality-score-container">
+          <!-- Quality score will be rendered here -->
+        </div>
+
+        <!-- PERFORMANCE METRICS (Phase 2) -->
+        <div id="performance-metrics-container">
+          <!-- Performance metrics will be rendered here -->
+        </div>
+      </div>
+
+      <!-- Trend Topic card removed -->
+    </div>
+
+    <!-- HISTORICAL TRENDS SECTION (Phase 4) -->
+    <div id="historical-trend-container" class="mb-8">
+      <!-- Historical trend chart will be rendered here -->
+    </div>
+
+    <!-- SCORE DISTRIBUTION & COMPARISON (Phase 6) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <!-- Score Distribution -->
+      <div id="score-distribution-container">
+        <!-- Score distribution chart will be rendered here -->
+      </div>
+
+      <!-- Comparison with Previous Run (Phase 2) -->
+      <div id="comparison-container" class="bg-primary-themed p-6 rounded-3xl shadow-xl">
+        <h3 class="text-xl font-semibold text-content-primary-themed mb-4">📊 Comparison with Previous Run</h3>
+        <div id="comparison-content">
+          <!-- Comparison data will be rendered here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Duration Breakdown Section -->
+    <div class="bg-primary-themed p-6 rounded-3xl shadow-xl mt-8" id="duration-breakdown-card">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-semibold text-content-primary-themed">⏱️ Duration Breakdown</h2>
+        <span class="text-sm text-content-tertiary-themed">Top 5 Slowest Topics</span>
+      </div>
+      <div id="duration-breakdown-content" class="space-y-3">
+        <!-- Will be populated by JavaScript -->
+        <p class="text-center text-content-tertiary-themed py-8">Loading duration data...</p>
+      </div>
+    </div>
+
+    <div id="data-result-card" class="bg-primary-themed p-6 rounded-3xl shadow-xl mt-8">
+      <div class="flex justify-between items-center mb-4">
+        <h2 id="data-result-title" class="text-2xl font-semibold text-content-primary-themed">Data Result</h2>
+        <div class="flex gap-2">
+          <!-- Share Link Button -->
+          <button onclick="copyShareableLink()"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-md flex items-center space-x-2 transition-colors duration-150 text-sm font-medium"
+            aria-label="Copy shareable link">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+              stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+            <span>Share Link</span>
+          </button>
+          <!-- Export PDF Button -->
+          <button onclick="exportToPDF()"
+            class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-md flex items-center space-x-2 transition-colors duration-150 text-sm font-medium"
+            aria-label="Export report as PDF">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+              stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <span>Export PDF</span>
+          </button>
+        </div>
+      </div>
+      <div class="bg-secondary-themed p-6 rounded-2xl mb-6 shadow-sm border border-secondary-themed">
+        <!-- Quick Filter Buttons -->
+        <div class="flex gap-2 mb-4">
+          <button onclick="quickFilterStatus('all')" id="quick-filter-all"
+            class="px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary-hover transition-colors">
+            All Tests
+          </button>
+          <button onclick="quickFilterStatus('pass')" id="quick-filter-pass"
+            class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-colors">
+            ✓ Passed Only
+          </button>
+          <button onclick="quickFilterStatus('failed')" id="quick-filter-failed"
+            class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-colors">
+            ✗ Failed Only
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+          <div>
+            <label for="search-data"
+              class="block text-sm font-medium text-content-secondary-themed mb-1">Search:</label>
+            <div class="relative">
+              <div id="search-data-icon" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <!-- SearchIcon will be injected by JS -->
+              </div>
+              <input type="text" id="search-data" name="search-data" placeholder="Search across all fields..."
+                class="w-full py-3 px-4 pl-10 border border-primary-themed rounded-lg shadow-sm focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary sm:text-sm transition-colors bg-muted-themed">
+              <button id="clear-search-data-btn"
+                class="absolute inset-y-0 right-0 pr-3 flex items-center hidden text-content-tertiary-themed hover:text-brand-danger"
+                aria-label="Clear search">
+                <!-- XCircleIcon will be injected by JS -->
+              </button>
+            </div>
+          </div>
+          <div>
+            <label for="filter-status" class="block text-sm font-medium text-content-secondary-themed mb-1">Filter by
+              Status:</label>
+            <div class="relative">
+              <select id="filter-status" name="filter-status"
+                class="appearance-none w-full py-3 px-4 pr-8 border border-primary-themed rounded-lg shadow-sm focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary sm:text-sm transition-colors bg-muted-themed">
+                <option value="">All Statuses</option>
+                <option value="pass">Pass</option>
+                <option value="failed">Failed</option>
+              </select>
+              <div id="filter-status-icon"
+                class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <!-- ChevronDownIcon will be injected by JS -->
+              </div>
+            </div>
+          </div>
+          <div>
+            <label for="filter-intent" class="block text-sm font-medium text-content-secondary-themed mb-1">Filter by
+              Topic:</label>
+            <div class="flex">
+              <div class="relative flex-grow">
+                <select id="filter-intent" name="filter-intent"
+                  class="appearance-none w-full py-3 px-4 pr-8 border border-r-0 border-primary-themed rounded-l-lg shadow-sm focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary sm:text-sm transition-colors bg-muted-themed">
+                  <option value="">All Intents</option>
+                  <!-- Options will be populated by JS -->
+                </select>
+                <div id="filter-intent-icon"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <!-- ChevronDownIcon will be injected by JS -->
+                </div>
+              </div>
+              <button id="download-intent-csv-button"
+                class="bg-amber-700 hover:bg-amber-800 text-white py-3 px-4 border border-l-0 border-amber-700 rounded-r-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 transition-colors flex items-center justify-center"
+                aria-label="Download CSV for selected intent" disabled>
+                <!-- DownloadIcon will be injected by JS -->
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mb-4">
+        <button id="download-all-data-csv" onclick="handleDownloadCSV()"
+          class="bg-brand-secondary hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg shadow-md flex items-center space-x-2 transition-colors duration-150 text-sm font-medium"
+          aria-label="Download all data as CSV">
+          <!-- DownloadIcon will be injected by JS --> <span>Download CSV</span>
+        </button>
+        <button id="download-all-data-excel" onclick="handleDownloadExcel()"
+          class="bg-brand-primary hover:bg-brand-primary-hover text-white px-4 py-2.5 rounded-lg shadow-md flex items-center space-x-2 transition-colors duration-150 text-sm font-medium"
+          aria-label="Download all data as Excel">
+          <!-- DownloadIcon will be injected by JS --> <span>Download Excel</span>
+        </button>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-secondary-themed shadow-md">
+        <table class="min-w-full divide-y divide-secondary-themed">
+          <thead id="data-result-table-head" class="table-header-themed">
+            <tr>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">No</th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Title</th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Question</th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Expected</th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Actual</th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Explanation
+              </th>
+              <th class="py-3.5 px-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Image SS</th>
+              <th class="py-3.5 px-4 text-center text-xs font-semibold text-white uppercase tracking-wider">Skor</th>
+              <th class="py-3.5 px-4 text-center text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+              <th class="py-3.5 px-4 text-center text-xs font-semibold text-white uppercase tracking-wider">Duration
+              </th>
+            </tr>
+          </thead>
+          <tbody id="data-result-table-body" class="bg-primary-themed divide-y divide-secondary-themed">
+            
+              <tr
+                class="border-b border-secondary-themed table-row-hover-themed text-sm transition-colors table-row-odd-themed">
+                <td class="py-4 px-2 w-[4%] text-content-primary-themed font-medium text-left">
+                  1
+                </td>
+                <td class="py-4 px-2 w-[10%] text-content-primary-themed font-medium text-left">
+                  Apa itu asuransi jiwa
+                </td>
+                <td class="py-4 px-2 w-[15%] text-content-primary-themed font-medium text-left">
+                  Apa itu asuransi jiwa
+                </td>
+                <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">
+                  Jenis asuransi ini memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis.
+                </td>
+                <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">
+                  Asuransi jiwa adalah jenis asuransi yang memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis. Jika pemegang polis berpulang, ahli waris akan menerima uang pertanggungan. Jika pemegang polis masih hidup dalam jangka waktu yang ditentukan, mereka bisa mendapatkan manfaat dalam bentuk nilai tunai. Jadi, asuransi jiwa membantu memenuhi kebutuhan sehari-hari bagi keluarga yang ditinggalkan.
+                </td>
+                <td class="py-4 px-2 w-[20%] text-content-primary-themed font-medium text-justify">
+                  Auto: ✓ Jawaban baik (similarity: 74.3%). Mencakup poin-poin utama dengan tepat.
+                </td>
+                <td class="py-4 px-2 w-[15%] text-center">
+                  
+                    <img
+                      class="thumbnail preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer"
+                      src="screenshots/dd1638ff_pertanyaan_Apa_itu_asuransi_jiwa.png">
+                    
+                </td>
+                <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">
+                  <span
+                    class="text-red-600 dark:text-red-400">
+                    0.743
+                  </span>
+                </td>
+                <td class="py-4 px-2 w-[8%] text-center">
+                  <span
+                    class="text-lg font-bold px-3 py-1 rounded-full text-xs bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100">
+                    PASS
+                  </span>
+                </td>
+                <td class="py-4 px-2 w-[7%] text-content-primary-themed font-semibold text-lg text-center">
+                  00:00:14
+                </td>
+              </tr>
+
+
+              
+              <tr
+                class="border-b border-secondary-themed table-row-hover-themed text-sm transition-colors table-row-odd-themed">
+                <td class="py-4 px-2 w-[4%] text-content-primary-themed font-medium text-left">
+                  2
+                </td>
+                <td class="py-4 px-2 w-[10%] text-content-primary-themed font-medium text-left">
+                  Apa itu asuransi kesehatan
+                </td>
+                <td class="py-4 px-2 w-[15%] text-content-primary-themed font-medium text-left">
+                  Apa itu asuransi kesehatan
+                </td>
+                <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">
+                  Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.
+                </td>
+                <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">
+                  Asuransi kesehatan adalah jenis asuransi yang memberikan perlindungan finansial ketika Anda mengalami masalah kesehatan. Ini berguna saat Anda menjalani rawat inap, operasi, atau perawatan lainnya di rumah sakit. Asuransi kesehatan sangat penting karena bisa melindungi aset atau keuangan Anda saat harus mengeluarkan biaya pengobatan yang tidak sedikit.
+                </td>
+                <td class="py-4 px-2 w-[20%] text-content-primary-themed font-medium text-justify">
+                  Auto: ✓ Jawaban baik (similarity: 73.7%). Mencakup sebagian besar informasi. Akan lebih sempurna dengan merupakan.
+                </td>
+                <td class="py-4 px-2 w-[15%] text-center">
+                  
+                    <img
+                      class="thumbnail preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer"
+                      src="screenshots/dd1638ff_pertanyaan_Apa_itu_asuransi_kesehatan.png">
+                    
+                </td>
+                <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">
+                  <span
+                    class="text-red-600 dark:text-red-400">
+                    0.737
+                  </span>
+                </td>
+                <td class="py-4 px-2 w-[8%] text-center">
+                  <span
+                    class="text-lg font-bold px-3 py-1 rounded-full text-xs bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100">
+                    PASS
+                  </span>
+                </td>
+                <td class="py-4 px-2 w-[7%] text-content-primary-themed font-semibold text-lg text-center">
+                  00:00:15
+                </td>
+              </tr>
+
+
+              
+          </tbody>
+        </table>
+      </div>
+      <div class="flex flex-col sm:flex-row justify-between items-center mt-6 text-sm">
+        <div class="flex items-center space-x-2 mb-3 sm:mb-0">
+          <label for="rows-per-page" class="text-content-secondary-themed">Rows per page:</label>
+          <div class="relative">
+            <select id="rows-per-page"
+              class="appearance-none p-2 pr-7 border border-primary-themed rounded-md focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-xs transition-colors bg-muted-themed">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="300">300</option>
+              <option value="1000">1000</option>
+            </select>
+            <div id="rows-per-page-icon"
+              class="absolute inset-y-0 right-0 pr-1.5 flex items-center pointer-events-none">
+              <!-- ChevronDownIcon will be injected by JS -->
+            </div>
+          </div>
+        </div>
+        <div id="data-result-pagination-info" class="text-content-secondary-themed mb-3 sm:mb-0"></div>
+        <div id="data-result-pagination-controls" class="flex items-center space-x-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="imageModal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; justify-content:center; align-items:center;">
+    <div style="position:relative;">
+      <img id="modalImage" src=""
+        style="max-width:90vw; max-height:90vh; border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.6); opacity:0; transition:opacity 0.3s ease;">
+      <button id="closeModal"
+        style="position:absolute; top:-15px; right:-15px; background:#fff; border:none; border-radius:50%; font-size:20px; padding:5px 10px; cursor:pointer;">x</button>
+    </div>
+  </div>
+
+  <footer class="text-center py-8 text-sm text-content-tertiary-themed">
+    TesterBotika
+  </footer>
+
+  <script type="module">
+    import React from 'react';
+    import ReactDOM from 'react-dom/client';
+    import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+    import html2canvas from 'html2canvas';
+
+    const ClipboardIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 4.625a1.125 1.125 0 01-1.125 1.125H11.25a1.125 1.125 0 01-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125h1.5c.621 0 1.125.504 1.125 1.125v1.5z" /></svg>`;
+    const CheckIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>`;
+    const DownloadIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>`;
+    const SearchIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>`;
+    const ChevronDownIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="${className}"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.23 8.29a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>`;
+    const ChevronLeftIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="${className}"><path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-.992 1.113l-4.25-4a.75.75 0 010-1.113l4.25-4a.75.75 0 011.082.02z" clip-rule="evenodd" /></svg>`;
+    const ChevronRightIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="${className}"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 11.992-1.113l4.25 4a.75.75 0 010 1.113l-4.25 4a.75.75 0 01-1.082-.02z" clip-rule="evenodd" /></svg>`;
+    const XCircleIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+    const CogIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m18 0h-1.5m-15.036-7.126L4.25 3.374m15.5 1.5L19.75 3.374m0 17.252l-1.25-1.501M3.75 19.126l1.25-1.5m12.036-7.126A7.5 7.5 0 0012 4.5v3.75m0 3.75a7.5 7.5 0 005.25-2.066m-5.25 2.066A7.5 7.5 0 0012 19.5v-3.75m0-3.75a7.5 7.5 0 00-5.25 2.066m5.25-2.066A7.5 7.5 0 0012 4.5M3 12a9 9 0 1118 0 9 9 0 01-18 0z" /></svg>`;
+    const RefreshIcon = (className = "") => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="${className}"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.992v4.992c0 .001 0 .001 0 .002Z" /></svg>`;
+    /* Sun/Moon icons removed (light-only template) */
+
+    let masterTableData = [];
+    let currentDataResultTableData = [];
+    let paginatedData = [];
+
+
+    // Trend topic removed — no runtime data
+    /* Theme management removed — template is light-only */
+
+
+    // --- HELPER FUNCTIONS ---
+    function debounce(func, delay) {
+      let timeout;
+      return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), delay);
+      };
+    }
+
+    // HTML Sanitization to prevent XSS
+    function escapeHtml(unsafe) {
+      if (unsafe === null || unsafe === undefined) return '';
+      return String(unsafe)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function parseDurationToSeconds(timeStr) {
+      if (!timeStr || typeof timeStr !== 'string') return 0;
+      const parts = timeStr.split(':');
+      if (parts.length === 3) { // HH:MM:SS
+        const hours = parseInt(parts[0], 10) || 0;
+        const minutes = parseInt(parts[1], 10) || 0;
+        const seconds = parseInt(parts[2], 10) || 0;
+        return (hours * 3600) + (minutes * 60) + seconds;
+      } else if (parts.length === 2) { // MM:SS
+        const minutes = parseInt(parts[0], 10) || 0;
+        const seconds = parseInt(parts[1], 10) || 0;
+        return (minutes * 60) + seconds;
+      } else if (parts.length === 1) { // SS
+        return parseInt(parts[0], 10) || 0;
+      }
+      return 0;
+    }
+
+    // ============================================================================
+    // ANALYTICS ENHANCEMENT - ALL 6 PHASES
+    // ============================================================================
+
+    // PHASE 1: SUCCESS BADGE & CELEBRATION
+    function renderSuccessBadge(passRate) {
+      const container = document.getElementById('success-badge-container');
+      if (!container) return;
+
+      let badgeHTML = '';
+      if (passRate >= 95) {
+        badgeHTML = `
+          <div class="success-celebration bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-500 rounded-2xl p-6 mb-6 animate-fade-in">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <div class="text-6xl animate-bounce">🎉</div>
+                <div>
+                  <h3 class="text-2xl font-bold text-green-700">Perfect Score!</h3>
+                  <p class="text-green-600">All tests passed successfully - Outstanding work!</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-5xl font-bold text-green-700">${passRate}%</div>
+                <div class="text-sm text-green-600">Pass Rate</div>
+              </div>
+            </div>
+            ${passRate === 100 ? '<div class="mt-4 text-center text-green-600 font-medium">🏆 Flawless Execution! 🏆</div>' : ''}
+          </div>`;
+      } else if (passRate >= 80) {
+        badgeHTML = `
+          <div class="success-badge bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-500 rounded-2xl p-6 mb-6">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <div class="text-5xl">✅</div>
+                <div>
+                  <h3 class="text-xl font-bold text-blue-700">Great Job!</h3>
+                  <p class="text-blue-600">Most tests passed - Keep up the good work!</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-4xl font-bold text-blue-700">${passRate}%</div>
+                <div class="text-sm text-blue-600">Pass Rate</div>
+              </div>
+            </div>
+          </div>`;
+      } else if (passRate >= 60) {
+        badgeHTML = `
+          <div class="warning-badge bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-500 rounded-2xl p-6 mb-6">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <div class="text-5xl">⚠️</div>
+                <div>
+                  <h3 class="text-xl font-bold text-yellow-700">Needs Improvement</h3>
+                  <p class="text-yellow-600">Some tests failed - Review and optimize</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-4xl font-bold text-yellow-700">${passRate}%</div>
+                <div class="text-sm text-yellow-600">Pass Rate</div>
+              </div>
+            </div>
+          </div>`;
+      } else {
+        badgeHTML = `
+          <div class="critical-badge bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-500 rounded-2xl p-6 mb-6">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <div class="text-5xl">🚨</div>
+                <div>
+                  <h3 class="text-xl font-bold text-red-700">Critical Issues</h3>
+                  <p class="text-red-600">Many tests failed - Immediate action required</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-4xl font-bold text-red-700">${passRate}%</div>
+                <div class="text-sm text-red-600">Pass Rate</div>
+              </div>
+            </div>
+          </div>`;
+      }
+      container.innerHTML = badgeHTML;
+    }
+
+    // PHASE 2: QUALITY SCORE
+    function calculateQualityScore(data) {
+      if (!data || data.length === 0) return 0;
+      const passedTests = data.filter(item => item.status === 'pass' || item.status === 'PASS').length;
+      const passRate = (passedTests / data.length) * 100;
+      const totalScore = data.reduce((sum, item) => sum + (parseFloat(item.skor) || 0), 0);
+      const avgScore = (totalScore / data.length) * 100;
+      const avgDuration = data.reduce((sum, item) => sum + parseDurationToSeconds(item.duration), 0) / data.length;
+      const speedScore = Math.max(0, 100 - (avgDuration / 10 * 100));
+      const qualityScore = (passRate * 0.4) + (avgScore * 0.4) + (speedScore * 0.2);
+      return Math.round(qualityScore);
+    }
+
+    function renderQualityScoreCard(qualityScore) {
+      const container = document.getElementById('quality-score-container');
+      if (!container) return;
+      let color = 'green', icon = '🌟', label = 'Excellent';
+      if (qualityScore < 60) { color = 'red'; icon = '⚠️'; label = 'Poor'; }
+      else if (qualityScore < 80) { color = 'yellow'; icon = '⭐'; label = 'Good'; }
+      container.innerHTML = `
+        <div class="bg-primary-themed p-6 rounded-3xl shadow-xl">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold text-content-primary-themed">Quality Score</h3>
+            <span class="text-3xl">${icon}</span>
+          </div>
+          <div class="relative pt-1">
+            <div class="flex mb-2 items-center justify-between">
+              <div>
+                <span class="text-5xl font-bold text-${color}-600">${qualityScore}</span>
+                <span class="text-2xl text-content-tertiary-themed">/100</span>
+              </div>
+              <span class="text-sm font-semibold inline-block py-1 px-2 uppercase rounded-full text-${color}-600 bg-${color}-200">${label}</span>
+            </div>
+            <div class="overflow-hidden h-4 mb-4 text-xs flex rounded-full bg-${color}-200">
+              <div style="width:${qualityScore}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-${color}-500 transition-all duration-500"></div>
+            </div>
+            <p class="text-xs text-content-tertiary-themed">Based on pass rate (40%), avg score (40%), and speed (20%)</p>
+          </div>
+        </div>`;
+    }
+
+    // PHASE 2: PERFORMANCE METRICS
+    function renderPerformanceMetrics(data) {
+      const container = document.getElementById('performance-metrics-container');
+      if (!container || !data || data.length === 0) return;
+      const durations = data.map(item => parseDurationToSeconds(item.duration));
+      const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+      const minDuration = Math.min(...durations);
+      const testsPerMinute = data.length > 0 ? (60 / avgDuration).toFixed(1) : '0';
+      const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+      };
+      container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-primary-themed p-5 rounded-2xl shadow-lg border-l-4 border-blue-500">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-content-secondary-themed">Avg Response Time</p>
+                <p class="text-3xl font-bold text-content-primary-themed">${formatTime(avgDuration)}</p>
+              </div>
+              <div class="text-4xl">⏱️</div>
+            </div>
+          </div>
+          <div class="bg-primary-themed p-5 rounded-2xl shadow-lg border-l-4 border-green-500">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-content-secondary-themed">Tests per Minute</p>
+                <p class="text-3xl font-bold text-content-primary-themed">${testsPerMinute}</p>
+              </div>
+              <div class="text-4xl">🚀</div>
+            </div>
+          </div>
+          <div class="bg-primary-themed p-5 rounded-2xl shadow-lg border-l-4 border-purple-500">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-content-secondary-themed">Fastest Test</p>
+                <p class="text-3xl font-bold text-content-primary-themed">${formatTime(minDuration)}</p>
+              </div>
+              <div class="text-4xl">⚡</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // PHASE 3: CHART TYPE TOGGLE
+    let currentChartType = 'pie';
+    function renderChartTypeToggle() {
+      const container = document.getElementById('chart-type-toggle-container');
+      if (!container) return;
+      container.innerHTML = `
+        <div class="flex items-center space-x-2 bg-secondary-themed p-2 rounded-lg">
+          <span class="text-sm text-content-secondary-themed font-medium">Chart Type:</span>
+          <button onclick="switchChartType('pie')" id="chart-btn-pie" class="chart-type-btn px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentChartType === 'pie' ? 'bg-brand-primary text-white' : 'bg-transparent text-content-tertiary-themed hover:bg-muted-themed'}">📊 Pie</button>
+          <button onclick="switchChartType('bar')" id="chart-btn-bar" class="chart-type-btn px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentChartType === 'bar' ? 'bg-brand-primary text-white' : 'bg-transparent text-content-tertiary-themed hover:bg-muted-themed'}">📈 Bar</button>
+          <button onclick="switchChartType('donut')" id="chart-btn-donut" class="chart-type-btn px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentChartType === 'donut' ? 'bg-brand-primary text-white' : 'bg-transparent text-content-tertiary-themed hover:bg-muted-themed'}">🍩 Donut</button>
+        </div>`;
+    }
+
+    function switchChartType(type) {
+      currentChartType = type;
+      document.querySelectorAll('.chart-type-btn').forEach(btn => {
+        btn.classList.remove('bg-brand-primary', 'text-white');
+        btn.classList.add('bg-transparent', 'text-content-tertiary-themed');
+      });
+      const activeBtn = document.getElementById(`chart-btn-${type}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-brand-primary', 'text-white');
+        activeBtn.classList.remove('bg-transparent', 'text-content-tertiary-themed');
+      }
+      window.dispatchEvent(new CustomEvent('chartTypeChanged', { detail: { type } }));
+    }
+    window.switchChartType = switchChartType;
+
+    // PHASE 4: HISTORICAL TRENDS
+    const HISTORY_STORAGE_KEY = 'test_report_history';
+    const MAX_HISTORY_ITEMS = 30;
+
+    function saveTestRunToHistory(summary, results) {
+      try {
+        const history = getTestHistory();
+        const newEntry = {
+          id: summary.id_test || Date.now().toString(),
+          timestamp: new Date().toISOString(),
+          date: summary.date_test,
+          tester: summary.tester_name,
+          passRate: (summary.success / (summary.success + summary.failed) * 100).toFixed(1),
+          totalTests: summary.success + summary.failed,
+          passed: summary.success,
+          failed: summary.failed,
+          avgScore: results.reduce((sum, r) => sum + (parseFloat(r.skor) || 0), 0) / results.length,
+          duration: summary.duration
+        };
+        history.unshift(newEntry);
+        if (history.length > MAX_HISTORY_ITEMS) history.splice(MAX_HISTORY_ITEMS);
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+        console.log('✅ Test run saved to history');
+      } catch (error) {
+        console.error('Failed to save to history:', error);
+      }
+    }
+
+    function getTestHistory() {
+      try {
+        const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
+        return stored ? JSON.parse(stored) : [];
+      } catch (error) {
+        console.error('Failed to load history:', error);
+        return [];
+      }
+    }
+
+    function renderHistoricalTrendChart() {
+      const container = document.getElementById('historical-trend-container');
+      if (!container) return;
+      const history = getTestHistory();
+      if (history.length < 2) {
+        container.innerHTML = `
+          <div class="bg-primary-themed p-6 rounded-3xl shadow-xl">
+            <h3 class="text-xl font-semibold text-content-primary-themed mb-4">📈 Historical Trends</h3>
+            <p class="text-content-tertiary-themed text-center py-8">Not enough data yet. Run more tests to see trends over time.</p>
+          </div>`;
+        return;
+      }
+      container.innerHTML = `
+        <div class="bg-primary-themed p-6 rounded-3xl shadow-xl">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold text-content-primary-themed">📈 Historical Trends</h3>
+          </div>
+          <div class="mt-4 grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p class="text-sm text-content-tertiary-themed">Best Run</p>
+              <p class="text-2xl font-bold text-green-600">${Math.max(...history.map(h => parseFloat(h.passRate)))}%</p>
+            </div>
+            <div>
+              <p class="text-sm text-content-tertiary-themed">Average</p>
+              <p class="text-2xl font-bold text-blue-600">${(history.reduce((sum, h) => sum + parseFloat(h.passRate), 0) / history.length).toFixed(1)}%</p>
+            </div>
+            <div>
+              <p class="text-sm text-content-tertiary-themed">Total Runs</p>
+              <p class="text-2xl font-bold text-purple-600">${history.length}</p>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // PHASE 5: INTERACTIVE FEATURES
+    function enableChartDrillDown() {
+      window.addEventListener('chartSegmentClick', (event) => {
+        const { segment } = event.detail;
+        if (segment === 'pass') quickFilterStatus('pass');
+        else if (segment === 'failed') quickFilterStatus('failed');
+        document.getElementById('data-result-card')?.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+
+    // PHASE 6: INSIGHTS & RECOMMENDATIONS
+    function generateInsights(data, history) {
+      const insights = [];
+      if (!data || data.length === 0) return insights;
+      const passRate = (data.filter(d => d.status === 'pass' || d.status === 'PASS').length / data.length * 100);
+      if (history && history.length > 1) {
+        const previousPassRate = parseFloat(history[1].passRate);
+        const change = passRate - previousPassRate;
+        if (change > 5) {
+          insights.push({ type: 'success', icon: '📈', title: 'Improving Performance', message: `Pass rate increased by ${change.toFixed(1)}% compared to previous run` });
+        } else if (change < -5) {
+          insights.push({ type: 'warning', icon: '📉', title: 'Performance Decline', message: `Pass rate decreased by ${Math.abs(change).toFixed(1)}% compared to previous run` });
+        }
+      }
+      const slowTests = data.filter(d => parseDurationToSeconds(d.duration) > 15);
+      if (slowTests.length > 0) {
+        insights.push({ type: 'info', icon: '🐌', title: 'Slow Tests Detected', message: `${slowTests.length} test(s) took longer than 15 seconds. Consider optimization.` });
+      }
+      if (passRate === 100) {
+        insights.push({ type: 'success', icon: '🏆', title: 'Perfect Score!', message: 'All tests passed successfully. Excellent work!' });
+      }
+      const lowScoreTests = data.filter(d => parseFloat(d.skor) < 0.6);
+      if (lowScoreTests.length > 0) {
+        insights.push({ type: 'warning', icon: '⚠️', title: 'Low Score Tests', message: `${lowScoreTests.length} test(s) have scores below 60%. Review these tests.` });
+      }
+      return insights;
+    }
+
+    function renderInsightsPanel(insights) {
+      const container = document.getElementById('insights-container');
+      if (!container) return;
+      if (insights.length === 0) { container.innerHTML = ''; return; }
+      const colorMap = { success: 'green', warning: 'yellow', info: 'blue', error: 'red' };
+      container.innerHTML = `
+        <div class="bg-primary-themed p-6 rounded-3xl shadow-xl mb-8">
+          <h3 class="text-xl font-semibold text-content-primary-themed mb-4">💡 Insights & Recommendations</h3>
+          <div class="space-y-3">
+            ${insights.map(insight => `
+              <div class="flex items-start space-x-3 p-4 rounded-lg bg-${colorMap[insight.type]}-50 border-l-4 border-${colorMap[insight.type]}-500">
+                <span class="text-2xl">${insight.icon}</span>
+                <div class="flex-1">
+                  <h4 class="font-semibold text-${colorMap[insight.type]}-700">${insight.title}</h4>
+                  <p class="text-sm text-${colorMap[insight.type]}-600">${insight.message}</p>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
+
+    function renderScoreDistribution(data) {
+      const container = document.getElementById('score-distribution-container');
+      if (!container || !data || data.length === 0) return;
+      const buckets = { '0-20%': 0, '21-40%': 0, '41-60%': 0, '61-80%': 0, '81-100%': 0 };
+      data.forEach(item => {
+        const score = parseFloat(item.skor) * 100;
+        if (score <= 20) buckets['0-20%']++;
+        else if (score <= 40) buckets['21-40%']++;
+        else if (score <= 60) buckets['41-60%']++;
+        else if (score <= 80) buckets['61-80%']++;
+        else buckets['81-100%']++;
+      });
+      container.innerHTML = `
+        <div class="bg-primary-themed p-6 rounded-3xl shadow-xl">
+          <h3 class="text-xl font-semibold text-content-primary-themed mb-4">📊 Score Distribution</h3>
+          <div class="space-y-2">
+            ${Object.entries(buckets).map(([range, count]) => `
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-content-secondary-themed">${range}</span>
+                <div class="flex-1 mx-4 bg-gray-200 rounded-full h-4">
+                  <div class="bg-blue-500 h-4 rounded-full" style="width: ${(count / data.length * 100).toFixed(0)}%"></div>
+                </div>
+                <span class="text-sm font-semibold text-content-primary-themed">${count}</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
+
+    // MAIN INITIALIZATION
+    function initializeAnalyticsEnhancements(data, summary) {
+      console.log('🚀 Initializing Analytics Enhancements...');
+      const passRate = (summary.success / (summary.success + summary.failed) * 100).toFixed(1);
+      const qualityScore = calculateQualityScore(data);
+      const history = getTestHistory();
+      const insights = generateInsights(data, history);
+      renderSuccessBadge(parseFloat(passRate));
+      renderQualityScoreCard(qualityScore);
+      renderPerformanceMetrics(data);
+      renderChartTypeToggle();
+      renderHistoricalTrendChart();
+      saveTestRunToHistory(summary, data);
+      enableChartDrillDown();
+      renderInsightsPanel(insights);
+      renderScoreDistribution(data);
+      console.log('✅ Analytics Enhancements Initialized');
+    }
+    window.initializeAnalyticsEnhancements = initializeAnalyticsEnhancements;
+
+    // Enhanced Pie Chart Component
+    function EnhancedPieChart({ data, chartType = 'pie' }) {
+      const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+        const RADIAN = Math.PI / 180;
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        return React.createElement('text', {
+          x, y, fill: 'white', textAnchor: x > cx ? 'start' : 'end',
+          dominantBaseline: 'central', className: 'font-bold text-sm'
+        }, `${(percent * 100).toFixed(0)}%`);
+      };
+
+      const CustomTooltip = ({ active, payload }) => {
+        if (active && payload && payload.length) {
+          return React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow-xl border-2 border-gray-200' }, [
+            React.createElement('p', { className: 'font-bold text-lg', key: 'name' }, payload[0].name),
+            React.createElement('p', { className: 'text-2xl font-bold', style: { color: payload[0].payload.color }, key: 'value' }, payload[0].value),
+            React.createElement('p', { className: 'text-sm text-gray-600', key: 'percent' },
+              `${((payload[0].value / data.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%`)
+          ]);
+        }
+        return null;
+      };
+
+      if (chartType === 'bar') {
+        return React.createElement(ResponsiveContainer, { width: '100%', height: '100%' },
+          React.createElement(BarChart, { data },
+            React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
+            React.createElement(XAxis, { dataKey: 'name' }),
+            React.createElement(YAxis, {}),
+            React.createElement(Tooltip, { content: React.createElement(CustomTooltip) }),
+            React.createElement(Bar, { dataKey: 'value', fill: '#8884d8' },
+              data.map((entry, index) => React.createElement(Cell, { key: `cell-${index}`, fill: entry.color }))
+            )
+          )
+        );
+      }
+
+      const innerRadius = chartType === 'donut' ? 80 : 0;
+      return React.createElement(ResponsiveContainer, { width: '100%', height: '100%' },
+        React.createElement(PieChart, {},
+          React.createElement(Pie, {
+            data, cx: '50%', cy: '50%', labelLine: false, label: renderCustomLabel,
+            outerRadius: 150, innerRadius, fill: '#8884d8', dataKey: 'value',
+            onClick: (data, index) => {
+              window.dispatchEvent(new CustomEvent('chartSegmentClick', { detail: { segment: data.name.toLowerCase() } }));
+            }
+          },
+            data.map((entry, index) => React.createElement(Cell, { key: `cell-${index}`, fill: entry.color, className: 'chart-segment' }))
+          ),
+          React.createElement(Tooltip, { content: React.createElement(CustomTooltip) })
+        )
+      );
+    }
+    window.EnhancedPieChart = EnhancedPieChart;
+
+    // Download chart as image
+    window.downloadChartImage = async function (elementId, filename) {
+      const element = document.getElementById(elementId);
+      if (!element) { console.error('Chart element not found:', elementId); return; }
+      try {
+        const canvas = await html2canvas(element, { backgroundColor: '#FFFFFF', scale: 2, logging: false });
+        const image = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        console.log('✅ Chart downloaded:', filename);
+      } catch (error) {
+        console.error('Failed to download chart:', error);
+        alert('Failed to download chart. Please try again.');
+      }
+    };
+
+    // Render Enhanced Analytics Chart
+    function renderEnhancedAnalyticsChart(chartType = 'pie') {
+      const container = document.getElementById('analytics-chart-main');
+      if (!container) return;
+      const chartDataAttr = container.getAttribute('data-chart-data');
+      if (!chartDataAttr) return;
+      try {
+        const chartData = JSON.parse(chartDataAttr);
+        const root = ReactDOM.createRoot(container);
+        root.render(React.createElement(EnhancedPieChart, { data: chartData, chartType: chartType }));
+      } catch (error) {
+        console.error('Failed to render chart:', error);
+      }
+    }
+
+    // Chart type change listener
+    window.addEventListener('chartTypeChanged', (event) => {
+      const { type } = event.detail;
+      renderEnhancedAnalyticsChart(type);
+    });
+
+    // --- DATA TABLE VARIABLES & FUNCTIONS ---
+    let dtSearchTerm = '';
+    let dtStatusFilter = '';
+    let dtIntentFilter = '';
+    let dtCurrentPage = 1;
+    let dtRowsPerPage = 10;
+
+    function loadMasterTableDataFromHTML() {
+      const tableBody = document.getElementById('data-result-table-body');
+      if (!tableBody) {
+        console.error('Table body not found!');
+        return;
+      }
+      masterTableData = [];
+      const rows = tableBody.querySelectorAll('tr');
+      console.log('Found rows:', rows.length);
+      rows.forEach((row, index) => {
+        const cells = row.querySelectorAll('td');
+        console.log(`Row ${index}: ${cells.length} cells`);
+        if (cells.length === 10) {
+          masterTableData.push({
+            id: cells[0].textContent?.trim() || (index + 1).toString(),
+            title: cells[1].textContent?.trim() || '',
+            question: cells[2].textContent?.trim() || '',
+            expected: cells[3].textContent?.trim() || '',
+            actual: cells[4].textContent?.trim() || '',
+            explanation: cells[5].textContent?.trim() || '',
+            imageSrc: cells[6].querySelector('img')?.src || '',
+            skor: cells[7].textContent?.trim() || '',
+            status: cells[8].querySelector('span')?.textContent?.trim().toLowerCase() || '',
+            duration: cells[9].textContent?.trim() || ''
+          });
+        }
+      });
+      console.log('Loaded masterTableData:', masterTableData.length, 'items');
+    }
+
+
+    function applyDataTableFiltersAndPagination() {
+      let filteredData = [...masterTableData];
+      const searchInput = document.getElementById('search-data');
+      const clearSearchBtn = document.getElementById('clear-search-data-btn');
+
+      if (dtSearchTerm) {
+        const lowerSearchTerm = dtSearchTerm.toLowerCase();
+        filteredData = filteredData.filter(row =>
+          Object.values(row).some(value =>
+            String(value).toLowerCase().includes(lowerSearchTerm)
+          )
+        );
+        if (clearSearchBtn) clearSearchBtn.classList.remove('hidden');
+      } else {
+        if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
+      }
+
+      if (dtStatusFilter) {
+        filteredData = filteredData.filter(row => row.status === dtStatusFilter);
+      }
+
+      if (dtIntentFilter) {
+        filteredData = filteredData.filter(row => row.title === dtIntentFilter);
+      }
+
+      currentDataResultTableData = filteredData;
+
+      const startIndex = (dtCurrentPage - 1) * dtRowsPerPage;
+      const endIndex = startIndex + dtRowsPerPage;
+      paginatedData = filteredData.slice(startIndex, endIndex);
+
+      renderDataResultTableContent(paginatedData, currentDataResultTableData.length);
+      updateIntentCsvButtonState();
+
+      // Update URL with current filter state
+      updateURLWithFilters();
+    }
+
+    function renderDataResultTableContent(dataToRender, totalFilteredItems) {
+      const tableBody = document.getElementById('data-result-table-body');
+      if (!tableBody) {
+        console.error('[Report] Table body element not found');
+        return;
+      }
+
+      try {
+        const tableRowsHTML = dataToRender.map(row => `
+            <tr class="border-b border-secondary-themed table-row-hover-themed text-sm transition-colors table-row-odd-themed ${dataToRender.indexOf(row) % 2 !== 0 ? '' : 'table-row-odd-themed'}">
+            <td class="py-4 px-2 w-[4%] text-content-primary-themed font-medium text-left">${escapeHtml(row.id || (dataToRender.indexOf(row) + 1) || '-')}</td>
+            <td class="py-4 px-2 w-[10%] text-content-primary-themed font-medium text-left">${escapeHtml(row.title || '-')}</td>
+            <td class="py-4 px-2 w-[15%] text-content-primary-themed font-medium text-left">${escapeHtml(row.question || '-')}</td>
+            <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">${escapeHtml(row.expected || '-')}</td>
+            <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">${escapeHtml(row.actual || '-')}</td>
+            <td class="py-4 px-2 w-[20%] text-content-primary-themed font-medium text-justify">${escapeHtml(row.explanation || '-')}</td>
+            <td class="py-4 px-2 w-[15%] text-center">
+              ${row.imageSrc
+            ? `<img src="${escapeHtml(row.imageSrc)}" 
+                        alt="Screenshot for ${escapeHtml(row.title)}" 
+                        class="preview-image mx-auto max-w-[200px] rounded-lg border border-gray-300 cursor-pointer" />`
+            : '<span>No Image</span>'}
+            </td>
+            <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">
+              <span class="${parseFloat(row.skor) >= 0.75 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+                ${escapeHtml(row.skor || '-')}
+              </span>
+            </td>
+           <td class="py-4 px-2 w-[8%] text-center">
+              <span class="px-3 py-1 rounded-full text-lg font-semibold ${row.status === 'pass' ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}">
+                  ${row.status ? escapeHtml(row.status.charAt(0).toUpperCase() + row.status.slice(1)) : '-'}
+              </span>
+          </td>
+            <td class="py-4 px-2 w-[7%] text-content-primary-themed font-semibold text-lg text-center">${escapeHtml(row.duration || '-')}</td>
+            </tr>
+        `).join('');
+        tableBody.innerHTML = tableRowsHTML || `<tr><td colspan="10" class="text-center py-12 text-content-tertiary-themed">No data matching your criteria.</td></tr>`;
+
+        renderPaginationControls(totalFilteredItems);
+      } catch (error) {
+        console.error('[Report] Error rendering table:', error);
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="10" class="text-center py-12">
+              <p class="text-red-600">Error rendering table data</p>
+              <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded">
+                Reload Page
+              </button>
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    function renderPaginationControls(totalItems) {
+      const paginationControlsContainer = document.getElementById('data-result-pagination-controls');
+      const paginationInfoContainer = document.getElementById('data-result-pagination-info');
+      if (!paginationControlsContainer || !paginationInfoContainer) return;
+
+      const totalPages = Math.ceil(totalItems / dtRowsPerPage);
+      dtCurrentPage = Math.max(1, Math.min(dtCurrentPage, totalPages || 1));
+
+      const startItem = totalItems > 0 ? (dtCurrentPage - 1) * dtRowsPerPage + 1 : 0;
+      const endItem = Math.min(dtCurrentPage * dtRowsPerPage, totalItems);
+      paginationInfoContainer.innerHTML = `Showing ${startItem}-${endItem} of ${totalItems} results`;
+
+      let paginationHTML = `
+            <button id="prev-page-btn" class="p-2 rounded-md hover:bg-secondary-themed disabled:opacity-50 disabled:cursor-not-allowed transition-colors" ${dtCurrentPage === 1 ? 'disabled' : ''}>
+                ${ChevronLeftIcon('w-5 h-5 text-content-tertiary-themed')}
+            </button>
+            <span class="text-sm text-content-secondary-themed px-2">Page ${dtCurrentPage} of ${totalPages || 1}</span>
+            <button id="next-page-btn" class="p-2 rounded-md hover:bg-secondary-themed disabled:opacity-50 disabled:cursor-not-allowed transition-colors" ${dtCurrentPage === totalPages || totalItems === 0 ? 'disabled' : ''}>
+                ${ChevronRightIcon('w-5 h-5 text-content-tertiary-themed')}
+            </button>
+        `;
+      paginationControlsContainer.innerHTML = paginationHTML;
+
+      document.getElementById('prev-page-btn')?.addEventListener('click', () => {
+        if (dtCurrentPage > 1) {
+          dtCurrentPage--;
+          applyDataTableFiltersAndPagination();
+        }
+      });
+      document.getElementById('next-page-btn')?.addEventListener('click', () => {
+        if (dtCurrentPage < totalPages) {
+          dtCurrentPage++;
+          applyDataTableFiltersAndPagination();
+        }
+      });
+    }
+
+    function populateIntentFilterOptions() {
+      const intentFilterSelect = document.getElementById('filter-intent');
+      if (!intentFilterSelect) return;
+
+      const uniqueIntents = [...new Set(masterTableData.map(item => item.title))];
+      let optionsHTML = '<option value="">All Topic</option>';
+      optionsHTML += uniqueIntents.map(title => `<option value="${title}">${title}</option>`).join('');
+      intentFilterSelect.innerHTML = optionsHTML;
+    }
+
+    function setupDataResultTableEventListeners() {
+      const searchInput = document.getElementById('search-data');
+      const clearSearchBtn = document.getElementById('clear-search-data-btn');
+
+      searchInput?.addEventListener('input', debounce((e) => {
+        dtSearchTerm = e.target.value;
+        dtCurrentPage = 1;
+        applyDataTableFiltersAndPagination();
+      }, 300));
+
+      clearSearchBtn?.addEventListener('click', () => {
+        if (searchInput) searchInput.value = '';
+        dtSearchTerm = '';
+        dtCurrentPage = 1;
+        applyDataTableFiltersAndPagination();
+      });
+
+      document.getElementById('filter-status')?.addEventListener('change', (e) => {
+        dtStatusFilter = e.target.value;
+        dtCurrentPage = 1;
+        applyDataTableFiltersAndPagination();
+      });
+
+      document.getElementById('filter-intent')?.addEventListener('change', (e) => {
+        dtIntentFilter = e.target.value;
+        dtCurrentPage = 1;
+        applyDataTableFiltersAndPagination();
+      });
+
+      document.getElementById('rows-per-page')?.addEventListener('change', (e) => {
+        dtRowsPerPage = parseInt(e.target.value, 10);
+        dtCurrentPage = 1;
+        applyDataTableFiltersAndPagination();
+      });
+
+      // Download button event listeners moved to setupDownloadButtons() 
+      // to be called AFTER icon injection
+    }
+
+    function updateIntentCsvButtonState() {
+      const downloadBtn = document.getElementById('download-intent-csv-button');
+      if (downloadBtn) {
+        downloadBtn.disabled = !dtIntentFilter;
+      }
+    }
+
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    const closeModal = document.getElementById('closeModal');
+
+    // Buka gambar
+    document.addEventListener('click', function (e) {
+      if (e.target.classList.contains('preview-image')) {
+        modalImage.src = e.target.src;
+        modal.style.display = 'flex';
+        setTimeout(() => modalImage.style.opacity = '1', 10);
+      }
+    });
+
+    // Tutup dengan tombol X
+    closeModal.addEventListener('click', function () {
+      modalImage.style.opacity = '0';
+      setTimeout(() => {
+        modal.style.display = 'none';
+        modalImage.src = '';
+      }, 300);
+    });
+
+    // Tutup kalau klik di luar gambar
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) {
+        modalImage.style.opacity = '0';
+        setTimeout(() => {
+          modal.style.display = 'none';
+          modalImage.src = '';
+        }, 300);
+      }
+    });
+
+
+    // --- CHART RENDERING FUNCTIONS ---
+    const formatYAxisTick = (tick) => {
+      const minutes = Math.floor(tick / 60);
+      const seconds = tick % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    };
+
+    const getChartColors = () => {
+      const rootStyle = getComputedStyle(document.documentElement);
+      return {
+        tickColor: rootStyle.getPropertyValue('--chart-tick-color').trim(),
+        gridColor: rootStyle.getPropertyValue('--chart-grid-color').trim(),
+        tooltipBg: rootStyle.getPropertyValue('--chart-tooltip-bg').trim(),
+        tooltipBorder: rootStyle.getPropertyValue('--chart-tooltip-border').trim(),
+        legendTextColor: rootStyle.getPropertyValue('--chart-legend-text-color').trim(),
+        areaStrokeColor: rootStyle.getPropertyValue('--chart-area-stroke-color').trim(),
+        areaFillStop1Color: rootStyle.getPropertyValue('--chart-area-fill-stop-1-color').trim(),
+        areaFillStop2Color: rootStyle.getPropertyValue('--chart-area-fill-stop-2-color').trim(),
+      };
+    };
+
+    // Trend intent chart removed to avoid unused React code in the light-only template
+
+    function renderAnalyticsChart(wrapperContainerId, passFailDataFromAttr) {
+      const wrapperContainer = document.getElementById(wrapperContainerId);
+      if (!wrapperContainer) return;
+
+      const chartCardContentId = 'analytics-chart-card-content';
+      const chartDivId = 'analytics-pie-chart-div';
+      const chartSummaryTextId = 'analytics-summary-text';
+
+      // Ambil dan parse data chart dari attribute HTML
+      const intentSampleTextData = JSON.parse(wrapperContainer.getAttribute("data-intent-sample-chart-data"));
+
+      // Total untuk display text
+      const totalIntent = intentSampleTextData.find(d => d.name === "Total Topic")?.value || 0;
+      const totalSampleText = intentSampleTextData.find(d => d.name === "Total Question")?.value || 0;
+      const totalPassFail = passFailDataFromAttr.reduce((sum, d) => sum + (d.value || 0), 0);
+
+
+      // const staticTotalIntent = 23;
+      // const staticTotalSampleText = 32;
+      // Jumlah pass dan failed
+      const staticTotalPassFail = (passFailDataFromAttr.find(d => d.name === "Pass")?.value || 0) + (passFailDataFromAttr.find(d => d.name === "Failed")?.value || 0);
+
+      // const intentSampleTextData = [
+      //   { name: 'Total Intent', value: staticTotalIntent, color: tailwind.config.theme.extend.colors['brand-info'] },
+      //   { name: 'Total Sample Text', value: staticTotalSampleText, color: tailwind.config.theme.extend.colors['brand-teal'] }
+      // ];
+
+      wrapperContainer.innerHTML = `
+        <div id="${chartCardContentId}" class="bg-primary-themed p-6 rounded-3xl shadow-xl h-full flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold text-content-primary-themed">Analytics</h2>
+                <button id="download-analytics-chart" 
+                        class="p-2 rounded-md text-content-tertiary-themed hover:text-brand-primary hover:bg-secondary-themed transition-colors" 
+                        aria-label="Download analytics chart">
+                    ${DownloadIcon('w-6 h-6')}
+                </button>
+            </div>
+           <div class="flex-grow flex flex-col items-center justify-center mt-2">
+            <div class="flex-grow flex flex-col items-center justify-center mt-2">
+            <div id="${chartDivId}" style="position: relative; width: 190px; height: 190px;"></div>
+            <div id="${chartSummaryTextId}" class="mt-4 space-y-3 w-[220px]">
+              <div class="flex items-center space-x-2">
+                <span class="legend-box bg-blue-500"></span>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Topic: <b>2</b></div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="legend-box bg-teal-500"></span>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Question: <b>2</b></div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="legend-box bg-green-600"></span>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Pass: <b>2</b></div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="legend-box bg-red-600"></span>
+                <div class="text-base text-content-secondary-themed text-left w-full">Total Failed: <b>0</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const chartActualContainer = document.getElementById(chartDivId);
+      if (!chartActualContainer) return;
+
+      const root = ReactDOM.createRoot(chartActualContainer);
+      const chartColors = getChartColors();
+
+      // Custom label renderer with percentage
+      const renderPercentageLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+        const RADIAN = Math.PI / 180;
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+        // Only show label if percentage is > 3%
+        if (percent < 0.03) return null;
+
+        return React.createElement('text', {
+          x: x,
+          y: y,
+          fill: 'white',
+          textAnchor: x > cx ? 'start' : 'end',
+          dominantBaseline: 'central',
+          style: { fontSize: '11px', fontWeight: 'bold', textShadow: '0 0 3px rgba(0,0,0,0.9)' }
+        }, `${(percent * 100).toFixed(0)}%`);
+      };
+
+      const pieChartElement = React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
+        React.createElement(PieChart, null,
+          React.createElement(Pie, {
+            data: passFailDataFromAttr, cx: "50%", cy: "50%",
+            innerRadius: 40, outerRadius: 60,
+            paddingAngle: passFailDataFromAttr.some(d => d.value > 0) ? (passFailDataFromAttr.filter(d => d.value > 0).length > 1 ? 5 : 0) : 0,
+            dataKey: "value",
+            label: renderPercentageLabel,
+            labelLine: false,
+          },
+            passFailDataFromAttr.map((entry, index) => React.createElement(Cell, { key: `cell-passfail-${index}`, fill: entry.color, stroke: 'none', style: { outline: 'none' } }))
+          ),
+          React.createElement(Pie, {
+            data: intentSampleTextData, cx: "50%", cy: "50%",
+            innerRadius: 65, outerRadius: 85,
+            paddingAngle: intentSampleTextData.some(d => d.value > 0) ? (intentSampleTextData.filter(d => d.value > 0).length > 1 ? 5 : 0) : 0,
+            dataKey: "value",
+            label: renderPercentageLabel,
+            labelLine: false,
+            isAnimationActive: true
+          },
+            intentSampleTextData.map((entry, index) => React.createElement(Cell, { key: `cell-intentsample-${index}`, fill: entry.color, stroke: 'none', style: { outline: 'none' } }))
+          ),
+          React.createElement(Tooltip, {
+            contentStyle: { backgroundColor: chartColors.tooltipBg, borderRadius: '0.5rem', borderColor: chartColors.tooltipBorder, boxShadow: tailwind.config.theme.extend.boxShadow.lg },
+            labelStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--content-primary').trim(), fontWeight: '600' },
+            itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--content-secondary').trim() }
+          })
+        )
+      );
+      root.render(pieChartElement);
+
+      document.getElementById('download-analytics-chart')?.addEventListener('click', () => downloadChartAsImage(chartCardContentId, 'analytics-chart.png'));
+    }
+
+    // --- UTILITY FUNCTIONS ---
+    function downloadChartAsImage(elementId, filename) {
+      const chartElement = document.getElementById(elementId);
+      if (chartElement) {
+        const elementsWithShadows = chartElement.querySelectorAll('.shadow-xl, .shadow-lg');
+        elementsWithShadows.forEach(el => el.classList.add('shadow-none-temp'));
+        const currentBgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim();
+
+        html2canvas(chartElement, {
+          useCORS: true,
+          logging: false,
+          backgroundColor: currentBgColor,
+          scale: 2
+        }).then(canvas => {
+          const image = canvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          link.href = image;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          elementsWithShadows.forEach(el => el.classList.remove('shadow-none-temp'));
+        }).catch(err => {
+          console.error('Error downloading chart:', err);
+          elementsWithShadows.forEach(el => el.classList.remove('shadow-none-temp'));
+        });
+      } else {
+        console.error('Chart element not found for download:', elementId);
+      }
+    }
+
+    function downloadCSV(data, filename) {
+      if (!data || data.length === 0) {
+        console.warn("No data to download.");
+        return;
+      }
+      const explicitHeaders = ['title', 'question', 'expected', 'actual', 'imageSrc', 'skor', 'explanation', 'status', 'duration'];
+
+      const csvRows = [
+        explicitHeaders.join(','),
+        ...data.map(row =>
+          explicitHeaders.map(header => {
+            let cell = row[header] === undefined || row[header] === null ? '' : String(row[header]);
+            if (typeof cell === 'string') {
+              if (cell.includes('"') || cell.includes(',') || cell.includes('\n')) {
+                cell = `"${cell.replace(/"/g, '""')}"`;
+              }
+            }
+            return cell;
+          }).join(',')
+        )
+      ];
+      const csvString = csvRows.join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+
+    function downloadExcel(data, filename) {
+      if (!data || data.length === 0) {
+        console.warn("No data to download.");
+        alert("No data available to download!");
+        return;
+      }
+
+      console.log("Starting Excel download with", data.length, "rows");
+
+      try {
+        // Create HTML table for Excel with proper XML structure
+        const explicitHeaders = ['Title', 'Question', 'Expected', 'Actual', 'Image', 'Score', 'Explanation', 'Status', 'Duration'];
+        const dataKeys = ['title', 'question', 'expected', 'actual', 'imageSrc', 'skor', 'explanation', 'status', 'duration'];
+
+        // Build Excel XML format
+        let excelContent = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Worksheet ss:Name="Test Results">
+  <Table>
+   <Row>`;
+
+        // Add headers
+        explicitHeaders.forEach(header => {
+          excelContent += `<Cell><Data ss:Type="String">${header}</Data></Cell>`;
+        });
+        excelContent += `</Row>`;
+
+        // Add data rows
+        data.forEach(row => {
+          excelContent += '<Row>';
+          dataKeys.forEach(key => {
+            let cell = row[key] === undefined || row[key] === null ? '' : String(row[key]);
+            // Escape XML special characters
+            cell = cell.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&apos;');
+
+            // Determine data type
+            const isNumber = key === 'skor' && !isNaN(cell);
+            const dataType = isNumber ? 'Number' : 'String';
+
+            excelContent += `<Cell><Data ss:Type="${dataType}">${cell}</Data></Cell>`;
+          });
+          excelContent += '</Row>';
+        });
+
+        excelContent += `</Table>
+ </Worksheet>
+</Workbook>`;
+
+        // Create blob and download
+        const blob = new Blob([excelContent], {
+          type: 'application/vnd.ms-excel;charset=utf-8;'
+        });
+
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+
+        console.log("Triggering download...");
+        link.click();
+
+        // Cleanup
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          console.log("Excel download completed");
+        }, 100);
+
+      } catch (error) {
+        console.error("Error creating Excel file:", error);
+        alert("Failed to create Excel file: " + error.message);
+      }
+    }
+
+    // Export to PDF function
+    async function exportToPDF() {
+      try {
+        const dashboardContainer = document.getElementById('dashboard-container');
+        if (!dashboardContainer) {
+          alert('Dashboard not found!');
+          return;
+        }
+
+        // Show loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'pdf-loading';
+        loadingDiv.innerHTML = `
+          <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+            <div style="background: white; padding: 2rem; border-radius: 1rem; text-align: center;">
+              <p style="font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem;">Generating PDF...</p>
+              <p style="color: #6B7280;">This may take a few seconds</p>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(loadingDiv);
+
+        // Capture the dashboard
+        const canvas = await html2canvas(dashboardContainer, {
+          useCORS: true,
+          logging: false,
+          scale: 2,
+          backgroundColor: '#E5E7EB'
+        });
+
+        // Create PDF (simple approach using canvas as image)
+        const imgData = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        const timestamp = new Date().toISOString().split('T')[0];
+        link.href = imgData;
+        link.download = `test-report-${timestamp}.png`;
+
+        // For actual PDF, we'd need jsPDF library
+        // Since we're using CDN approach, let's create a simple image download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Remove loading
+        document.body.removeChild(loadingDiv);
+
+        alert('Report exported successfully as PNG image!\n\nNote: For PDF export, jsPDF library would be needed.');
+      } catch (error) {
+        console.error('Error exporting to PDF:', error);
+        alert('Failed to export report: ' + error.message);
+        const loading = document.getElementById('pdf-loading');
+        if (loading) document.body.removeChild(loading);
+      }
+    }
+
+    window.exportToPDF = exportToPDF;
+
+    // Global handlers for onclick (must be in window scope)
+    window.handleDownloadCSV = function () {
+      console.log('CSV button clicked, data length:', masterTableData.length);
+      downloadCSV(masterTableData, `all_dashboard_data.csv`);
+    };
+
+    window.handleDownloadExcel = function () {
+      console.log('Excel button clicked, data length:', masterTableData.length);
+      downloadExcel(masterTableData, `all_dashboard_data.xls`);
+    };
+
+    function setupDownloadButtons() {
+      // Setup download button event listeners AFTER icon injection
+      const intentCsvBtn = document.getElementById('download-intent-csv-button');
+
+      if (intentCsvBtn) {
+        intentCsvBtn.addEventListener('click', () => {
+          if (dtIntentFilter) {
+            const dataToDownload = masterTableData.filter(row => row.title === dtIntentFilter);
+            downloadCSV(dataToDownload, `intent_data_${dtIntentFilter.replace(/\s+/g, '_')}.csv`);
+          }
+        });
+      }
+    }
+
+    function injectIcons() {
+      const iconMappings = {
+        'manual-refresh-button': RefreshIcon('w-5 h-5'),
+        'settings-icon-container': CogIcon('w-6 h-6'),
+        'trend-chart-select-icon': ChevronDownIcon('w-4 h-4 text-content-tertiary-themed'),
+        'download-trend-chart': DownloadIcon('w-6 h-6'),
+        'search-data-icon': SearchIcon('w-5 h-5 text-content-tertiary-themed'),
+        'clear-search-data-btn': XCircleIcon('w-5 h-5'),
+        'filter-status-icon': ChevronDownIcon('w-5 h-5 text-content-tertiary-themed'),
+        'filter-intent-icon': ChevronDownIcon('w-5 h-5 text-content-tertiary-themed'),
+        'download-intent-csv-button': DownloadIcon('w-5 h-5'),
+        'download-all-data-csv': DownloadIcon('w-5 h-5'),
+        'download-all-data-excel': DownloadIcon('w-5 h-5'),
+        'rows-per-page-icon': ChevronDownIcon('w-4 h-4 text-content-tertiary-themed'),
+      };
+
+      // Inject copy icons specifically
+      document.querySelectorAll('.copy-button').forEach(button => {
+        button.innerHTML = ClipboardIcon('w-4 h-4');
+      });
+
+      for (const id in iconMappings) {
+        const container = document.getElementById(id);
+        if (container) {
+          if (id === 'download-all-data-csv') {
+            const textSpan = container.querySelector('span');
+            container.innerHTML = iconMappings[id] + ' ' + (textSpan ? textSpan.outerHTML : '<span>Download CSV</span>');
+          } else if (id === 'download-all-data-excel') {
+            const textSpan = container.querySelector('span');
+            container.innerHTML = iconMappings[id] + ' ' + (textSpan ? textSpan.outerHTML : '<span>Download Excel</span>');
+          } else if (id === 'download-analytics-chart') {
+            // Dynamic content
+          } else {
+            container.innerHTML = iconMappings[id];
+          }
+        }
+      }
+    }
+
+    // Quick filter status function
+    window.quickFilterStatus = function (status) {
+      // Update filter dropdown
+      const filterSelect = document.getElementById('filter-status');
+      if (filterSelect) {
+        filterSelect.value = status === 'all' ? '' : status;
+      }
+
+      // Update button states
+      document.getElementById('quick-filter-all')?.classList.remove('bg-brand-primary', 'text-white');
+      document.getElementById('quick-filter-all')?.classList.add('bg-gray-200', 'text-gray-700');
+      document.getElementById('quick-filter-pass')?.classList.remove('bg-brand-primary', 'text-white');
+      document.getElementById('quick-filter-pass')?.classList.add('bg-gray-200', 'text-gray-700');
+      document.getElementById('quick-filter-failed')?.classList.remove('bg-brand-primary', 'text-white');
+      document.getElementById('quick-filter-failed')?.classList.add('bg-gray-200', 'text-gray-700');
+
+      const activeButton = document.getElementById(`quick-filter-${status}`);
+      if (activeButton) {
+        activeButton.classList.remove('bg-gray-200', 'text-gray-700');
+        activeButton.classList.add('bg-brand-primary', 'text-white');
+      }
+
+      // Apply filter
+      dtStatusFilter = status === 'all' ? '' : status;
+      dtCurrentPage = 1;
+      applyDataTableFiltersAndPagination();
+    };
+
+    // Render Duration Breakdown
+    function renderDurationBreakdown() {
+      const container = document.getElementById('duration-breakdown-content');
+      if (!container || masterTableData.length === 0) return;
+
+      // Group by title and calculate average duration
+      const durationByTopic = {};
+      masterTableData.forEach(row => {
+        const topic = row.title || 'Unknown';
+        const durationSeconds = parseDurationToSeconds(row.duration);
+
+        if (!durationByTopic[topic]) {
+          durationByTopic[topic] = {
+            topic: topic,
+            totalDuration: 0,
+            count: 0
+          };
+        }
+
+        durationByTopic[topic].totalDuration += durationSeconds;
+        durationByTopic[topic].count += 1;
+      });
+
+      // Calculate average and sort
+      const topicsArray = Object.values(durationByTopic).map(item => ({
+        topic: item.topic,
+        avgDuration: item.totalDuration / item.count,
+        count: item.count,
+        totalDuration: item.totalDuration
+      })).sort((a, b) => b.avgDuration - a.avgDuration).slice(0, 5);
+
+      if (topicsArray.length === 0) {
+        container.innerHTML = '<p class="text-center text-content-tertiary-themed py-8">No duration data available</p>';
+        return;
+      }
+
+      const maxDuration = Math.max(...topicsArray.map(t => t.avgDuration));
+
+      // Format duration
+      const formatDuration = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      };
+
+      // Render bars
+      const html = topicsArray.map((item, index) => {
+        const percentage = (item.avgDuration / maxDuration) * 100;
+        const color = index === 0 ? 'bg-red-500' : index === 1 ? 'bg-orange-500' : index === 2 ? 'bg-yellow-500' : 'bg-blue-500';
+
+        return `
+          <div class="space-y-1">
+            <div class="flex justify-between items-center text-sm">
+              <span class="font-medium text-content-primary-themed truncate max-w-[60%]" title="${escapeHtml(item.topic)}">${escapeHtml(item.topic)}</span>
+              <span class="text-content-secondary-themed">${formatDuration(item.avgDuration)} avg <span class="text-xs text-content-tertiary-themed">(${item.count} tests)</span></span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+              <div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = html;
+    }
+
+    // URL State Management for Shareable Links
+    function updateURLWithFilters() {
+      const params = new URLSearchParams();
+
+      if (dtSearchTerm) params.set('search', dtSearchTerm);
+      if (dtStatusFilter) params.set('status', dtStatusFilter);
+      if (dtIntentFilter) params.set('topic', dtIntentFilter);
+      if (dtCurrentPage > 1) params.set('page', dtCurrentPage);
+      if (dtRowsPerPage !== 10) params.set('rows', dtRowsPerPage);
+
+      const newURL = params.toString() ? `?${params.toString()}` : window.location.pathname;
+      window.history.replaceState({}, '', newURL);
+    }
+
+    function restoreStateFromURL() {
+      const params = new URLSearchParams(window.location.search);
+
+      dtSearchTerm = params.get('search') || '';
+      dtStatusFilter = params.get('status') || '';
+      dtIntentFilter = params.get('topic') || '';
+      dtCurrentPage = parseInt(params.get('page')) || 1;
+      dtRowsPerPage = parseInt(params.get('rows')) || 10;
+
+      // Update UI elements
+      const searchInput = document.getElementById('search-data');
+      if (searchInput && dtSearchTerm) searchInput.value = dtSearchTerm;
+
+      const statusSelect = document.getElementById('filter-status');
+      if (statusSelect && dtStatusFilter) statusSelect.value = dtStatusFilter;
+
+      const topicSelect = document.getElementById('filter-intent');
+      if (topicSelect && dtIntentFilter) topicSelect.value = dtIntentFilter;
+
+      const rowsSelect = document.getElementById('rows-per-page');
+      if (rowsSelect && dtRowsPerPage !== 10) rowsSelect.value = dtRowsPerPage;
+
+      // Update quick filter buttons
+      if (dtStatusFilter) {
+        window.quickFilterStatus(dtStatusFilter);
+      }
+    }
+
+    function copyShareableLink() {
+      updateURLWithFilters();
+      const url = window.location.href;
+
+      navigator.clipboard.writeText(url).then(() => {
+        alert('✅ Shareable link copied to clipboard!\n\nYou can share this link with your team.');
+      }).catch(err => {
+        console.error('Failed to copy link:', err);
+        prompt('Copy this link:', url);
+      });
+    }
+
+    window.copyShareableLink = copyShareableLink;
+
+    // Calculate and update pass rate
+    function calculatePassRate() {
+      const passRateCard = document.getElementById('pass-rate-card');
+      if (!passRateCard) return;
+
+      const totalTests = masterTableData.length;
+      if (totalTests === 0) return;
+
+      const passedTests = masterTableData.filter(row => row.status === 'pass').length;
+      const passRate = (passedTests / totalTests * 100).toFixed(1);
+
+      // Update value
+      const passRateValue = document.getElementById('pass-rate-value');
+      const passRateIcon = document.getElementById('pass-rate-icon');
+      const passRateBar = document.getElementById('pass-rate-bar');
+
+      if (passRateValue) {
+        passRateValue.textContent = `${passRate}%`;
+
+        // Color based on threshold
+        if (parseFloat(passRate) >= 80) {
+          passRateValue.classList.add('text-green-600');
+          passRateValue.classList.remove('text-yellow-600', 'text-red-600');
+          if (passRateIcon) passRateIcon.classList.add('text-green-600');
+          if (passRateBar) passRateBar.style.backgroundColor = '#059669'; // green
+        } else if (parseFloat(passRate) >= 60) {
+          passRateValue.classList.add('text-yellow-600');
+          passRateValue.classList.remove('text-green-600', 'text-red-600');
+          if (passRateIcon) passRateIcon.classList.add('text-yellow-600');
+          if (passRateBar) passRateBar.style.backgroundColor = '#F59E0B'; // amber
+        } else {
+          passRateValue.classList.add('text-red-600');
+          passRateValue.classList.remove('text-green-600', 'text-yellow-600');
+          if (passRateIcon) passRateIcon.classList.add('text-red-600');
+          if (passRateBar) passRateBar.style.backgroundColor = '#DC2626'; // red
+        }
+      }
+    }
+
+    // --- MAIN DASHBOARD RENDERING LOGIC ---
+    function renderDashboard() {
+      // Theme initialization removed (light-only)
+      injectIcons();
+      setupDownloadButtons(); // Setup download buttons AFTER icon injection
+
+      // Restore state from URL parameters (for shareable links)
+      restoreStateFromURL();
+
+      loadMasterTableDataFromHTML();
+
+      // Trend topic rendering removed (light-only template)
+
+      const analyticsChartDataContainer = document.getElementById('analytics-chart-container');
+      let passFailAnalyticsData = [];
+      if (analyticsChartDataContainer && analyticsChartDataContainer.dataset.chartData) {
+        try {
+          passFailAnalyticsData = JSON.parse(analyticsChartDataContainer.dataset.chartData);
+        } catch (e) {
+          console.error("Failed to parse pass/fail analytics chart data from HTML attribute:", e);
+          if (analyticsChartDataContainer) analyticsChartDataContainer.innerHTML = "<p class='text-content-tertiary-themed p-4 text-center'>Error loading analytics chart data.</p>";
+        }
+      }
+      renderAnalyticsChart('analytics-chart-container', passFailAnalyticsData);
+
+      populateIntentFilterOptions();
+      applyDataTableFiltersAndPagination();
+      setupDataResultTableEventListeners();
+
+      // Calculate pass rate after data is loaded
+      calculatePassRate();
+
+      // Render duration breakdown
+      renderDurationBreakdown();
+
+      // INITIALIZE ANALYTICS ENHANCEMENTS (All 6 Phases)
+      if (masterTableData && masterTableData.length > 0) {
+        const summaryData = {
+          id_test: 'dd1638ff',
+          tester_name: 'Cik testing',
+          date_test: 'Senin, 22 Desember 2025',
+          success: 2,
+          failed: 0,
+          duration: '00:00:29',
+          total_title: 2,
+          total_question: 2
+        };
+
+        // Initialize all analytics enhancements
+        initializeAnalyticsEnhancements(masterTableData, summaryData);
+
+        // Render enhanced analytics chart
+        renderEnhancedAnalyticsChart('pie');
+
+        console.log('✅ Analytics Dashboard Fully Enhanced!');
+      }
+
+      document.getElementById('manual-refresh-button')?.addEventListener('click', () => {
+        window.location.reload();
+      });
+      // Trend chart controls removed
+
+      document.getElementById('dashboard-container').addEventListener('click', (event) => {
+        const copyButton = event.target.closest('.copy-button[data-copy-text]');
+        if (copyButton) {
+          const textToCopy = copyButton.dataset.copyText;
+          if (textToCopy) {
+            navigator.clipboard.writeText(textToCopy)
+              .then(() => {
+                const originalIconHTML = ClipboardIcon('w-4 h-4'); // Keep original clipboard icon
+                copyButton.innerHTML = CheckIcon('w-4 h-4 text-green-500');
+                copyButton.disabled = true;
+                setTimeout(() => {
+                  copyButton.innerHTML = originalIconHTML;
+                  copyButton.disabled = false;
+                }, 2000);
+              })
+              .catch(err => console.error(`Failed to copy: `, err));
+          }
+        }
+      });
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        // Close modal with Escape
+        const modal = document.getElementById('imageModal');
+        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+          document.getElementById('closeModal')?.click();
+        }
+
+        // Navigate pages with arrow keys (when not in input/select/textarea)
+        if (!e.target.matches('input, select, textarea')) {
+          if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            document.getElementById('prev-page-btn')?.click();
+          }
+          if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            document.getElementById('next-page-btn')?.click();
+          }
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', renderDashboard);
+  </script>
+</body>
+
+</html>

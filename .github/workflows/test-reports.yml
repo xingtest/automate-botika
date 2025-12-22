@@ -15,7 +15,7 @@ jobs:
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: telegram
+      SELECTED_PLATFORM: instagram
       DEFAULT_FILENAME: testing.xlsx
       DEFAULT_TESTER_NAME: Cik telegram
       DEFAULT_GREETING: Haloo tele

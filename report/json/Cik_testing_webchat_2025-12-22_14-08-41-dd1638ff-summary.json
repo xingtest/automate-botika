@@ -1,0 +1,25 @@
+{
+  "id_test": "dd1638ff",
+  "tester_name": "Cik testing",
+  "ai_evaluation": "Playwright TypeScript (Gemini fallback)",
+  "url": "https://chat.botika.online/tpUyiey",
+  "page_name": "Ahmad Nur Brasta",
+  "browser_name": "Chrome (Headless)",
+  "date_test": "Senin, 22 Desember 2025",
+  "start_time_test": "14.08.41",
+  "total_title": 2,
+  "total_question": 2,
+  "success": 0,
+  "failed": 0,
+  "summary": {
+    "totalTests": 0,
+    "passed": 0,
+    "failed": 0,
+    "passRate": 0,
+    "failRate": 0,
+    "averageScore": 0,
+    "totalDuration": "1m 24s"
+  },
+  "results": [],
+  "timestamp": "2025-12-22T07:10:06.093Z"
+}

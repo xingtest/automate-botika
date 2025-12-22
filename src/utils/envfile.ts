@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { BotData, SummaryData } from '../types';
+import { BotData, SummaryData } from '../main';
 
 export class EnvFile {
   static writeJsonDataBot(data: BotData, reportFilename: string, idTest: string): void {

@@ -2,7 +2,7 @@ import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
 import { GeminiEvaluator } from '../utils/gemini-evaluator';
-import { TestData, BotData, SummaryData } from '../types';
+import { TestData, BotData, SummaryData } from '../main';
 
 export class DhaiPlatform {
   static async startChat(page: Page): Promise<void> {
