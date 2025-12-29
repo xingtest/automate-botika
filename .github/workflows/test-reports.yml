@@ -58,7 +58,7 @@ jobs:
     # =====================================================
     env:
       SELECTED_PLATFORM: dhai
-      DEFAULT_FILENAME: KB DHAI Test.xlsx
+      DEFAULT_FILENAME: KB DHAI SARA.xlsx
       DEFAULT_TESTER_NAME: Cik telegram
       DEFAULT_GREETING: Haloo
 
