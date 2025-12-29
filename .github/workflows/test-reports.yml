@@ -57,15 +57,15 @@ jobs:
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: dhai
+      SELECTED_PLATFORM: webchat
       DEFAULT_FILENAME: KB DHAI SARA.xlsx
-      DEFAULT_TESTER_NAME: Cik telegram
+      DEFAULT_TESTER_NAME: Cik gpt-4o-mini
       DEFAULT_GREETING: Haloo
 
       # -----------------------------
       # TARGET URL / ID / USERNAME
       # -----------------------------
-      WEBCHAT_URL: "https://chat.botika.online/tpUyiey"
+      WEBCHAT_URL: "https://chat.botika.online/y1B7oh2"
       DHAI_TARGET_URL: "https://client.botika.online/virtual-avatar-luna/?mode=wake-word"
       DHAI_WAKE_WORD: "halo luna"
       INSTAGRAM_USERNAME: "ahmadnurbrasta2.2"
