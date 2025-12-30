@@ -59,7 +59,7 @@ jobs:
     env:
       SELECTED_PLATFORM: webchat
       DEFAULT_FILENAME: KB DHAI SARA.xlsx
-      DEFAULT_TESTER_NAME: Cik llama-3.3-70b-versatile-groq
+      DEFAULT_TESTER_NAME: Cik llama-3.3-70b-versatile-groq2
       DEFAULT_GREETING: Haloo
 
       # -----------------------------
