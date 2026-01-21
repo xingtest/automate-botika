@@ -10,7 +10,7 @@ export interface EvaluationResult {
 
 export class GeminiEvaluator {
   private apiKey: string;
-  private baseUrl: string = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+  private baseUrl: string = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
   constructor() {
     this.apiKey = process.env.API_KEY_GEMINI || '';
@@ -38,12 +38,14 @@ export class GeminiEvaluator {
     }
 
     // Quick API key validation - if it's the default key, skip API call
-    if (this.apiKey === 'AIzaSyBr00LZZfAvgiBe4DFHGhRtGQIc4NPb4p0') {
-      console.log('⚠️ Using default/demo API key, skipping Gemini evaluation');
-      return this.simpleTextEvaluation(expectedAnswer, actualAnswer, 'Demo API key - Gemini evaluation disabled');
-    }
+    // Commented out to allow testing with specific API key
+    // if (this.apiKey === 'AIzaSyBr00LZZfAvgiBe4DFHGhRtGQIc4NPb4p0') {
+    //   console.log('⚠️ Using default/demo API key, skipping Gemini evaluation');
+    //   return this.simpleTextEvaluation(expectedAnswer, actualAnswer, 'Demo API key - Gemini evaluation disabled');
+    // }
 
     try {
+      console.log('🤖 Calling Gemini API for evaluation...');
       const prompt = this.createEvaluationPrompt(question, expectedAnswer, actualAnswer, title);
 
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
@@ -61,26 +63,29 @@ export class GeminiEvaluator {
             temperature: 0.1,
             topK: 1,
             topP: 1,
-            maxOutputTokens: 500,
+            maxOutputTokens: 2048,  // Increased from 1000 to prevent truncation
           }
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+        const errorData: any = await response.json();
+        console.error('❌ Gemini API Error:', response.status, JSON.stringify(errorData));
+        throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errorData.error?.message || 'Unknown error'}`);
       }
 
       const data: any = await response.json();
 
       if (data.candidates && data.candidates[0] && data.candidates[0].content) {
         const evaluationText = data.candidates[0].content.parts[0].text;
+        console.log('✅ Gemini evaluation successful');
         return this.parseEvaluationResult(evaluationText);
       } else {
         throw new Error('Invalid response format from Gemini API');
       }
 
     } catch (error) {
-      console.error('Error evaluating with Gemini:', error);
+      console.error('⚠️ Gemini evaluation failed, using fallback:', error instanceof Error ? error.message : error);
       // Use simple text evaluation as fallback when API fails
       return this.simpleTextEvaluation(
         expectedAnswer,
@@ -243,74 +248,52 @@ export class GeminiEvaluator {
     actualAnswer: string,
     title: string
   ): string {
-    return `Sebagai AI evaluator profesional untuk chatbot testing, evaluasi kualitas jawaban chatbot berikut:
+    return `Anda adalah QA Engineer Senior dan Linguist Specialist. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot dengan metodologi "Chain of Thought".
 
-TOPIK: ${title}
-PERTANYAAN LENGKAP: ${question}
-KONTEKS KB (sebagai referensi): ${expectedAnswer}
-JAWABAN LLM YANG DIBERIKAN: ${actualAnswer}
+KONTEKS PENGUJIAN:
+- Topik: ${title}
+- Pertanyaan User: "${question}"
+- Referensi Kebenaran (Knowledge Base): "${expectedAnswer}"
+- Jawaban Chatbot (Yang dievaluasi): "${actualAnswer}"
 
-KRITERIA EVALUASI UTAMA untuk 'Jawaban LLM yang Diberikan':
+INSTRUKSI EVALUASI:
+Lakukan analisa langkah demi langkah sebelum memberikan skor akhir. WAJIB JELASKAN SEMUA LANGKAH:
 
-1. KEBENARAN FAKTUAL (40%)
-   - Apakah informasi yang diberikan benar dan akurat sesuai konteks KB?
-   - Tidak ada informasi yang menyesatkan atau salah?
-   - Fakta dan data konsisten dengan konteks KB?
+LANGKAH 1: ANALISA KEBENARAN FAKTUAL (Bobot Tertinggi)
+- Bandingkan fakta di "Jawaban Chatbot" dengan "Referensi Kebenaran".
+- Apakah ada angka, nama, atau prosedur yang salah?
+- Jika Referensi Kebenaran bilang "A", tapi Chatbot bilang "B", ini FATAL.
+- PENTING: Sebutkan secara spesifik fakta mana yang benar/salah!
 
-2. RELEVANSI DENGAN PERTANYAAN LENGKAP (35%)
-   - Apakah jawaban LANGSUNG menjawab 'Pertanyaan Lengkap' yang diajukan?
-   - Tidak ada informasi yang tidak relevan atau menyimpang dari topik?
-   - Fokus pada apa yang ditanyakan dalam 'Pertanyaan Lengkap'?
+LANGKAH 2: ANALISA RELEVANSI & KONTEKS
+- Apakah Chatbot menjawab pertanyaan user secara langsung?
+- Apakah ada informasi berlebih (hallucination) yang tidak diminta dan berpotensi salah?
+- PENTING: Sebutkan apakah jawaban sudah menjawab inti pertanyaan!
 
-3. KEMAMPUAN MERANGKUM DARI KONTEKS KB (25%)
-   - Apakah jawaban berhasil merangkum informasi penting dari konteks KB?
-   - Informasi yang diberikan cukup lengkap untuk menjawab pertanyaan?
-   - Mencakup poin-poin utama dari konteks KB?
+LANGKAH 3: ANALISA GAYA BAHASA & EMPATI
+- Apakah bahasanya natural dan sopan?
+- Apakah formatnya mudah dibaca (tidak berantakan)?
 
-CATATAN PENTING:
-- Gunakan 'Konteks KB' sebagai REFERENSI utama untuk menilai kebenaran faktual
-- Jawaban LLM yang BAIK harus: akurat secara faktual, relevan dengan 'Pertanyaan Lengkap', dan berhasil merangkum dari konteks KB
-- Jawaban LLM boleh berbeda redaksi dari KB selama tetap BENAR dan RELEVAN
-- NADA BAHASA TIDAK MASALAH - bisa formal, santai, ramah, atau gaya apapun selama informasinya benar
-- Prioritaskan: (1) Kebenaran faktual, (2) Relevansi dengan pertanyaan, (3) Kemampuan merangkum
+ATURAN SCORING:
+- 1.00 (Sempurna): Faktual 100% benar, lengkap, relevan, bahasa bagus.
+- 0.70 - 0.99 (Pass): Faktual benar, mungkin ada kekurangan minor di gaya bahasa atau kelengkapan detail non-krusial.
+- 0.40 - 0.69 (Fail - Minor): Ada info yang kurang tepat tapi tidak fatal, atau bahasa sangat kaku/berulang.
+- 0.00 - 0.39 (Fail - Major): Halusinasi (mengarang fakta), salah total, atau tidak nyambung.
 
-OUTPUT FORMAT (JSON):
+FORMAT EXPLANATION YANG DIHARAPKAN:
+Gunakan format bullet point dengan detail JELAS per langkah:
+
+• Langkah 1 (Faktual): [Sebutkan fakta apa yang benar/salah/kurang]
+• Langkah 2 (Relevansi): [Apakah menjawab pertanyaan atau tidak]
+• Langkah 3 (Bahasa): [Komentar tentang gaya bahasa]
+• Simpulan: [Kesimpulan final]
+
+OUTPUT FINAL:
+Berikan output HANYA dalam format JSON valid tanpa markdown block:
 {
-  "score": [angka desimal 0.0-1.0, contoh: 0.85],
-  "explanation": "[penjelasan DESKRIPTIF dalam bahasa Indonesia, maksimal 200 karakter]"
-}
-
-FORMAT EXPLANATION yang BAIK:
-- Mulai dengan status: ✓ (sesuai), ⚠ (cukup sesuai), atau ✗ (tidak sesuai)
-- Gunakan bahasa NATURAL dan DESKRIPTIF, bukan list kata-kata
-- Jelaskan dengan SANTAI seperti menjelaskan ke teman
-- Sebutkan apa yang SUDAH BENAR dan apa yang MASIH KURANG dalam kalimat lengkap
-- Maksimal 200 karakter, fokus pada konteks keseluruhan
-
-CONTOH EXPLANATION YANG BAIK:
-- "✓ Jawaban sudah sangat baik, mencakup jam operasional dan lokasi dengan lengkap. Akan lebih sempurna jika ditambahkan info kontak."
-- "⚠ Jawaban sudah benar untuk bagian lokasi dan jam buka, tapi masih kurang lengkap. Perlu ditambahkan info telepon dan email."
-- "✗ Jawaban tidak menjawab pertanyaan tentang jam operasional. Hanya memberikan salam pembuka tanpa informasi yang diminta."
-
-HINDARI format seperti ini:
-- ❌ "Sudah ada: A, B, C. Kurang: D, E, F" (terlalu kaku, seperti list)
-- ❌ "Mencakup: X, Y, Z" (tidak natural)
-
-GUNAKAN format seperti ini:
-- ✅ "Jawaban sudah baik untuk bagian X dan Y, tapi perlu ditambahkan Z"
-- ✅ "Informasi tentang X sudah lengkap, namun belum menyebutkan Y"
-
-SCORING GUIDE:
-- 0.90-1.00: Sempurna - Faktual akurat, sangat relevan dengan pertanyaan, berhasil merangkum KB dengan lengkap
-- 0.70-0.89: Baik (PASS) - Benar secara faktual, relevan dengan pertanyaan, berhasil merangkum poin utama KB
-- 0.50-0.69: Cukup - Benar tapi kurang lengkap dalam merangkum KB atau sedikit kurang relevan
-- 0.30-0.49: Kurang - Relevansi atau akurasi faktual bermasalah, tidak merangkum KB dengan baik
-- 0.00-0.29: Buruk - Tidak relevan dengan pertanyaan atau informasi faktual salah
-
-PENTING:
-- Score ≥0.7 = PASS
-- Score <0.7 = FAILED
-- Pastikan output HANYA JSON valid tanpa teks tambahan`;
+  "score": [angka desimal 0.00 - 1.00],
+  "explanation": "[Status: ✓/⚠/✗] + Detail analisa menggunakan format bullet point di atas. Maksimal 500 karakter."
+}`;
   }
 
   private parseEvaluationResult(evaluationText: string): EvaluationResult {
@@ -321,44 +304,65 @@ PENTING:
       // Remove markdown code blocks if present
       cleanText = cleanText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
 
-      // Try to find JSON in the response
-      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanText = jsonMatch[0];
+      // Extract score using regex (more reliable than parsing full JSON with multiline strings)
+      const scoreMatch = cleanText.match(/"score"\s*:\s*([0-9.]+)/);
+      let score = scoreMatch ? parseFloat(scoreMatch[1]) : 0.75;
+
+      // Convert if score is in 0-100 range (old format)
+      if (score > 1.0) {
+        score = score / 100.0;
       }
 
-      const result = JSON.parse(cleanText);
+      // Ensure score is within valid range 0.0-1.0
+      score = Math.max(0.0, Math.min(1.0, parseFloat(score.toFixed(3))));
 
-      // Validate the result
-      if (typeof result.score === 'number' && typeof result.explanation === 'string') {
-        let score = result.score;
+      // Extract explanation - handle multiline strings  
+      // Strategy: Match from "explanation": " until the closing "}
+      let explanation = '';
+      console.log('📝 Parsing Gemini response...');
 
-        // Convert if score is in 0-100 range (old format)
-        if (score > 1.0) {
-          score = score / 100.0;
-        }
+      // Match everything between "explanation": " and the last "
+      const explMatch = cleanText.match(/"explanation"\s*:\s*"([\s\S]*?)"\s*}/);
 
-        // Ensure score is within valid range 0.0-1.0
-        score = Math.max(0.0, Math.min(1.0, parseFloat(score.toFixed(3))));
-
-        // Limit explanation length
-        let explanation = result.explanation.length > 200
-          ? result.explanation.substring(0, 197) + '...'
-          : result.explanation;
-
-        // Add prefix if not already present
-        if (!explanation.startsWith('AI:') && !explanation.startsWith('✓') && !explanation.startsWith('✗') && !explanation.startsWith('⚠')) {
-          explanation = `AI: ${explanation}`;
-        }
-
-        return {
-          score,
-          explanation,
-          success: true
-        };
+      if (explMatch) {
+        explanation = explMatch[1]
+          .replace(/\\n/g, ' ')           // Replace escaped newlines
+          .replace(/\n/g, ' ')            // Replace actual newlines
+          .replace(/\r/g, '')             // Remove carriage returns
+          .replace(/\t/g, ' ')            // Replace tabs
+          .replace(/\s+/g, ' ')           // Normalize multiple spaces
+          .trim();
       } else {
-        throw new Error('Invalid JSON structure');
+        // Fallback: try to extract any text after "explanation":
+        const fallbackMatch = cleanText.match(/"explanation"\s*:\s*"([^}]+)/s);
+        if (fallbackMatch) {
+          explanation = fallbackMatch[1]
+            .replace(/"/g, '')
+            .replace(/\n/g, ' ')
+            .replace(/\r/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .substring(0, 500);
+        } else {
+          explanation = 'Evaluasi berhasil namun format tidak standar';
+        }
       }
+
+      // Limit explanation length
+      explanation = explanation.length > 500
+        ? explanation.substring(0, 497) + '...'
+        : explanation;
+
+      // Add prefix if not already present
+      if (!explanation.startsWith('AI:') && !explanation.startsWith('✓') && !explanation.startsWith('✗') && !explanation.startsWith('⚠')) {
+        explanation = `AI: ${explanation}`;
+      }
+
+      return {
+        score,
+        explanation,
+        success: true
+      };
 
     } catch (error) {
       console.error('Error parsing Gemini evaluation result:', error);

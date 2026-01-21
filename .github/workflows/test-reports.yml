@@ -58,14 +58,14 @@ jobs:
     # =====================================================
     env:
       SELECTED_PLATFORM: webchat
-      DEFAULT_FILENAME: KB DHAI SARA.xlsx
-      DEFAULT_TESTER_NAME: Cik llama-3.3-70b-versatile-groq2
+      DEFAULT_FILENAME: testing.xlsx
+      DEFAULT_TESTER_NAME: Cik test
       DEFAULT_GREETING: Haloo
 
       # -----------------------------
       # TARGET URL / ID / USERNAME
       # -----------------------------
-      WEBCHAT_URL: "https://chat.botika.online/XJCJJVa"
+      WEBCHAT_URL: "https://chat.botika.online/tpUyiey"
       DHAI_TARGET_URL: "https://client.botika.online/virtual-avatar-luna/?mode=wake-word"
       DHAI_WAKE_WORD: "halo luna"
       INSTAGRAM_USERNAME: "ahmadnurbrasta2.2"
