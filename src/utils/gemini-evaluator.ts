@@ -8,14 +8,131 @@ export interface EvaluationResult {
   success: boolean;
 }
 
+/**
+ * ⚙️ KONFIGURASI EVALUASI - SEMUA SETTING DI SINI
+ * Modifikasi prompt dan threshold evaluasi cukup di bagian ini saja
+ */
+const EVAL_CONFIG = {
+  // 🔧 API Configuration
+  api: {
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    alternativeEndpoints: [
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+      'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent'
+    ],
+    generationConfig: {
+      temperature: 0.1,
+      topK: 1,
+      topP: 1,
+      maxOutputTokens: 2048
+    }
+  },
+
+  // 🎯 Threshold Skor Evaluasi (0.0 - 1.0)
+  thresholds: {
+    excellent: 0.90,  // Sempurna
+    good: 0.70,       // Baik (Pass)
+    fair: 0.60,       // Cukup
+    poor: 0.40,       // Kurang
+    bad: 0.20         // Buruk
+  },
+
+  // 📏 Kriteria Panjang Jawaban
+  answerLength: {
+    minimum: 20,      // Minimal karakter untuk jawaban valid
+    shortScore: 0.15  // Skor untuk jawaban terlalu pendek
+  },
+
+  // 🔍 Fuzzy Matching Weights (total harus = 1.0)
+  fuzzyWeights: {
+    fuzzyRatio: 0.3,      // Kesamaan keseluruhan
+    partialRatio: 0.3,    // Kesamaan sebagian
+    tokenSortRatio: 0.4   // Kesamaan token (urutan diabaikan)
+  },
+
+  // ⚖️ Bobot Scoring (total harus = 1.0)
+  scoreWeights: {
+    fuzzyMatch: 0.6,      // Bobot fuzzy matching
+    keywordCoverage: 0.4  // Bobot keyword coverage
+  },
+
+  // 📝 Template Prompt untuk Gemini AI
+  prompts: {
+    systemRole: 'Anda adalah QA Engineer Senior dan Linguist Specialist. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot dengan metodologi "Chain of Thought".',
+
+    contextTemplate: (title: string, question: string, expectedAnswer: string, actualAnswer: string) => `
+KONTEKS PENGUJIAN:
+- Topik: ${title}
+- Pertanyaan User: "${question}"
+- Referensi Kebenaran (Knowledge Base): "${expectedAnswer}"
+- Jawaban Chatbot (Yang dievaluasi): "${actualAnswer}"`,
+
+    instructions: `
+INSTRUKSI EVALUASI:
+Lakukan analisa langkah demi langkah sebelum memberikan skor akhir. WAJIB JELASKAN SEMUA LANGKAH:
+
+LANGKAH 1: ANALISA KEBENARAN FAKTUAL (Bobot Tertinggi)
+- Bandingkan fakta di "Jawaban Chatbot" dengan "Referensi Kebenaran".
+- Apakah ada angka, nama, atau prosedur yang salah?
+- Jika Referensi Kebenaran bilang "A", tapi Chatbot bilang "B", ini FATAL.
+- PENTING: Sebutkan secara spesifik fakta mana yang benar/salah!
+
+LANGKAH 2: ANALISA RELEVANSI & KONTEKS
+- Apakah Chatbot menjawab pertanyaan user secara langsung?
+- Apakah ada informasi berlebih (hallucination) yang tidak diminta dan berpotensi salah?
+- PENTING: Sebutkan apakah jawaban sudah menjawab inti pertanyaan!
+
+LANGKAH 3: ANALISA GAYA BAHASA & EMPATI
+- Apakah bahasanya natural dan sopan?
+- Apakah formatnya mudah dibaca (tidak berantakan)?
+
+ATURAN SCORING:
+- 1.00 (Sempurna): Faktual 100% benar, lengkap, relevan, bahasa bagus.
+- 0.70 - 0.99 (Pass): Faktual benar, mungkin ada kekurangan minor di gaya bahasa atau kelengkapan detail non-krusial.
+- 0.40 - 0.69 (Fail - Minor): Ada info yang kurang tepat tapi tidak fatal, atau bahasa sangat kaku/berulang.
+- 0.00 - 0.39 (Fail - Major): Halusinasi (mengarang fakta), salah total, atau tidak nyambung.`,
+
+    outputFormat: `
+FORMAT EXPLANATION YANG DIHARAPKAN:
+Gunakan format bullet point dengan detail JELAS per langkah:
+
+• Langkah 1 (Faktual): [Sebutkan fakta apa yang benar/salah/kurang]
+• Langkah 2 (Relevansi): [Apakah menjawab pertanyaan atau tidak]
+• Langkah 3 (Bahasa): [Komentar tentang gaya bahasa]
+• Simpulan: [Kesimpulan final]
+
+OUTPUT FINAL:
+Berikan output HANYA dalam format JSON valid tanpa markdown block:
+{
+  "score": [angka desimal 0.00 - 1.00],
+  "explanation": "[Status: ✓/⚠/✗] + Detail analisa menggunakan format bullet point di atas. Maksimal 500 karakter."
+}`
+  },
+
+  // 💬 Pesan Error dan Fallback
+  messages: {
+    noResponse: '✗ Tidak ada respons dari bot. Tidak dapat dievaluasi.',
+    tooShort: (length: number) => `✗ Jawaban terlalu singkat (${length} karakter). Tidak cukup informatif untuk menjawab pertanyaan.`,
+    apiKeyMissing: '⚠️ API_KEY_GEMINI tidak ditemukan di environment variables',
+    apiKeyInvalid: 'Gemini API key tidak valid atau tidak tersedia',
+    geminiDisabled: 'Gemini AI evaluation disabled in config',
+    evaluationSuccess: '✅ Gemini evaluation successful',
+    evaluationFailed: '⚠️ Gemini evaluation failed, using fallback:',
+    connectionFailed: '❌ All Gemini API endpoints failed',
+    parsingError: 'AI: Evaluasi berhasil namun format response tidak standar'
+  }
+};
+
 export class GeminiEvaluator {
   private apiKey: string;
-  private baseUrl: string = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  private baseUrl: string = EVAL_CONFIG.api.baseUrl;
 
   constructor() {
     this.apiKey = process.env.API_KEY_GEMINI || '';
     if (!this.apiKey) {
-      console.warn('⚠️ API_KEY_GEMINI tidak ditemukan di environment variables');
+      console.warn(EVAL_CONFIG.messages.apiKeyMissing);
     }
   }
 
@@ -30,11 +147,11 @@ export class GeminiEvaluator {
 
     if (!isEnabled) {
       // Use simple text matching when Gemini is disabled
-      return this.simpleTextEvaluation(expectedAnswer, actualAnswer, 'Gemini AI evaluation disabled in config');
+      return this.simpleTextEvaluation(expectedAnswer, actualAnswer, EVAL_CONFIG.messages.geminiDisabled);
     }
 
     if (!this.apiKey || this.apiKey.includes('<MASUKKAN')) {
-      return this.simpleTextEvaluation(expectedAnswer, actualAnswer, 'Gemini API key tidak valid atau tidak tersedia');
+      return this.simpleTextEvaluation(expectedAnswer, actualAnswer, EVAL_CONFIG.messages.apiKeyInvalid);
     }
 
     // Quick API key validation - if it's the default key, skip API call
@@ -59,12 +176,7 @@ export class GeminiEvaluator {
               text: prompt
             }]
           }],
-          generationConfig: {
-            temperature: 0.1,
-            topK: 1,
-            topP: 1,
-            maxOutputTokens: 2048,  // Increased from 1000 to prevent truncation
-          }
+          generationConfig: EVAL_CONFIG.api.generationConfig
         })
       });
 
@@ -78,14 +190,14 @@ export class GeminiEvaluator {
 
       if (data.candidates && data.candidates[0] && data.candidates[0].content) {
         const evaluationText = data.candidates[0].content.parts[0].text;
-        console.log('✅ Gemini evaluation successful');
+        console.log(EVAL_CONFIG.messages.evaluationSuccess);
         return this.parseEvaluationResult(evaluationText);
       } else {
         throw new Error('Invalid response format from Gemini API');
       }
 
     } catch (error) {
-      console.error('⚠️ Gemini evaluation failed, using fallback:', error instanceof Error ? error.message : error);
+      console.error(EVAL_CONFIG.messages.evaluationFailed, error instanceof Error ? error.message : error);
       // Use simple text evaluation as fallback when API fails
       return this.simpleTextEvaluation(
         expectedAnswer,
@@ -109,16 +221,16 @@ export class GeminiEvaluator {
       actualAnswer.includes('tidak ada pesan')) {
       return {
         score: 0.0,
-        explanation: `✗ Tidak ada respons dari bot. Tidak dapat dievaluasi.`,
+        explanation: EVAL_CONFIG.messages.noResponse,
         success: false
       };
     }
 
     // Check for very short or generic answers (likely not helpful)
-    if (actualAnswer.trim().length < 20) {
+    if (actualAnswer.trim().length < EVAL_CONFIG.answerLength.minimum) {
       return {
-        score: 0.15,
-        explanation: `✗ Jawaban terlalu singkat (${actualAnswer.trim().length} karakter). Tidak cukup informatif untuk menjawab pertanyaan.`,
+        score: EVAL_CONFIG.answerLength.shortScore,
+        explanation: EVAL_CONFIG.messages.tooShort(actualAnswer.trim().length),
         success: false
       };
     }
@@ -140,7 +252,9 @@ export class GeminiEvaluator {
     const tokenSortRatio = fuzz.token_sort_ratio(normalizedExpected, normalizedActual) / 100;
 
     // Weighted average of fuzzy scores
-    const fuzzyScore = (fuzzyRatio * 0.3) + (partialRatio * 0.3) + (tokenSortRatio * 0.4);
+    const fuzzyScore = (fuzzyRatio * EVAL_CONFIG.fuzzyWeights.fuzzyRatio) +
+      (partialRatio * EVAL_CONFIG.fuzzyWeights.partialRatio) +
+      (tokenSortRatio * EVAL_CONFIG.fuzzyWeights.tokenSortRatio);
 
     // 2. KEYWORD MATCHING (Content coverage)
     const expectedWords = normalizedExpected.split(' ').filter(w => w.length > 3);
@@ -170,16 +284,16 @@ export class GeminiEvaluator {
       : 0;
 
     // 3. COMBINED SCORE (Fuzzy + Keyword)
-    // Weight: 60% fuzzy matching, 40% keyword coverage
-    const combinedScore = (fuzzyScore * 0.6) + (keywordCoverage * 0.4);
+    const combinedScore = (fuzzyScore * EVAL_CONFIG.scoreWeights.fuzzyMatch) +
+      (keywordCoverage * EVAL_CONFIG.scoreWeights.keywordCoverage);
 
-    // 4. CONFIGURABLE THRESHOLDS
+    // 4. CONFIGURABLE THRESHOLDS (bisa di-override lewat env vars)
     const thresholds = {
-      excellent: parseFloat(process.env.EVAL_THRESHOLD_EXCELLENT || '0.90'),
-      good: parseFloat(process.env.EVAL_THRESHOLD_GOOD || '0.70'),
-      fair: parseFloat(process.env.EVAL_THRESHOLD_FAIR || '0.60'),
-      poor: parseFloat(process.env.EVAL_THRESHOLD_POOR || '0.40'),
-      bad: parseFloat(process.env.EVAL_THRESHOLD_BAD || '0.20'),
+      excellent: parseFloat(process.env.EVAL_THRESHOLD_EXCELLENT || String(EVAL_CONFIG.thresholds.excellent)),
+      good: parseFloat(process.env.EVAL_THRESHOLD_GOOD || String(EVAL_CONFIG.thresholds.good)),
+      fair: parseFloat(process.env.EVAL_THRESHOLD_FAIR || String(EVAL_CONFIG.thresholds.fair)),
+      poor: parseFloat(process.env.EVAL_THRESHOLD_POOR || String(EVAL_CONFIG.thresholds.poor)),
+      bad: parseFloat(process.env.EVAL_THRESHOLD_BAD || String(EVAL_CONFIG.thresholds.bad)),
     };
 
     // 5. GENERATE SCORE AND EXPLANATION
@@ -248,52 +362,10 @@ export class GeminiEvaluator {
     actualAnswer: string,
     title: string
   ): string {
-    return `Anda adalah QA Engineer Senior dan Linguist Specialist. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot dengan metodologi "Chain of Thought".
-
-KONTEKS PENGUJIAN:
-- Topik: ${title}
-- Pertanyaan User: "${question}"
-- Referensi Kebenaran (Knowledge Base): "${expectedAnswer}"
-- Jawaban Chatbot (Yang dievaluasi): "${actualAnswer}"
-
-INSTRUKSI EVALUASI:
-Lakukan analisa langkah demi langkah sebelum memberikan skor akhir. WAJIB JELASKAN SEMUA LANGKAH:
-
-LANGKAH 1: ANALISA KEBENARAN FAKTUAL (Bobot Tertinggi)
-- Bandingkan fakta di "Jawaban Chatbot" dengan "Referensi Kebenaran".
-- Apakah ada angka, nama, atau prosedur yang salah?
-- Jika Referensi Kebenaran bilang "A", tapi Chatbot bilang "B", ini FATAL.
-- PENTING: Sebutkan secara spesifik fakta mana yang benar/salah!
-
-LANGKAH 2: ANALISA RELEVANSI & KONTEKS
-- Apakah Chatbot menjawab pertanyaan user secara langsung?
-- Apakah ada informasi berlebih (hallucination) yang tidak diminta dan berpotensi salah?
-- PENTING: Sebutkan apakah jawaban sudah menjawab inti pertanyaan!
-
-LANGKAH 3: ANALISA GAYA BAHASA & EMPATI
-- Apakah bahasanya natural dan sopan?
-- Apakah formatnya mudah dibaca (tidak berantakan)?
-
-ATURAN SCORING:
-- 1.00 (Sempurna): Faktual 100% benar, lengkap, relevan, bahasa bagus.
-- 0.70 - 0.99 (Pass): Faktual benar, mungkin ada kekurangan minor di gaya bahasa atau kelengkapan detail non-krusial.
-- 0.40 - 0.69 (Fail - Minor): Ada info yang kurang tepat tapi tidak fatal, atau bahasa sangat kaku/berulang.
-- 0.00 - 0.39 (Fail - Major): Halusinasi (mengarang fakta), salah total, atau tidak nyambung.
-
-FORMAT EXPLANATION YANG DIHARAPKAN:
-Gunakan format bullet point dengan detail JELAS per langkah:
-
-• Langkah 1 (Faktual): [Sebutkan fakta apa yang benar/salah/kurang]
-• Langkah 2 (Relevansi): [Apakah menjawab pertanyaan atau tidak]
-• Langkah 3 (Bahasa): [Komentar tentang gaya bahasa]
-• Simpulan: [Kesimpulan final]
-
-OUTPUT FINAL:
-Berikan output HANYA dalam format JSON valid tanpa markdown block:
-{
-  "score": [angka desimal 0.00 - 1.00],
-  "explanation": "[Status: ✓/⚠/✗] + Detail analisa menggunakan format bullet point di atas. Maksimal 500 karakter."
-}`;
+    return `${EVAL_CONFIG.prompts.systemRole}
+${EVAL_CONFIG.prompts.contextTemplate(title, question, expectedAnswer, actualAnswer)}
+${EVAL_CONFIG.prompts.instructions}
+${EVAL_CONFIG.prompts.outputFormat}`;
   }
 
   private parseEvaluationResult(evaluationText: string): EvaluationResult {
@@ -379,7 +451,7 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
 
       return {
         score: Math.max(0.0, Math.min(1.0, parseFloat(score.toFixed(3)))),
-        explanation: 'AI: Evaluasi berhasil namun format response tidak standar',
+        explanation: EVAL_CONFIG.messages.parsingError,
         success: true
       };
     }
@@ -393,12 +465,7 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
     }
 
     // List of possible endpoints to try
-    const endpoints = [
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent',
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
-      'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent'
-    ];
+    const endpoints = EVAL_CONFIG.api.alternativeEndpoints;
 
     for (const endpoint of endpoints) {
       try {
@@ -416,8 +483,8 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
               }]
             }],
             generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 10,
+              ...EVAL_CONFIG.api.generationConfig,
+              maxOutputTokens: 10  // Override untuk test
             }
           })
         });
@@ -435,7 +502,7 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
       }
     }
 
-    console.log('❌ All Gemini API endpoints failed');
+    console.log(EVAL_CONFIG.messages.connectionFailed);
     return false;
   }
 }
