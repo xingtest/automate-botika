@@ -25,8 +25,7 @@ const EVAL_CONFIG = {
     generationConfig: {
       temperature: 0.1,
       topK: 1,
-      topP: 1,
-      maxOutputTokens: 2048
+      topP: 1
     }
   },
 
@@ -39,11 +38,6 @@ const EVAL_CONFIG = {
     bad: 0.20         // Buruk
   },
 
-  // 📏 Kriteria Panjang Jawaban
-  answerLength: {
-    minimum: 20,      // Minimal karakter untuk jawaban valid
-    shortScore: 0.15  // Skor untuk jawaban terlalu pendek
-  },
 
   // 🔍 Fuzzy Matching Weights (total harus = 1.0)
   fuzzyWeights: {
@@ -107,14 +101,13 @@ OUTPUT FINAL:
 Berikan output HANYA dalam format JSON valid tanpa markdown block:
 {
   "score": [angka desimal 0.00 - 1.00],
-  "explanation": "[Status: ✓/⚠/✗] + Detail analisa menggunakan format bullet point di atas. Maksimal 500 karakter."
+  "explanation": "[Status: ✓/⚠/✗] + Detail analisa menggunakan format bullet point di atas. Maksimal 100 kata."
 }`
   },
 
   // 💬 Pesan Error dan Fallback
   messages: {
     noResponse: '✗ Tidak ada respons dari bot. Tidak dapat dievaluasi.',
-    tooShort: (length: number) => `✗ Jawaban terlalu singkat (${length} karakter). Tidak cukup informatif untuk menjawab pertanyaan.`,
     apiKeyMissing: '⚠️ API_KEY_GEMINI tidak ditemukan di environment variables',
     apiKeyInvalid: 'Gemini API key tidak valid atau tidak tersedia',
     geminiDisabled: 'Gemini AI evaluation disabled in config',
@@ -226,14 +219,6 @@ export class GeminiEvaluator {
       };
     }
 
-    // Check for very short or generic answers (likely not helpful)
-    if (actualAnswer.trim().length < EVAL_CONFIG.answerLength.minimum) {
-      return {
-        score: EVAL_CONFIG.answerLength.shortScore,
-        explanation: EVAL_CONFIG.messages.tooShort(actualAnswer.trim().length),
-        success: false
-      };
-    }
 
     // Normalize texts for comparison
     const normalizeText = (text: string) => {
@@ -420,10 +405,11 @@ ${EVAL_CONFIG.prompts.outputFormat}`;
         }
       }
 
-      // Limit explanation length
-      explanation = explanation.length > 500
-        ? explanation.substring(0, 497) + '...'
-        : explanation;
+      // Limit explanation to 100 words
+      const words = explanation.split(/\s+/);
+      if (words.length > 100) {
+        explanation = words.slice(0, 100).join(' ') + '...';
+      }
 
       // Add prefix if not already present
       if (!explanation.startsWith('AI:') && !explanation.startsWith('✓') && !explanation.startsWith('✗') && !explanation.startsWith('⚠')) {
