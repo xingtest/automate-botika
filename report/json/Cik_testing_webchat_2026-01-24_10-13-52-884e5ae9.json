@@ -1,0 +1,26 @@
+[
+  {
+    "no": 1,
+    "title": "Apa itu asuransi jiwa",
+    "question": "Apa itu asuransi jiwa",
+    "response_kb": "HIDUP JOKOWI!!",
+    "response_llm": "Asuransi jiwa adalah jenis asuransi yang memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis. Jika pemegang polis berpulang, ahli waris akan menerima uang pertanggungan. Jika pemegang polis masih hidup dalam jangka waktu yang ditentukan, mereka bisa mendapatkan manfaat dalam bentuk nilai tunai. Jadi, asuransi jiwa membantu memenuhi kebutuhan sehari-hari keluarga yang ditinggalkan.",
+    "status": "FAILED",
+    "duration": "00:00:10",
+    "image_capture": "884e5ae9_pertanyaan_Apa_itu_asuransi_jiwa.png",
+    "skor": 0.1,
+    "explanation": "AI: • Langkah 1 (Faktual): ✗ Jawaban chatbot tidak sesuai Referensi Kebenaran (\\\"HIDUP JOKOWI!!\\\"). Chatbot mengarang fakta. • Langkah 2 (Relevansi): ✗ Informasi relevan pertanyaan user, namun halusinasi karena tidak bersumber dari referensi. • Langkah 3 (Bahasa): ✓ Bahasa natural, sopan, mudah dibaca. • Simpulan: Chatbot gagal total menggunakan referensi, menghasilkan halusinasi."
+  },
+  {
+    "no": 2,
+    "title": "Apa itu asuransi kesehatan",
+    "question": "Apa itu asuransi kesehatan",
+    "response_kb": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.",
+    "response_llm": "Asuransi kesehatan adalah jenis asuransi yang memberikan perlindungan finansial saat mengalami masalah kesehatan. Ini berguna untuk menanggung biaya rawat inap, operasi, atau perawatan lainnya di rumah sakit. Memiliki asuransi kesehatan sangat penting karena bisa melindungi aset atau keuangan saat harus mengeluarkan biaya pengobatan yang tidak sedikit.",
+    "status": "PASS",
+    "duration": "00:00:14",
+    "image_capture": "884e5ae9_pertanyaan_Apa_itu_asuransi_kesehatan.png",
+    "skor": 1,
+    "explanation": "AI: [Status: ✓] • Langkah 1 (Faktual): Definisi inti sesuai referensi. Informasi tambahan akurat dan relevan sebagai elaborasi. • Langkah 2 (Relevansi): Menjawab pertanyaan secara langsung, memberikan konteks yang memperkaya tanpa halusinasi. • Langkah 3 (Bahasa): Bahasa natural, sopan, dan format mudah dibaca. • Simpulan: Jawaban sempurna."
+  }
+]

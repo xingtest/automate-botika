@@ -101,7 +101,7 @@ OUTPUT FINAL:
 Berikan output HANYA dalam format JSON valid tanpa markdown block:
 {
   "score": [angka desimal 0.00 - 1.00],
-  "explanation": "[Status: ✓/⚠/✗] + Detail analisa menggunakan format bullet point di atas. Maksimal 100 kata."
+  "explanation": "[Status: ✓/⚠/✗] + Detail analisa menggunakan format bullet point di atas. Maksimal 50 kata."
 }`
   },
 

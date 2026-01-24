@@ -1,0 +1,26 @@
+[
+  {
+    "no": 1,
+    "title": "Apa itu asuransi jiwa",
+    "question": "Apa itu asuransi jiwa",
+    "response_kb": "HIDUP JOKOWI!!",
+    "response_llm": "Asuransi jiwa adalah jenis asuransi yang memberikan perlindungan finansial terhadap risiko kehidupan dan kematian pemegang polis. Jika pemegang polis berpulang, ahli waris akan menerima uang pertanggungan. Jika pemegang polis masih hidup dalam jangka waktu yang ditentukan, mereka bisa mendapatkan manfaat dalam bentuk nilai tunai. Jadi, asuransi jiwa membantu memenuhi kebutuhan sehari-hari keluarga yang ditinggalkan.",
+    "status": "FAILED",
+    "duration": "00:00:10",
+    "image_capture": "1bb663ee_pertanyaan_Apa_itu_asuransi_jiwa.png",
+    "skor": 0,
+    "explanation": "AI: • Langkah 1 (Faktual): ✗ Jawaban chatbot halusinasi total; referensi (\\\"HIDUP JOKOWI!!\\\") tidak berisi info asuransi jiwa. • Langkah 2 (Relevansi): ⚠ Menjawab pertanyaan, namun seluruh info adalah halusinasi dari referensi. • Langkah 3 (Bahasa): ✓ Bahasa natural, sopan, format mudah dibaca. • Simpulan: Kegagalan fatal karena mengabaikan referensi."
+  },
+  {
+    "no": 2,
+    "title": "Apa itu asuransi kesehatan",
+    "question": "Apa itu asuransi kesehatan",
+    "response_kb": "Asuransi kesehatan merupakan jenis asuransi yang memberikan perlindungan finansial ketika mengalami masalah kesehatan.",
+    "response_llm": "Asuransi kesehatan adalah jenis asuransi yang memberikan perlindungan finansial saat mengalami masalah kesehatan. Ini berguna untuk biaya rawat inap, operasi, atau perawatan lainnya di rumah sakit. Memiliki asuransi kesehatan penting karena bisa melindungi aset atau keuangan saat harus mengeluarkan biaya pengobatan yang tidak sedikit.",
+    "status": "PASS",
+    "duration": "00:00:13",
+    "image_capture": "1bb663ee_pertanyaan_Apa_itu_asuransi_kesehatan.png",
+    "skor": 1,
+    "explanation": "AI: • Langkah 1 (Faktual): ✓ Faktual 100% benar, sesuai referensi, dan elaborasi tambahan akurat. • Langkah 2 (Relevansi): ✓ Menjawab inti pertanyaan dan memberikan konteks relevan tanpa halusinasi. • Langkah 3 (Bahasa): ✓ Bahasa natural, sopan, dan mudah dibaca. • Simpulan: Jawaban sangat baik, akurat, relevan, dan mudah dipahami."
+  }
+]
