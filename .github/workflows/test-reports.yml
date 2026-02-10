@@ -1,4 +1,4 @@
-name: 101-200 DHAI Erva
+name: DHAI Erva Old 1-390
 
 on:
   push:
@@ -58,8 +58,8 @@ jobs:
     # =====================================================
     env:
       SELECTED_PLATFORM: dhai
-      DEFAULT_FILENAME: DHAI Erva 101-200.xlsx
-      DEFAULT_TESTER_NAME: Cik test Erva 101-200
+      DEFAULT_FILENAME: DHAI Erva Old 1-390.xlsx
+      DEFAULT_TESTER_NAME: Cik test Erva Old 1-390
       DEFAULT_GREETING: Haloo
 
       # -----------------------------
