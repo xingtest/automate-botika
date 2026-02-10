@@ -1,0 +1,25 @@
+{
+  "id_test": "af06ab13",
+  "tester_name": "Cik testing DHAI Erva 1-100",
+  "ai_evaluation": "Playwright TypeScript (Gemini fallback)",
+  "url": "https://client.botika.online/virtual-avatar-pln-icon/",
+  "page_name": "Virtual Avatar Erva",
+  "browser_name": "Chrome (Headless)",
+  "date_test": "Jumat, 6 Februari 2026",
+  "start_time_test": "14.54.27",
+  "total_title": 100,
+  "total_question": 100,
+  "success": 0,
+  "failed": 0,
+  "summary": {
+    "totalTests": 0,
+    "passed": 0,
+    "failed": 0,
+    "passRate": 0,
+    "failRate": 0,
+    "averageScore": 0,
+    "totalDuration": "24m 33s"
+  },
+  "results": [],
+  "timestamp": "2026-02-06T08:19:01.272Z"
+}

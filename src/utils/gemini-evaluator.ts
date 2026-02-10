@@ -78,9 +78,9 @@ LANGKAH 2: ANALISA RELEVANSI & KONTEKS
 - Apakah ada informasi berlebih (hallucination) yang tidak diminta dan berpotensi salah?
 - PENTING: Sebutkan apakah jawaban sudah menjawab inti pertanyaan!
 
-LANGKAH 3: ANALISA GAYA BAHASA & EMPATI
-- Apakah bahasanya natural dan sopan?
-- Apakah formatnya mudah dibaca (tidak berantakan)?
+// LANGKAH 3: ANALISA GAYA BAHASA & EMPATI
+// - Apakah bahasanya natural dan sopan?
+// - Apakah formatnya mudah dibaca (tidak berantakan)?
 
 ATURAN SCORING:
 - 1.00 (Sempurna): Faktual 100% benar, lengkap, relevan, bahasa bagus.
@@ -94,7 +94,7 @@ Gunakan format bullet point dengan detail JELAS per langkah:
 
 • Langkah 1 (Faktual): [Sebutkan fakta apa yang benar/salah/kurang]
 • Langkah 2 (Relevansi): [Apakah menjawab pertanyaan atau tidak]
-• Langkah 3 (Bahasa): [Komentar tentang gaya bahasa]
+// • Langkah 3 (Bahasa): [Komentar tentang gaya bahasa]
 • Simpulan: [Kesimpulan final]
 
 OUTPUT FINAL:
