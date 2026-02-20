@@ -8,7 +8,7 @@ import { TelegramPlatform } from './platforms/telegram';
 import { InstagramPlatform } from './platforms/instagram';
 import { FacebookPlatform } from './platforms/facebook';
 import { DhaiPlatform } from './platforms/dhai';
-// import { DhaiWakeupPlatform } from './platforms/dhai-wakeup'; // Temporarily commented
+
 import { log } from './utils/logger';
 import { TestTracker } from './utils/test-tracker';
 
@@ -258,26 +258,6 @@ async function main(): Promise<void> {
       await Modul.closeBrowser(browser);
 
     }
-    // Temporarily commented - dhai-wakeup file missing
-    // else if (platform === 'dhai-wakeup') {
-    //   const url = process.env.DHAI_WAKEUP_URL || process.env.DHAI_TARGET_URL;
-    //   if (!url) {
-    //     console.error("Error: DHAI_WAKEUP_URL atau DHAI_TARGET_URL tidak diatur untuk platform 'dhai-wakeup'.");
-    //     Modul.testDone('Test Failed!');
-    //     return;
-    //   }
-
-    //   const wakeWord = process.env.DHAI_WAKE_WORD || 'halo luna';
-    //   console.log(`URL Pengujian: ${url}`);
-    //   console.log(`Wake Word: "${wakeWord}"\n`);
-
-    //   // Show browser for DHAI Wake-up Word with optimized viewport (1280x720)
-    //   const headlessMode = false; // Set to true for headless, false to see browser
-    //   const dhaiViewport = { width: 1280, height: 720 }; // Optimized for DHAI avatar display
-    //   const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium', headlessMode, dhaiViewport);
-    //   await DhaiWakeupPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, wakeWord);
-    //   await Modul.closeBrowser(browser);
-    // } 
     else {
       console.error(`Error: Platform '${platform}' tidak didukung.`);
       Modul.testDone('Test Failed!');

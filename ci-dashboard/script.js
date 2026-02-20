@@ -292,7 +292,7 @@ const PresetManager = {
     getAll() { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); },
     save(name, color = '#6366f1') {
         const presets = this.getAll();
-        const preset = { id: Date.now(), name, color, platform: document.getElementById('platformSelect').value, filename: document.getElementById('filenameInput').value, testerName: document.getElementById('testerNameInput').value, greeting: document.getElementById('greetingInput').value, webchatUrl: document.getElementById('webchatUrlInput').value, telegramBot: document.getElementById('telegramBotInput').value, instagramUser: document.getElementById('instagramUrlInput').value, facebookId: document.getElementById('facebookUrlInput').value, dhaiUrl: document.getElementById('dhaiUrlInput').value, dhaiWakeWord: document.getElementById('dhaiWakeWordInput')?.value || '', createdAt: new Date().toISOString() };
+        const preset = { id: Date.now(), name, color, platform: document.getElementById('platformSelect').value, filename: document.getElementById('filenameInput').value, testerName: document.getElementById('testerNameInput').value, greeting: document.getElementById('greetingInput').value, webchatUrl: document.getElementById('webchatUrlInput').value, telegramBot: document.getElementById('telegramBotInput').value, instagramUser: document.getElementById('instagramUrlInput').value, facebookId: document.getElementById('facebookUrlInput').value, dhaiUrl: document.getElementById('dhaiUrlInput').value, createdAt: new Date().toISOString() };
         presets.push(preset); localStorage.setItem(this.KEY, JSON.stringify(presets));
         Toast.success('Saved', `"${name}" preset saved`); ActivityFeed.add('Preset Saved', `Saved "${name}" for ${preset.platform}`, 'config'); this.render();
     },
@@ -308,7 +308,7 @@ const PresetManager = {
         document.getElementById('instagramUrlInput').value = p.instagramUser || '';
         document.getElementById('facebookUrlInput').value = p.facebookId || '';
         document.getElementById('dhaiUrlInput').value = p.dhaiUrl || '';
-        if (document.getElementById('dhaiWakeWordInput')) document.getElementById('dhaiWakeWordInput').value = p.dhaiWakeWord || '';
+
         switchPlatformFields(p.platform); Toast.success('Loaded', `"${p.name}" applied`); Router.navigate('run-tests');
     },
     render() {
@@ -372,14 +372,14 @@ function setRunMode(m) { runMode = m; document.getElementById('modeSingleBtn').c
 function switchPlatformFields(p) { document.querySelectorAll('.platform-field').forEach(f => f.classList.remove('active')); document.getElementById(`field-${p}`)?.classList.add('active'); }
 function updateBatchPlatformFields() { document.querySelectorAll('.platform-field').forEach(f => f.classList.remove('active')); document.querySelectorAll('.platform-check input:checked').forEach(cb => { const field = document.getElementById(`field-${cb.value}`); if (field) field.classList.add('active'); }); }
 function clearFile(e) { if (e) e.stopPropagation(); uploadedFile = null; document.getElementById('fileUpload').value = ''; document.getElementById('fileDropText').innerHTML = 'Drag & drop or <strong>click to browse</strong>'; document.getElementById('fileDropZone').classList.remove('has-file'); document.getElementById('fileClearBtn').classList.add('hidden'); document.getElementById('filenameGroup').style.display = ''; document.getElementById('dataPreviewGroup')?.classList.add('hidden'); }
-function getFormData() { const p = document.getElementById('platformSelect').value; return { SELECTED_PLATFORM: p, FILENAME: uploadedFile ? uploadedFile.name : (document.getElementById('filenameInput').value + '.xlsx' || 'testing.xlsx'), TESTER_NAME: document.getElementById('testerNameInput').value || 'GitHub Actions Bot', GREETING: document.getElementById('greetingInput').value || 'Haloo', WEBCHAT_URL: document.getElementById('webchatUrlInput').value || 'https://chat.botika.online/tpUyiey', DHAI_TARGET_URL: document.getElementById('dhaiUrlInput').value || '', DHAI_WAKE_WORD: document.getElementById('dhaiWakeWordInput')?.value || 'halo luna', INSTAGRAM_USERNAME: document.getElementById('instagramUrlInput').value || '', FACEBOOK_FANPAGE_ID: document.getElementById('facebookUrlInput').value || '', TELEGRAM_BOT_USERNAME: document.getElementById('telegramBotInput').value || '' }; }
+function getFormData() { const p = document.getElementById('platformSelect').value; return { SELECTED_PLATFORM: p, FILENAME: uploadedFile ? uploadedFile.name : (document.getElementById('filenameInput').value + '.xlsx' || 'testing.xlsx'), TESTER_NAME: document.getElementById('testerNameInput').value || 'GitHub Actions Bot', GREETING: document.getElementById('greetingInput').value || 'Haloo', WEBCHAT_URL: document.getElementById('webchatUrlInput').value || 'https://chat.botika.online/tpUyiey', DHAI_TARGET_URL: document.getElementById('dhaiUrlInput').value || '', INSTAGRAM_USERNAME: document.getElementById('instagramUrlInput').value || '', FACEBOOK_FANPAGE_ID: document.getElementById('facebookUrlInput').value || '', TELEGRAM_BOT_USERNAME: document.getElementById('telegramBotInput').value || '' }; }
 function resetForm() {
     document.getElementById('platformSelect').value = 'webchat'; switchPlatformFields('webchat');
     document.getElementById('tokenInput').value = ''; document.getElementById('tokenInput').type = 'password';
     ['filenameInput', 'testerNameInput', 'greetingInput'].forEach((id, i) => { document.getElementById(id).value = ['testing', 'GitHub Actions Bot', 'Haloo'][i]; });
     document.getElementById('webchatUrlInput').value = 'https://chat.botika.online/tpUyiey';
     ['telegramBotInput', 'instagramUrlInput', 'facebookUrlInput', 'dhaiUrlInput'].forEach(id => { document.getElementById(id).value = ''; });
-    if (document.getElementById('dhaiWakeWordInput')) document.getElementById('dhaiWakeWordInput').value = '';
+
     document.getElementById('repeatCountInput').value = '1'; document.getElementById('runTagInput').value = '';
     clearFile(); TerminalLog.clear(); document.getElementById('outputSection').style.display = 'none'; setRunMode('single'); Toast.info('Reset', 'Form reset');
 }
