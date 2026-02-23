@@ -82,9 +82,9 @@ jobs:
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: dhai
-      DEFAULT_FILENAME: DHAI Erva 1-200 eng.xlsx
-      DEFAULT_TESTER_NAME: Cik test DHAI Erva 1-200 eng
+      SELECTED_PLATFORM: telegram
+      DEFAULT_FILENAME: testing.xlsx
+      DEFAULT_TESTER_NAME: Cik test telegram
       DEFAULT_GREETING: Haloo
 
       # -----------------------------
