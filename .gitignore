@@ -21,9 +21,9 @@ yarn-error.log*
 
 
 
-# Session Files (keep structure, ignore content)
-session/*.json
-!session/.gitkeep
+# # Session Files (keep structure, ignore content)
+# session/*.json
+# !session/.gitkeep
 
 # Debug Files
 debug_*.png
