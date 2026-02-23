@@ -15,7 +15,9 @@
     "test:dhai-wakeup": "npm run build && node dist/main.js dhai-wakeup && node dist/report-cli.js --open",
     "generate:telegram": "npx ts-node scripts/generate-telegram-session.ts",
     "report": "npm run build && node dist/report-cli.js --open",
-    "report:index": "python create_test_index.py && start report/html/index.html"
+    "report:index": "python create_test_index.py && start report/html/index.html",
+    "server": "node ci-dashboard/server/server.js",
+    "server:dev": "node --watch ci-dashboard/server/server.js"
   },
   "author": "okinr.testcase",
   "license": "ISC",
@@ -27,10 +29,15 @@
   "dependencies": {
     "@playwright/test": "^1.40.0",
     "@types/ejs": "^3.1.5",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
     "dotenv": "^16.3.1",
     "ejs": "^3.1.10",
+    "express": "^5.2.1",
     "fuzzball": "^2.1.2",
     "input": "^1.0.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.17.3",
     "playwright": "^1.40.0",
     "telegram": "^2.26.22",
     "uuid": "^9.0.1",

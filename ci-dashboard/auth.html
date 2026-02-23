@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication — Automation Command Center</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+        :root {
+            --auth-bg: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body.auth-page {
+            background: var(--auth-bg);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: var(--sp-4);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+        }
+
+        /* Abstract Background blobs */
+        .blob {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%);
+            filter: blur(80px);
+            border-radius: 50%;
+            z-index: -1;
+            opacity: 0.15;
+            animation: float 20s infinite alternate;
+        }
+
+        .blob-1 {
+            top: -100px;
+            left: -100px;
+        }
+
+        .blob-2 {
+            bottom: -100px;
+            right: -100px;
+            animation-delay: -5s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(50px, 50px) scale(1.1);
+            }
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 420px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-2xl);
+            padding: var(--sp-10);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: var(--sp-8);
+        }
+
+        .auth-logo {
+            width: 64px;
+            height: 64px;
+            background: var(--accent);
+            color: white;
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin: 0 auto var(--sp-4);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .auth-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: var(--sp-1);
+        }
+
+        .auth-subtitle {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .auth-tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px;
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--sp-8);
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: var(--radius-md);
+            transition: all 0.2s;
+        }
+
+        .auth-tab.active {
+            background: var(--glass-bg);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: var(--sp-5);
+        }
+
+        .input-icon-wrapper {
+            position: relative;
+        }
+
+        .input-icon-wrapper i {
+            position: absolute;
+            left: var(--sp-4);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+
+        .auth-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            padding: 12px 12px 12px 42px;
+            border-radius: var(--radius-lg);
+            color: white;
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+        }
+
+        .auth-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(0, 0, 0, 0.3);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .auth-input:focus+i {
+            color: var(--accent);
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: var(--radius-lg);
+            border: none;
+            background: var(--accent);
+            color: white;
+            font-weight: 600;
+            font-size: 0.9375rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--sp-2);
+            margin-top: var(--sp-6);
+        }
+
+        .auth-btn:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .auth-btn:active {
+            transform: translateY(0);
+        }
+
+        .auth-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .auth-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            padding: var(--sp-3);
+            border-radius: var(--radius-md);
+            font-size: 0.8125rem;
+            margin-bottom: var(--sp-6);
+            display: none;
+            align-items: center;
+            gap: var(--sp-2);
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: var(--sp-4);
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: var(--sp-8);
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+        }
+
+        .auth-footer a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="auth-page">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="auth-container">
+        <div class="auth-header">
+            <div class="auth-logo"><i class="fas fa-rocket"></i></div>
+            <h1 class="auth-title">Welcome back</h1>
+            <p class="auth-subtitle">Automation Command Center CI/CD</p>
+        </div>
+
+        <div class="auth-tabs">
+            <button class="auth-tab active" id="tab-login" onclick="toggleMode('login')">Login</button>
+            <button class="auth-tab" id="tab-register" onclick="toggleMode('register')">Register</button>
+        </div>
+
+        <div id="error-box" class="auth-error">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="error-message">Invalid credentials</span>
+        </div>
+
+        <form id="auth-form" onsubmit="handleSubmit(event)">
+            <!-- Shared Fields -->
+            <div class="form-group">
+                <div class="input-icon-wrapper">
+                    <input type="text" id="identifier" class="auth-input" placeholder="Username or email" required />
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+
+            <!-- Register Specific Fields -->
+            <div id="register-fields" class="hidden">
+                <div class="form-group">
+                    <div class="input-icon-wrapper">
+                        <input type="email" id="email" class="auth-input" placeholder="Email address" />
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="input-icon-wrapper">
+                        <input type="text" id="reg-username" class="auth-input" placeholder="Full name / Username" />
+                        <i class="fas fa-id-card"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="input-icon-wrapper">
+                    <input type="password" id="password" class="auth-input" placeholder="Password" required />
+                    <i class="fas fa-lock"></i>
+                    <i class="fas fa-eye toggle-password" onclick="togglePasswordVisibility()"></i>
+                </div>
+            </div>
+
+            <button type="submit" class="auth-btn" id="submit-btn">
+                <span id="btn-text">Sign In</span>
+                <div class="spinner" id="btn-spinner"></div>
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p id="footer-text">Don't have an account? <a href="#" onclick="toggleMode('register')">Sign up</a></p>
+        </div>
+    </div>
+
+    <script>
+        let mode = 'login';
+        // Use window.location.origin if it's a web protocol, otherwise fallback to localhost:3001
+        const origin = (window.location.protocol.startsWith('http'))
+            ? window.location.origin
+            : 'http://localhost:3001';
+        const API_BASE = origin + '/api/auth';
+
+        function toggleMode(newMode) {
+            mode = newMode;
+            const isLogin = mode === 'login';
+
+            // Update UI
+            document.getElementById('tab-login').classList.toggle('active', isLogin);
+            document.getElementById('tab-register').classList.toggle('active', !isLogin);
+            document.querySelector('.auth-title').textContent = isLogin ? 'Welcome back' : 'Create account';
+            document.getElementById('register-fields').classList.toggle('hidden', isLogin);
+            document.getElementById('identifier').classList.toggle('hidden', !isLogin);
+            document.getElementById('btn-text').textContent = isLogin ? 'Sign In' : 'Create Account';
+            document.getElementById('footer-text').innerHTML = isLogin
+                ? 'Don\'t have an account? <a href="#" onclick="toggleMode(\'register\')">Sign up</a>'
+                : 'Already have an account? <a href="#" onclick="toggleMode(\'login\')">Sign in</a>';
+
+            // Adjust requirements
+            document.getElementById('identifier').required = isLogin;
+            document.getElementById('email').required = !isLogin;
+            document.getElementById('reg-username').required = !isLogin;
+
+            // Clear error
+            hideError();
+        }
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('password');
+            const icon = document.querySelector('.toggle-password');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+
+        function showError(msg) {
+            const box = document.getElementById('error-box');
+            document.getElementById('error-message').textContent = msg;
+            box.style.display = 'flex';
+        }
+
+        function hideError() {
+            document.getElementById('error-box').style.display = 'none';
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            hideError();
+
+            const btn = document.getElementById('submit-btn');
+            const text = document.getElementById('btn-text');
+            const spinner = document.getElementById('btn-spinner');
+
+            btn.disabled = true;
+            text.style.display = 'none';
+            spinner.style.display = 'block';
+
+            const payload = mode === 'login'
+                ? { identifier: document.getElementById('identifier').value, password: document.getElementById('password').value }
+                : {
+                    username: document.getElementById('reg-username').value,
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value
+                };
+
+            const endpoint = mode === 'login' ? '/login' : '/register';
+
+            try {
+                const response = await fetch(API_BASE + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Authentication failed');
+                }
+
+                if (mode === 'login') {
+                    // Store token and redirect
+                    localStorage.setItem('acc_token', result.token);
+                    localStorage.setItem('acc_user', JSON.stringify(result.user));
+                    window.location.href = 'index.html';
+                } else {
+                    // Swich to login after successful registration
+                    alert('Registration successful! Please login.');
+                    toggleMode('login');
+                }
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                text.style.display = 'block';
+                spinner.style.display = 'none';
+            }
+        }
+
+        // Check if already logged in
+        if (localStorage.getItem('acc_token')) {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+
+</html>

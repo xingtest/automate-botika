@@ -375,36 +375,13 @@ body {
   display: none;
 }
 
-.theme-toggle {
-  width: 40px;
-  height: 22px;
-  border-radius: 11px;
-  background: var(--border-color);
-  cursor: pointer;
-  position: relative;
-  transition: all var(--transition-base);
-  border: 1px solid var(--border-color);
+/* Theme Toggle synced with script.js */
+#themeToggle i {
+  transition: transform var(--transition-base);
 }
 
-.theme-toggle::after {
-  content: '';
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--accent);
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  transition: all var(--transition-base);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="dark"] .theme-toggle::after {
-  left: 20px;
-}
-
-[data-theme="dark"] .theme-toggle {
-  background: var(--accent-glow);
+#themeToggle:hover i {
+  transform: rotate(15deg) scale(1.1);
 }
 
 .poll-indicator {
@@ -1868,18 +1845,23 @@ select.form-control {
 }
 
 /* ===== MODALS ===== */
+/* Modal Overlay v2.0 */
 .modal-overlay {
-  display: none;
   position: fixed;
   inset: 0;
   background: var(--bg-overlay);
-  z-index: 9000;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none;
   align-items: center;
   justify-content: center;
+  z-index: 9000;
+  padding: var(--sp-4);
+  animation: fadeIn 0.2s ease;
 }
 
 .modal-overlay.open {
-  display: flex;
+  display: flex !important;
 }
 
 .modal {
@@ -2269,3 +2251,82 @@ footer a {
 footer a:hover {
   text-decoration: underline;
 }
+
+/* ===== SETTINGS REDESIGN ===== */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--sp-6);
+  margin-top: var(--sp-2);
+}
+
+.settings-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-lg);
+  padding: var(--sp-10) var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
+  aspect-ratio: 1/1;
+  min-height: 180px;
+}
+
+.settings-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.settings-card i {
+  font-size: 2.5rem;
+  color: var(--text-primary);
+  margin-bottom: var(--sp-5);
+  transition: transform var(--transition-base);
+}
+
+.settings-card:hover i {
+  transform: scale(1.1);
+  color: var(--accent);
+}
+
+.settings-card-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.settings-view {
+  animation: fadeSlideIn 0.3s ease;
+}
+
+.settings-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: var(--sp-6);
+  transition: all var(--transition-fast);
+  padding: var(--sp-2) 0;
+}
+
+.settings-back-btn:hover {
+  opacity: 0.8;
+  transform: translateX(-4px);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* End of file */
