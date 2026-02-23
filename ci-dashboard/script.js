@@ -409,7 +409,40 @@ const GitHubAPI = {
     },
     async loadHistory() {
         const c = document.getElementById('historyContent'); if (!c) return;
-        c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-github" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--sp-4);"></i><p>GitHub Workflow History</p><p style="font-size:0.85rem;margin-top:var(--sp-2);">View your workflow runs directly on GitHub</p><a href="https://github.com/katanyaaman/automationtestingjudges/actions" target="_blank" class="btn btn-secondary" style="margin-top:var(--sp-4);"><i class="fas fa-external-link-alt"></i> Open on GitHub</a></div>';
+        c.innerHTML = '<div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card mb-2"></div>';
+
+        const runs = await this.getRuns(100);
+        const userId = AuthManager.user?.id || '0';
+        // Filter runs by [UID:id] tag in the name (which comes from github.event.inputs.RUN_NAME or run-name)
+        // Note: run.display_title or run.name might contain the RUN_NAME
+        const filteredRuns = runs.filter(run => {
+            const title = (run.display_title || run.name || '').toLowerCase();
+            return title.includes(`[uid:${userId}]`);
+        });
+
+        if (!filteredRuns.length) {
+            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-history" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>No test history for your account yet</p></div>';
+            return;
+        }
+
+        const pinned = JSON.parse(localStorage.getItem('acc_pinned') || '[]');
+        c.innerHTML = `<table class="runs-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>#</th>
+                    <th>Status</th>
+                    <th>Branch</th>
+                    <th>Event</th>
+                    <th>Ran</th>
+                    <th>Duration</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filteredRuns.map(r => this.renderRow(r, pinned)).join('')}
+            </tbody>
+        </table>`;
     },
     renderRow(run, pinned = []) {
         const st = run.conclusion || run.status;
@@ -470,7 +503,11 @@ const DashboardStats = {
             }
 
             // Fallback to GitHub API
-            const runs = await GitHubAPI.getRuns(30); if (!runs.length) { this.setEmpty(); return; }
+            const allRuns = await GitHubAPI.getRuns(50);
+            const userId = AuthManager.user?.id || '0';
+            const runs = allRuns.filter(r => (r.display_title || r.name || '').toLowerCase().includes(`[uid:${userId}]`));
+
+            if (!runs.length) { this.setEmpty(); return; }
             document.getElementById('statTotalRuns').textContent = runs.length;
             const done = runs.filter(r => r.conclusion), ok = done.filter(r => r.conclusion === 'success');
             const rate = done.length ? Math.round(ok.length / done.length * 100) : 0;
@@ -660,6 +697,9 @@ const ReportManager = {
         c.innerHTML = '<div style="padding:var(--sp-6);text-align:center;">Loading reports...</div>';
         try {
             this.allRuns = []; this.filteredRuns = [];
+            const userId = AuthManager.user?.id || '0';
+
+            // 1. Try Backend first
             if (BackendAPI.connected) {
                 const stats = await BackendAPI.get('/stats/dashboard');
                 if (stats && stats.recent_runs && stats.recent_runs.length > 0) {
@@ -669,13 +709,22 @@ const ReportManager = {
                     this.renderControls();
                     this.renderTable();
                     return;
-                } else {
-                    console.log('[DEBUG] No recent runs in backend');
-                    c.innerHTML = '<div class="text-center" style="padding:var(--sp-6);color:var(--text-muted);"><p><i class="fas fa-inbox" style="font-size:2rem;margin-bottom:var(--sp-2);"></i></p><p>No reports available</p><p style="font-size:0.85rem;">Run a test to generate a report</p></div>';
-                    return;
                 }
             }
-            c.innerHTML = '<div class="text-center" style="padding:var(--sp-6);color:var(--text-muted);"><p><i class="fas fa-plug" style="font-size:2rem;margin-bottom:var(--sp-2);opacity:0.3;"></i></p><p>Backend not connected</p><p style="font-size:0.85rem;">Please ensure the server is running</p></div>';
+
+            // 2. Fallback to GitHub API (Realtime)
+            console.log('[DEBUG] Falling back to GitHub API for reports');
+            const runs = await GitHubAPI.getRuns(100);
+            this.allRuns = runs.filter(r => (r.display_title || r.name || '').toLowerCase().includes(`[uid:${userId}]`));
+
+            if (this.allRuns.length > 0) {
+                this.filteredRuns = [...this.allRuns];
+                this.renderControls();
+                this.renderGitHubTable();
+                return;
+            }
+
+            c.innerHTML = '<div class="text-center" style="padding:var(--sp-6);color:var(--text-muted);"><p><i class="fas fa-inbox" style="font-size:2rem;margin-bottom:var(--sp-2);"></i></p><p>No reports available</p><p style="font-size:0.85rem;">Run a test to generate a report</p></div>';
         } catch (e) {
             console.error('[DEBUG] Error loading reports:', e);
             c.innerHTML = '<div style="padding:var(--sp-6);color:var(--error);"><strong>Error loading reports:</strong> ' + this.esc(e.message) + '</div>';
@@ -1046,7 +1095,7 @@ function getFormData() {
 
     return {
         USER_ID: String(AuthManager.user?.id || ''),
-        RUN_NAME: `${user}: ${runTitle}`,
+        RUN_NAME: `${user}: ${runTitle} [UID:${AuthManager.user?.id || '0'}]`,
         SELECTED_PLATFORM: p,
         FILENAME: uploadedFile ? uploadedFile.name : (document.getElementById('filenameInput').value + '.xlsx' || 'testing.xlsx'),
         TESTER_NAME: document.getElementById('testerNameInput').value || 'GitHub Actions Bot',
