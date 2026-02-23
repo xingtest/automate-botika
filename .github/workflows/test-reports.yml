@@ -182,6 +182,7 @@ jobs:
           echo "FILENAME=${FILENAME}" >> .env
           echo "TESTER_NAME=${TESTER}" >> .env
           echo "GREETING=\"${GREET}\"" >> .env
+          echo "RUN_NAME=\"${{ github.event.inputs.RUN_NAME }}\"" >> .env
           echo "API_KEY_GEMINI=${API_KEY_GEMINI}" >> .env
           echo "BACKEND_URL=\"${{ github.event.inputs.BACKEND_URL }}\"" >> .env
           echo "USER_ID=\"${{ github.event.inputs.USER_ID }}\"" >> .env

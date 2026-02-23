@@ -156,20 +156,29 @@ const BackendAPI = {
     renderRuns(runs) {
         const c = document.getElementById('dbResultsContent');
         const stMap = { success: 'Success', failure: 'Failed' };
-        c.innerHTML = `<table class="runs-table"><thead><tr><th>Test ID</th><th>Platform</th><th>Tester</th><th>Date</th><th>Score</th><th>Status</th><th>Duration</th></tr></thead><tbody>${runs.map(r => {
+        c.innerHTML = `<table class="runs-table"><thead><tr><th>Run Title</th><th>Platform</th><th>Tester</th><th>Date</th><th>Score</th><th>Status</th><th style="width:100px">Actions</th></tr></thead><tbody>${runs.map(r => {
             const status = r.failed > 0 ? 'failure' : 'success';
             const score = parseFloat(r.avg_score).toFixed(2);
+            const title = r.run_title || r.test_id || `${r.platform} Test`;
             return `<tr onclick="BackendAPI.showRunDetail(${r.id})" style="cursor:pointer">
-                <td><code style="font-size:0.75rem">${r.test_id}</code></td>
+                <td>
+                    <div style="font-weight:700;">${this.esc(title)}</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">${this.esc(r.test_id)}</div>
+                </td>
                 <td><span class="platform-tag ${r.platform}">${r.platform}</span></td>
-                <td style="font-size:0.8rem">${r.tester_name}</td>
+                <td style="font-size:0.8rem">${this.esc(r.tester_name)}</td>
                 <td style="font-size:0.8rem">${r.date_test}</td>
                 <td style="font-weight:700; color:var(--accent)">${score}</td>
                 <td><span class="status-pill ${status}">${status === 'success' ? '✅ PASS' : '❌ FAIL'}</span></td>
-                <td style="font-size:0.75rem; color:var(--text-muted)">${r.duration || '—'}</td>
+                <td>
+                    <div class="btn-group">
+                        <button onclick="event.stopPropagation();ReportManager.showDownloadMenu(event, ${r.id})" class="btn btn-secondary btn-sm" title="Download Artifacts"><i class="fas fa-download"></i></button>
+                    </div>
+                </td>
             </tr>`;
         }).join('')}</tbody></table>`;
     },
+    esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; },
     async showRunDetail(id) {
         Toast.info('Loading', `Fetching details for run #${id}`);
         console.log('[DEBUG] Fetching run details for id:', id);
@@ -496,8 +505,8 @@ const DashboardStats = {
             return `<div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) 0;border-bottom:1px solid var(--border-color); cursor:pointer" onclick="Router.navigate('db-results'); BackendAPI.showRunDetail(${r.id})">
                 <div style="width:8px;height:8px;border-radius:50%;background:var(--${status === 'success' ? 'success' : 'error'});flex-shrink:0;"></div>
                 <div style="flex:1;">
-                    <div style="font-size:0.85rem;font-weight:600;">${r.platform} Test</div>
-                    <div style="font-size:0.72rem;color:var(--text-muted);">${r.tester_name} • ${GitHubAPI.timeAgo(new Date(r.created_at))}</div>
+                    <div style="font-size:0.85rem;font-weight:600;">${this.esc(r.run_title || r.platform + ' Test')}</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);">${this.esc(r.tester_name)} • ${GitHubAPI.timeAgo(new Date(r.created_at))}</div>
                 </div>
                 <div style="font-size:0.8rem; font-weight:700; color:var(--accent)">${parseFloat(r.avg_score).toFixed(1)}</div>
             </div>`;
@@ -535,7 +544,8 @@ const DashboardStats = {
         const last7 = runs.slice(0, 7).reverse(); if (last7.length < 2) return;
         const pts = last7.map((r, i) => { const x = (i / (last7.length - 1)) * 100; const y = r.conclusion === 'success' ? 20 : 70; return `${x},${y}`; });
         c.innerHTML = `<svg viewBox="0 0 100 80" preserveAspectRatio="none"><polyline points="${pts.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    }
+    },
+    esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 };
 
 // ===== NOTIFICATION CENTER =====
@@ -762,7 +772,7 @@ const ReportManager = {
         const dateFrom = document.getElementById('reportDateFrom')?.value;
         const dateTo = document.getElementById('reportDateTo')?.value;
         this.filteredRuns = this.allRuns.filter(r => {
-            const matchesSearch = !searchVal || (r.tester_name?.toLowerCase().includes(searchVal)) || (r.test_id?.toLowerCase().includes(searchVal)) || (r.platform?.toLowerCase().includes(searchVal));
+            const matchesSearch = !searchVal || (r.tester_name?.toLowerCase().includes(searchVal)) || (r.test_id?.toLowerCase().includes(searchVal)) || (r.run_title?.toLowerCase().includes(searchVal)) || (r.platform?.toLowerCase().includes(searchVal));
             const runDate = new Date(r.created_at);
             const matchesFromDate = !dateFrom || runDate >= new Date(dateFrom + 'T00:00:00');
             const matchesToDate = !dateTo || runDate <= new Date(dateTo + 'T23:59:59');
@@ -784,7 +794,7 @@ const ReportManager = {
         const c = document.getElementById('reportContent');
         const pinned = JSON.parse(localStorage.getItem('acc_reports_pinned') || '[]');
         if (!this.filteredRuns.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-6);"><p>No reports match your filters</p></div>'; return; }
-        c.innerHTML = `<table class="runs-table" style="width:100%;"><thead><tr><th style="width:40px"></th><th>Run Title</th><th>Tester</th><th>Platform</th><th>Score</th><th>Status</th><th>Started</th><th>Duration</th><th style="width:100px">Actions</th></tr></thead><tbody>${this.filteredRuns.map(r => this.renderRow(r, pinned)).join('')}</tbody></table>`;
+        c.innerHTML = `<table class="runs-table" style="width:100%;"><thead><tr><th style="width:40px"></th><th>Run Title</th><th>Platform</th><th>Tester</th><th>Score</th><th>Status</th><th>Started</th><th style="width:120px">Actions</th></tr></thead><tbody>${this.filteredRuns.map(r => this.renderRow(r, pinned)).join('')}</tbody></table>`;
     },
 
     renderRow(run, pinned = []) {
@@ -793,8 +803,29 @@ const ReportManager = {
         const isPinned = pinned.includes(run.id);
         const startedTime = GitHubAPI.formatDateTime(run.created_at);
         const duration = run.duration || '—';
-        const title = run.test_id || `${run.platform} Test`;
-        return `<tr onclick="BackendAPI.showRunDetail(${run.id})" style="cursor:pointer;"><td><button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="event.stopPropagation();ReportManager.togglePin(${run.id})" title="Pin" style="border:none;background:none;cursor:pointer;color:var(--text-muted);"><i class="fas fa-thumbtack"></i></button></td><td><strong>${this.esc(title)}</strong></td><td style="font-size:0.8rem">${this.esc(run.tester_name)}</td><td><span class="platform-tag ${run.platform}">${run.platform}</span></td><td style="font-weight:700;color:var(--accent)">${score}</td><td><span class="status-pill ${status}" style="font-size:0.75rem;">${status === 'success' ? '✅ PASS' : '❌ FAIL'}</span></td><td style="font-size:0.75rem;color:var(--text-muted);">${startedTime}</td><td style="font-size:0.75rem;color:var(--text-muted);">${duration}</td><td style="position:relative;"><div class="btn-group" style="display:flex;gap:6px;"><button onclick="event.stopPropagation();BackendAPI.showRunDetail(${run.id})" class="btn btn-secondary btn-sm" title="View Details"><i class="fas fa-eye"></i></button><button onclick="event.stopPropagation();ReportManager.showDownloadMenu(event, ${run.id})" class="btn btn-secondary btn-sm" title="Download Artifacts"><i class="fas fa-download"></i></button></div></td></tr>`;
+        const title = run.run_title || run.test_id || `${run.platform} Test`;
+        const testId = run.test_id;
+
+        return `<tr onclick="BackendAPI.showRunDetail(${run.id})" style="cursor:pointer;">
+            <td>
+                <button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="event.stopPropagation();ReportManager.togglePin(${run.id})" title="Pin" style="border:none;background:none;cursor:pointer;color:var(--text-muted);"><i class="fas fa-thumbtack"></i></button>
+            </td>
+            <td>
+                <div style="font-weight:700; color:var(--text-primary);">${this.esc(title)}</div>
+                <div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">${this.esc(testId)}</div>
+            </td>
+            <td><span class="platform-tag ${run.platform}">${run.platform}</span></td>
+            <td style="font-size:0.8rem">${this.esc(run.tester_name)}</td>
+            <td style="font-weight:700;color:var(--accent)">${score}</td>
+            <td><span class="status-pill ${status}" style="font-size:0.75rem;">${status === 'success' ? '✅ PASS' : '❌ FAIL'}</span></td>
+            <td style="font-size:0.75rem;color:var(--text-muted);">${startedTime}</td>
+            <td style="position:relative;">
+                <div class="btn-group" style="display:flex;gap:6px;">
+                    <button onclick="event.stopPropagation();BackendAPI.showRunDetail(${run.id})" class="btn btn-secondary btn-sm" title="View Details"><i class="fas fa-eye"></i></button>
+                    <button onclick="event.stopPropagation();ReportManager.showDownloadMenu(event, ${run.id})" class="btn btn-secondary btn-sm" title="Download Artifacts"><i class="fas fa-download"></i></button>
+                </div>
+            </td>
+        </tr>`;
     },
 
     showDownloadMenu(event, runId) {

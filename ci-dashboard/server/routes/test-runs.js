@@ -54,10 +54,10 @@ router.post('/', authenticateRunner, async (req, res) => {
 
         // Insert test run summary
         const [runResult] = await pool.query(
-            `INSERT INTO test_runs (user_id, test_id, platform, tester_name, filename, ai_evaluation, url, page_name, browser_name, date_test, start_time_test, end_time_test, duration, total_title, total_question, success, failed, avg_score)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO test_runs (user_id, test_id, run_title, platform, tester_name, filename, ai_evaluation, url, page_name, browser_name, date_test, start_time_test, end_time_test, duration, total_title, total_question, success, failed, avg_score)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                userId, summary.id_test, summary.platform || '', summary.tester_name, summary.filename || '',
+                userId, summary.id_test, summary.run_title || '', summary.platform || '', summary.tester_name, summary.filename || '',
                 summary.ai_evaluation || 'gemini', summary.url, summary.page_name, summary.browser_name,
                 summary.date_test, summary.start_time_test, summary.end_time_test || null,
                 summary.duration || null, summary.total_title || 0, summary.total_question || 0,

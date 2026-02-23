@@ -349,6 +349,7 @@ async function pushToDatabase(summaryPath: string): Promise<number | null> {
       summary: {
         user_id: process.env.USER_ID ? parseInt(process.env.USER_ID) : null,
         id_test: data.id_test,
+        run_title: process.env.RUN_NAME || '',
         platform: data.summary?.platform || (process.argv[2] || process.env.PLATFORM || '').toLowerCase(),
         tester_name: data.tester_name,
         filename: data.summary?.filename || process.env.FILENAME,
