@@ -1045,7 +1045,7 @@ function getFormData() {
     const backendUrl = localStorage.getItem('acc_backend_url') || window.location.origin;
 
     return {
-        USER_ID: AuthManager.user?.id || '',
+        USER_ID: String(AuthManager.user?.id || ''),
         RUN_NAME: `${user}: ${runTitle}`,
         SELECTED_PLATFORM: p,
         FILENAME: uploadedFile ? uploadedFile.name : (document.getElementById('filenameInput').value + '.xlsx' || 'testing.xlsx'),
