@@ -15,31 +15,7 @@
     <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Command Palette Overlay -->
-    <div class="cmd-palette-overlay" id="cmdPaletteOverlay">
-        <div class="cmd-palette">
-            <div class="cmd-palette-input-wrapper">
-                <i class="fas fa-search"></i>
-                <input type="text" id="cmdPaletteInput" placeholder="Type a command or search..." autocomplete="off" />
-                <kbd>Esc</kbd>
-            </div>
-            <div class="cmd-palette-results" id="cmdPaletteResults"></div>
-        </div>
-    </div>
 
-    <!-- Notification Panel -->
-    <div class="notif-panel" id="notifPanel">
-        <div class="notif-panel-header">
-            <h4><i class="fas fa-bell"></i> Notifications</h4>
-            <button class="btn btn-sm btn-ghost" id="clearNotifsBtn"><i class="fas fa-check-double"></i> Clear
-                All</button>
-        </div>
-        <div class="notif-panel-body" id="notifPanelBody">
-            <div class="notif-empty"><i class="fas fa-bell-slash"></i>
-                <p>No notifications</p>
-            </div>
-        </div>
-    </div>
 
     <!-- Mobile Overlay -->
     <div class="mobile-overlay" id="mobileOverlay"></div>
@@ -66,6 +42,9 @@
                 <a class="nav-link" data-page="history" href="#history">
                     <i class="fas fa-clock-rotate-left"></i><span>Run History</span>
                     <span class="nav-badge" id="historyBadge">0</span>
+                </a>
+                <a class="nav-link" data-page="db-results" href="#db-results">
+                    <i class="fas fa-table"></i><span>DB Results</span>
                 </a>
 
                 <div class="nav-section-label">Data</div>
@@ -124,7 +103,23 @@
                         <i class="fas fa-wifi"></i>
                         <span class="conn-dot checking" id="connDot"></span>
                     </button>
-                    <div class="theme-toggle" id="themeToggle" title="Toggle Theme"></div>
+                    <button class="icon-btn" id="dbStatusBtn" title="Database Status"
+                        onclick="BackendAPI.init().then(ok => { if(ok) Toast.success('DB Connected','MySQL backend is online'); else Toast.warning('DB Offline','Using localStorage fallback'); })">
+                        <i class="fas fa-database"></i>
+                        <span class="conn-dot offline" id="dbStatusDot"></span>
+                    </button>
+                    <button class="icon-btn" id="themeToggle" title="Toggle Theme (T)">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="user-profile" id="userProfile"
+                        style="margin-left:var(--sp-4); padding-left:var(--sp-4); border-left:1px solid var(--border-color); display:flex; align-items:center; gap:var(--sp-3);">
+                        <div id="userName" style="font-size:0.875rem; font-weight:600; color:var(--text-primary);">Guest
+                        </div>
+                        <button class="icon-btn" id="logoutBtn" title="Logout" onclick="AuthManager.logout()"
+                            style="color:var(--error); background:rgba(239, 68, 68, 0.1);">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -235,6 +230,14 @@
                     <div class="glass-card mb-6">
                         <div class="card-title"><i class="fas fa-cog"></i> Test Configuration</div>
                         <div class="form-grid">
+                            <!-- Run Title -->
+                            <div class="form-group full-width">
+                                <label class="form-label"><i class="fas fa-heading"></i> Run Title / Name</label>
+                                <input id="runTitleInput" class="form-control" type="text"
+                                    placeholder="e.g. Test Webchat Production - Feb 23" value="Manual Test Run" />
+                                <span class="form-hint">Displayed in GitHub Actions history</span>
+                            </div>
+
                             <!-- Run Mode -->
                             <div class="form-group full-width">
                                 <label class="form-label"><i class="fas fa-toggle-on"></i> Run Mode</label>
@@ -279,21 +282,7 @@
                                 </div>
                             </div>
 
-                            <!-- Token -->
-                            <div class="form-group full-width">
-                                <label class="form-label"><i class="fas fa-key"></i> GitHub Token
-                                    <a href="https://github.com/settings/tokens" target="_blank" class="label-link"><i
-                                            class="fas fa-external-link-alt"></i> Get Token</a>
-                                </label>
-                                <div class="input-with-icon">
-                                    <input id="tokenInput" class="form-control" type="password"
-                                        placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
-                                    <button type="button" class="input-icon-btn" id="toggleTokenBtn"><i
-                                            class="fas fa-eye"></i></button>
-                                </div>
-                                <span class="form-hint"><i class="fas fa-shield-alt"></i> Required: <code>repo</code> +
-                                    <code>workflow</code> scopes • Browser memory only</span>
-                            </div>
+                            <!-- Removed Token from here and moved to settings -->
 
                             <!-- File Upload -->
                             <div class="form-group full-width">
@@ -348,6 +337,27 @@
                                 <input id="webchatUrlInput" class="form-control" type="url"
                                     placeholder="https://chat.botika.online/tpUyiey"
                                     value="https://chat.botika.online/tpUyiey" />
+                                <div class="nested-form-grid"
+                                    style="margin-top:var(--sp-4); gap:var(--sp-4); display:grid; grid-template-columns: 1fr 1fr;">
+                                    <div class="form-group">
+                                        <label class="form-label text-sm"><i class="fas fa-user-circle"></i> Pre-chat
+                                            Name</label>
+                                        <input id="webchatNameInput" class="form-control form-control-sm" type="text"
+                                            placeholder="Tester" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label text-sm"><i class="fas fa-envelope"></i> Pre-chat
+                                            Email</label>
+                                        <input id="webchatEmailInput" class="form-control form-control-sm" type="email"
+                                            placeholder="tester@example.com" />
+                                    </div>
+                                    <div class="form-group" style="grid-column: 1 / -1;">
+                                        <label class="form-label text-sm"><i class="fas fa-id-card"></i> Phone / Member
+                                            ID</label>
+                                        <input id="webchatPhoneInput" class="form-control form-control-sm" type="text"
+                                            placeholder="081234567890" />
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group full-width platform-field" id="field-telegram">
                                 <label class="form-label"><i class="fab fa-telegram"></i> Telegram Bot Username</label>
@@ -561,76 +571,191 @@
                     </div>
                 </div>
 
-                <!-- ==================== SETTINGS ==================== -->
-                <div class="page-section" id="page-settings">
-                    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:var(--sp-6);">Settings</h3>
-
-                    <div class="glass-card mb-6">
-                        <div class="card-title"><i class="fab fa-github"></i> GitHub Configuration</div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label class="form-label"><i class="fas fa-user"></i> Repository Owner</label>
-                                <input id="settingOwner" class="form-control" type="text" value="katanyaaman" />
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label"><i class="fas fa-code-branch"></i> Repository Name</label>
-                                <input id="settingRepo" class="form-control" type="text"
-                                    value="automationtestingjudges" />
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label"><i class="fas fa-file-code"></i> Workflow File</label>
-                                <input id="settingWorkflow" class="form-control" type="text" value="test-reports.yml" />
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label"><i class="fas fa-code-branch"></i> Branch</label>
-                                <input id="settingBranch" class="form-control" type="text" value="main" />
-                            </div>
+                <!-- ==================== DB RESULTS ==================== -->
+                <div class="page-section" id="page-db-results">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 style="font-size:1.1rem;font-weight:700;">MySQL Test Results</h3>
+                            <p class="text-sm text-muted">Browse historical test runs from the database</p>
                         </div>
-                        <div style="margin-top:var(--sp-5);">
-                            <button class="btn btn-primary btn-sm" id="saveSettingsBtn"><i class="fas fa-save"></i> Save
-                                Settings</button>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary btn-sm" onclick="BackendAPI.loadRuns()"><i
+                                    class="fas fa-sync-alt"></i> Refresh</button>
                         </div>
                     </div>
 
-                    <div class="glass-card mb-6">
-                        <div class="card-title"><i class="fas fa-palette"></i> Appearance</div>
-                        <div class="form-group">
-                            <label class="form-label"><i class="fas fa-adjust"></i> Theme</label>
-                            <div class="btn-group">
-                                <button class="btn btn-secondary btn-sm" id="themeDarkBtn"
-                                    onclick="ThemeManager.set('dark')"><i class="fas fa-moon"></i> Dark</button>
-                                <button class="btn btn-secondary btn-sm active" id="themeLightBtn"
-                                    onclick="ThemeManager.set('light')"><i class="fas fa-sun"></i> Light</button>
-                            </div>
+                    <div class="stats-row mb-6">
+                        <div class="stat-card">
+                            <div class="stat-label">Total DB Runs</div>
+                            <div class="stat-value" id="dbStatTotalRuns">0</div>
                         </div>
-                    </div>
-
-                    <div class="glass-card mb-6">
-                        <div class="card-title"><i class="fas fa-bell"></i> Notifications</div>
-                        <div class="form-group">
-                            <label class="form-label"><i class="fas fa-volume-up"></i> Sound Alerts</label>
-                            <div class="btn-group">
-                                <button class="btn btn-secondary btn-sm active" id="soundOnBtn"
-                                    onclick="Settings.setSound(true)"><i class="fas fa-bell"></i> On</button>
-                                <button class="btn btn-secondary btn-sm" id="soundOffBtn"
-                                    onclick="Settings.setSound(false)"><i class="fas fa-bell-slash"></i> Off</button>
-                            </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Avg Score</div>
+                            <div class="stat-value text-success" id="dbStatAvgScore">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Success Rate</div>
+                            <div class="stat-value text-primary" id="dbStatSuccessRate">0%</div>
                         </div>
                     </div>
 
                     <div class="glass-card">
-                        <div class="card-title"><i class="fas fa-database"></i> Data Management</div>
-                        <div class="btn-group">
-                            <button class="btn btn-secondary btn-sm" id="exportSettingsBtn"><i
-                                    class="fas fa-download"></i> Export All</button>
-                            <button class="btn btn-secondary btn-sm" id="importSettingsBtn"><i
-                                    class="fas fa-upload"></i> Import</button>
-                            <button class="btn btn-danger btn-sm" id="clearAllDataBtn"><i class="fas fa-trash"></i>
-                                Clear All</button>
+                        <div id="dbResultsContent">
+                            <div class="text-center text-muted" style="padding:var(--sp-8);">
+                                <p>Database results will appear here</p>
+                            </div>
                         </div>
-                        <div class="mt-4">
-                            <span class="form-hint"><i class="fas fa-hard-drive"></i> Local storage used: <strong
-                                    id="storageUsed">calculating...</strong></span>
+                    </div>
+                </div>
+
+                <!-- ==================== SETTINGS ==================== -->
+                <div class="page-section" id="page-settings">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 style="font-size:1.1rem;font-weight:700;">Settings</h3>
+                            <p class="text-sm text-muted">Configure your dashboard and enterprise features</p>
+                        </div>
+                    </div>
+
+                    <!-- Settings Grid View -->
+                    <div id="settings-grid-view" class="settings-view">
+                        <div class="settings-grid">
+                            <!-- Functional Cards -->
+                            <div class="settings-card" onclick="SettingsUI.showSection('github-config')">
+                                <i class="fab fa-github"></i>
+                                <div class="settings-card-label">GitHub Config</div>
+                            </div>
+                            <div class="settings-card" onclick="SettingsUI.showSection('appearance-config')">
+                                <i class="fas fa-palette"></i>
+                                <div class="settings-card-label">Appearance</div>
+                            </div>
+                            <div class="settings-card" onclick="SettingsUI.showSection('notifications-config')">
+                                <i class="fas fa-bell"></i>
+                                <div class="settings-card-label">Notifications</div>
+                            </div>
+                            <div class="settings-card" onclick="SettingsUI.showSection('data-config')">
+                                <i class="fas fa-database"></i>
+                                <div class="settings-card-label">Data Management</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Individual Settings Sections (Hidden by default) -->
+                    <div id="settings-github-config" class="settings-view hidden">
+                        <div class="settings-back-btn" onclick="SettingsUI.showGrid()">
+                            <i class="fas fa-arrow-left"></i> Back to Settings
+                        </div>
+                        <div class="glass-card mb-6">
+                            <div class="card-title"><i class="fab fa-github"></i> GitHub Configuration</div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label"><i class="fas fa-user"></i> Repository Owner</label>
+                                    <input id="settingOwner" class="form-control" type="text" value="katanyaaman" />
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label"><i class="fas fa-code-branch"></i> Repository Name</label>
+                                    <input id="settingRepo" class="form-control" type="text"
+                                        value="automationtestingjudges" />
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label"><i class="fas fa-file-code"></i> Workflow File</label>
+                                    <input id="settingWorkflow" class="form-control" type="text"
+                                        value="test-reports.yml" />
+                                    <span class="form-hint">Must have `repo` and `workflow` scopes. Saved in
+                                        localStorage.</span>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Backend API URL (for sync)</label>
+                                    <input id="settingBackendUrl" class="form-control" type="url"
+                                        placeholder="http://localhost:3001" />
+                                    <span class="form-hint">Public URL (e.g. ngrok) needed for GitHub Actions
+                                        sync.</span>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label"><i class="fas fa-code-branch"></i> Branch</label>
+                                    <input id="settingBranch" class="form-control" type="text" value="main" />
+                                </div>
+                                <div class="form-group full-width">
+                                    <label class="form-label"><i class="fas fa-key"></i> GitHub Personal Access Token
+                                        <a href="https://github.com/settings/tokens" target="_blank" class="label-link"
+                                            style="margin-left:var(--sp-2); font-size:0.75rem;"><i
+                                                class="fas fa-external-link-alt"></i> Get Token</a>
+                                    </label>
+                                    <div class="input-with-icon">
+                                        <input id="tokenInput" class="form-control" type="password"
+                                            placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+                                        <button type="button" class="input-icon-btn" id="toggleTokenBtn"><i
+                                                class="fas fa-eye"></i></button>
+                                    </div>
+                                    <span class="form-hint"><i class="fas fa-shield-alt"></i> Required:
+                                        <code>repo</code>
+                                        + <code>workflow</code> scopes • Saved in browser localStorage</span>
+                                </div>
+                            </div>
+                            <div style="margin-top:var(--sp-5);">
+                                <button class="btn btn-primary btn-sm" id="saveSettingsBtn"><i class="fas fa-save"></i>
+                                    Save
+                                    Settings</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="settings-appearance-config" class="settings-view hidden">
+                        <div class="settings-back-btn" onclick="SettingsUI.showGrid()">
+                            <i class="fas fa-arrow-left"></i> Back to Settings
+                        </div>
+                        <div class="glass-card mb-6">
+                            <div class="card-title"><i class="fas fa-palette"></i> Appearance</div>
+                            <div class="form-group">
+                                <label class="form-label"><i class="fas fa-adjust"></i> Theme</label>
+                                <div class="btn-group">
+                                    <button class="btn btn-secondary btn-sm" id="themeDarkBtn"
+                                        onclick="ThemeManager.set('dark')"><i class="fas fa-moon"></i> Dark</button>
+                                    <button class="btn btn-secondary btn-sm active" id="themeLightBtn"
+                                        onclick="ThemeManager.set('light')"><i class="fas fa-sun"></i> Light</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="settings-notifications-config" class="settings-view hidden">
+                        <div class="settings-back-btn" onclick="SettingsUI.showGrid()">
+                            <i class="fas fa-arrow-left"></i> Back to Settings
+                        </div>
+                        <div class="glass-card mb-6">
+                            <div class="card-title"><i class="fas fa-bell"></i> Notifications</div>
+                            <div class="form-group">
+                                <label class="form-label"><i class="fas fa-volume-up"></i> Sound Alerts</label>
+                                <div class="btn-group">
+                                    <button class="btn btn-secondary btn-sm active" id="soundOnBtn"
+                                        onclick="Settings.setSound(true)"><i class="fas fa-bell"></i> On</button>
+                                    <button class="btn btn-secondary btn-sm" id="soundOffBtn"
+                                        onclick="Settings.setSound(false)"><i class="fas fa-bell-slash"></i>
+                                        Off</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="settings-data-config" class="settings-view hidden">
+                        <div class="settings-back-btn" onclick="SettingsUI.showGrid()">
+                            <i class="fas fa-arrow-left"></i> Back to Settings
+                        </div>
+                        <div class="glass-card">
+                            <div class="card-title"><i class="fas fa-database"></i> Data Management</div>
+                            <div class="form-hint" style="margin-bottom:var(--sp-4);">
+                                <i class="fas fa-hdd"></i> Local Storage Used: <strong id="storageUsed">0 KB</strong>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-secondary btn-sm" id="exportSettingsBtn"><i
+                                        class="fas fa-download"></i> Export All</button>
+                                <button class="btn btn-secondary btn-sm" id="importSettingsBtn"><i
+                                        class="fas fa-upload"></i> Import Config</button>
+                                <button class="btn btn-secondary btn-sm" style="color:var(--error)"
+                                    onclick="if(confirm('Clear all local data?')) { localStorage.clear(); location.reload(); }">
+                                    <i class="fas fa-trash-alt"></i> Clear Cache
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -650,53 +775,11 @@
         </div>
     </div>
 
-    <!-- ===== MODALS ===== -->
-    <!-- Shortcuts -->
-    <div class="modal-overlay" id="shortcutsModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h3><i class="fas fa-keyboard"></i> Keyboard Shortcuts</h3><button class="modal-close"
-                    onclick="closeModal('shortcutsModal')"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal-body">
-                <div class="shortcuts-grid">
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>K</kbd></div><span class="shortcut-label">Command
-                            Palette</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Enter</kbd></div><span class="shortcut-label">Run
-                            Tests</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>R</kbd></div><span class="shortcut-label">Reset
-                            Form</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys"><kbd>?</kbd></div><span class="shortcut-label">This Dialog</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys"><kbd>1</kbd>-<kbd>8</kbd></div><span class="shortcut-label">Navigate
-                            Pages</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>F</kbd></div><span class="shortcut-label">Search
-                            Logs</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys"><kbd>N</kbd></div><span class="shortcut-label">Notifications</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys"><kbd>Esc</kbd></div><span class="shortcut-label">Close</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Save Preset -->
     <div class="modal-overlay" id="savePresetModal">
-        <div class="modal">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3><i class="fas fa-bookmark"></i> Save Preset</h3><button class="modal-close"
                     onclick="closeModal('savePresetModal')"><i class="fas fa-times"></i></button>
@@ -730,7 +813,7 @@
 
     <!-- Load Report -->
     <div class="modal-overlay" id="loadReportModal">
-        <div class="modal">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3><i class="fas fa-link"></i> Load Report</h3><button class="modal-close"
                     onclick="closeModal('loadReportModal')"><i class="fas fa-times"></i></button>
@@ -751,7 +834,7 @@
 
     <!-- Schedule Modal -->
     <div class="modal-overlay" id="addScheduleModal">
-        <div class="modal">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3><i class="fas fa-calendar-alt"></i> New Schedule</h3><button class="modal-close"
                     onclick="closeModal('addScheduleModal')"><i class="fas fa-times"></i></button>
@@ -793,7 +876,79 @@
         </div>
     </div>
 
+    <!-- ===== OVERLAYS & MODALS ===== -->
+
+    <!-- Command Palette -->
+    <div class="cmd-palette-overlay" id="cmdPaletteOverlay">
+        <div class="cmd-palette-content">
+            <div class="cmd-palette-search">
+                <i class="fas fa-terminal"></i>
+                <input type="text" id="cmdPaletteInput" placeholder="Type a command or search..." autocomplete="off">
+            </div>
+            <div class="cmd-palette-results" id="cmdPaletteResults">
+                <!-- Results injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Panel -->
+    <div class="notif-panel" id="notifPanel">
+        <div class="notif-header">
+            <div class="modal-title">Notifications</div>
+            <button class="btn btn-ghost btn-sm" id="clearNotifsBtn">Clear All</button>
+        </div>
+        <div class="notif-body" id="notifPanelBody">
+            <!-- Notifications injected by JS -->
+        </div>
+    </div>
+
+    <!-- Shortcuts Modal -->
+    <div class="modal-overlay" id="shortcutsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fas fa-keyboard"></i> Keyboard Shortcuts</div>
+                <button class="icon-btn" onclick="closeModal('shortcutsModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="shortcuts-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
+                    <div class="shortcut-item">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">Search</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.85rem;">Command Palette</span>
+                            <kbd>Ctrl+K</kbd>
+                        </div>
+                    </div>
+                    <div class="shortcut-item">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">Navigation</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.85rem;">Notifications</span>
+                            <kbd>N</kbd>
+                        </div>
+                    </div>
+                    <div class="shortcut-item">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">System</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.85rem;">Run Tests</span>
+                            <kbd>Ctrl+Enter</kbd>
+                        </div>
+                    </div>
+                    <div class="shortcut-item">
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">System</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.85rem;">Reset Form</span>
+                            <kbd>Ctrl+R</kbd>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeModal('shortcutsModal')">Got it</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
+
 </body>
 
 </html>

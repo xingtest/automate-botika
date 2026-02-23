@@ -1,8 +1,148 @@
-// ===== AUTOMATION COMMAND CENTER v2.0 =====
+// ===== AUTHENTICATION MANAGER =====
+const AuthManager = {
+    token: localStorage.getItem('acc_token'),
+    user: JSON.parse(localStorage.getItem('acc_user') || 'null'),
+    init() {
+        if (!this.token && !window.location.pathname.includes('auth.html')) {
+            window.location.href = 'auth.html';
+            return;
+        }
+        if (this.user) {
+            const nameEl = document.getElementById('userName');
+            if (nameEl) nameEl.textContent = this.user.username;
+        }
+        this.validateSession();
+    },
+    async validateSession() {
+        if (!this.token) return;
+        try {
+            const r = await fetch('http://localhost:3001/api/auth/me', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            if (!r.ok) {
+                if (r.status === 401) this.logout();
+            }
+        } catch (e) { console.warn('Auth validation failed', e); }
+    },
+    logout() {
+        localStorage.removeItem('acc_token');
+        localStorage.removeItem('acc_user');
+        window.location.href = 'auth.html';
+    }
+};
+
+// ===== SETTINGS UI MANAGER =====
+const SettingsUI = {
+    showGrid() {
+        // Hide all views
+        document.querySelectorAll('.settings-view').forEach(v => v.classList.add('hidden'));
+        // Show grid
+        document.getElementById('settings-grid-view').classList.remove('hidden');
+    },
+    showSection(id) {
+        // Hide all views
+        document.querySelectorAll('.settings-view').forEach(v => v.classList.add('hidden'));
+        // Show specific section
+        const el = document.getElementById(`settings-${id}`);
+        if (el) el.classList.remove('hidden');
+    }
+};
+
+
 const CONFIG = (() => {
     const s = JSON.parse(localStorage.getItem('acc_config') || '{}');
-    return { owner: s.owner || 'katanyaaman', repo: s.repo || 'automationtestingjudges', workflow_id: s.workflow_id || 'test-reports.yml', ref: s.ref || 'main' };
+    return {
+        owner: s.owner || 'katanyaaman',
+        repo: s.repo || 'automationtestingjudges',
+        workflow_id: s.workflow_id || 'test-reports.yml',
+        ref: s.ref || 'main',
+        token: s.token || ''
+    };
 })();
+
+// ===== BACKEND API CLIENT (Hybrid Mode) =====
+const BackendAPI = {
+    // Use localhost:3001 if origin is not web-based (e.g. file://)
+    baseUrl: (window.location.protocol.startsWith('http') ? window.location.origin : 'http://localhost:3001') + '/api',
+    connected: false,
+    async init() {
+        try {
+            const r = await fetch(`${this.baseUrl}/health`, { signal: AbortSignal.timeout(3000) });
+            if (r.ok) { this.connected = true; console.log('%c✅ Backend API connected', 'color:#22c55e;font-weight:bold;'); }
+            else { this.connected = false; console.log('%c⚠️ Backend API offline — using localStorage', 'color:#f59e0b;font-weight:bold;'); }
+        } catch { this.connected = false; console.log('%c⚠️ Backend API offline — using localStorage', 'color:#f59e0b;font-weight:bold;'); }
+        this.updateIndicator();
+        return this.connected;
+    },
+    updateIndicator() {
+        const el = document.getElementById('dbStatusDot');
+        if (el) el.className = `conn-dot ${this.connected ? '' : 'offline'}`;
+    },
+    async request(endpoint, opts = {}) {
+        if (!this.connected) return null;
+        try {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...opts.headers
+            };
+            // Add Auth Token if available
+            if (AuthManager.token) {
+                headers['Authorization'] = `Bearer ${AuthManager.token}`;
+            }
+
+            const r = await fetch(`${this.baseUrl}${endpoint}`, { headers, ...opts });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return await r.json();
+        } catch (err) { console.warn(`API ${endpoint}:`, err.message); return null; }
+    },
+    get(endpoint) { return this.request(endpoint); },
+    post(endpoint, data) { return this.request(endpoint, { method: 'POST', body: JSON.stringify(data) }); },
+    put(endpoint, data) { return this.request(endpoint, { method: 'PUT', body: JSON.stringify(data) }); },
+    del(endpoint) { return this.request(endpoint, { method: 'DELETE' }); },
+    async loadRuns() {
+        const c = document.getElementById('dbResultsContent'); if (!c) return;
+        c.innerHTML = '<div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card"></div>';
+        const resp = await this.get('/test-runs?limit=50');
+        if (!resp || !resp.data || !resp.data.length) {
+            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-database" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>No results in database yet</p></div>';
+            return;
+        }
+        // Update summary stats if on the page
+        const stats = await this.get('/stats/dashboard');
+        if (stats) {
+            document.getElementById('dbStatTotalRuns').textContent = stats.total_runs || 0;
+            document.getElementById('dbStatAvgScore').textContent = stats.avg_score || 0;
+            document.getElementById('dbStatSuccessRate').textContent = `${stats.success_rate || 0}%`;
+        }
+        this.renderRuns(resp.data);
+    },
+    renderRuns(runs) {
+        const c = document.getElementById('dbResultsContent');
+        const stMap = { success: 'Success', failure: 'Failed' };
+        c.innerHTML = `<table class="runs-table"><thead><tr><th>Test ID</th><th>Platform</th><th>Tester</th><th>Date</th><th>Score</th><th>Status</th><th>Duration</th></tr></thead><tbody>${runs.map(r => {
+            const status = r.failed > 0 ? 'failure' : 'success';
+            const score = parseFloat(r.avg_score).toFixed(2);
+            return `<tr onclick="BackendAPI.showRunDetail(${r.id})" style="cursor:pointer">
+                <td><code style="font-size:0.75rem">${r.test_id}</code></td>
+                <td><span class="platform-tag ${r.platform}">${r.platform}</span></td>
+                <td style="font-size:0.8rem">${r.tester_name}</td>
+                <td style="font-size:0.8rem">${r.date_test}</td>
+                <td style="font-weight:700; color:var(--accent)">${score}</td>
+                <td><span class="status-pill ${status}">${status === 'success' ? '✅ PASS' : '❌ FAIL'}</span></td>
+                <td style="font-size:0.75rem; color:var(--text-muted)">${r.duration || '—'}</td>
+            </tr>`;
+        }).join('')}</tbody></table>`;
+    },
+    async showRunDetail(id) {
+        Toast.info('Loading', `Fetching details for run #${id}`);
+        const data = await this.get(`/test-runs/${id}`);
+        if (!data) return;
+        console.log('Run Detail:', data);
+        // We could open a modal or navigate to a detail view here
+        Toast.success('Loaded', `Found ${data.results.length} results for this run`);
+    }
+};
+
 
 // ===== TOAST =====
 const Toast = {
@@ -28,6 +168,8 @@ const ThemeManager = {
         if (save) localStorage.setItem('acc_theme', theme);
         const d = document.getElementById('themeDarkBtn'), l = document.getElementById('themeLightBtn');
         if (d && l) { d.classList.toggle('active', theme === 'dark'); l.classList.toggle('active', theme === 'light'); }
+        const t = document.getElementById('themeToggle');
+        if (t) { t.innerHTML = `<i class="fas fa-${theme === 'dark' ? 'sun' : 'moon'}"></i>`; }
     },
     toggle() { this.set(this.get() === 'dark' ? 'light' : 'dark'); },
     get() { return document.documentElement.getAttribute('data-theme'); }
@@ -53,9 +195,13 @@ const Router = {
         document.getElementById('mobileOverlay')?.classList.remove('show');
         if (page === 'history') GitHubAPI.loadHistory();
         if (page === 'dashboard') DashboardStats.refresh();
+        if (page === 'history') GitHubAPI.loadHistory();
         if (page === 'presets') PresetManager.render();
         if (page === 'activity') ActivityFeed.render();
         if (page === 'scheduler') Scheduler.render();
+        if (page === 'db-results') BackendAPI.loadRuns();
+        document.getElementById('mobileOverlay')?.classList.remove('show');
+        document.getElementById('sidebar')?.classList.remove('mobile-open');
     }
 };
 
@@ -87,7 +233,7 @@ const TerminalLog = {
 // ===== GITHUB API =====
 const GitHubAPI = {
     pollingInterval: null,
-    getToken() { return document.getElementById('tokenInput')?.value?.trim() || ''; },
+    getToken() { return CONFIG.token || document.getElementById('tokenInput')?.value?.trim() || ''; },
     getApiBase() { return `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}`; },
     async apiFetch(endpoint, opts = {}) {
         const token = this.getToken();
@@ -123,6 +269,10 @@ const GitHubAPI = {
         if (!this.getToken()) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-key" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--sp-4);"></i><p>Enter token in Run Tests to view</p></div>'; return; }
         c.innerHTML = '<div class="skeleton skeleton-card mb-4"></div><div class="skeleton skeleton-card mb-4"></div><div class="skeleton skeleton-card"></div>';
         let runs = await this.getRuns();
+        const user = AuthManager.user?.username;
+        if (user) {
+            runs = runs.filter(r => (r.display_title || r.name || '').startsWith(`${user}:`));
+        }
         const filter = document.getElementById('historyFilterStatus')?.value;
         if (filter && filter !== 'all') runs = runs.filter(r => (r.conclusion || r.status) === filter);
         if (!runs.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><p>No runs found</p></div>'; return; }
@@ -164,8 +314,24 @@ function togglePin(id) { let p = JSON.parse(localStorage.getItem('acc_pinned') |
 // ===== DASHBOARD STATS =====
 const DashboardStats = {
     async refresh() {
-        if (!GitHubAPI.getToken()) { this.setEmpty(); return; }
+        if (!GitHubAPI.getToken() && !BackendAPI.connected) { this.setEmpty(); return; }
         try {
+            // Try Backend first for richer stats
+            if (BackendAPI.connected) {
+                const stats = await BackendAPI.get('/stats/dashboard');
+                if (stats) {
+                    document.getElementById('statTotalRuns').textContent = stats.total_runs || 0;
+                    document.getElementById('statSuccessRate').textContent = `${stats.success_rate || 0}%`;
+                    document.getElementById('successBar').style.width = `${stats.success_rate || 0}%`;
+                    const lastRun = stats.recent_runs?.[0];
+                    document.getElementById('statLastRun').textContent = lastRun ? GitHubAPI.timeAgo(new Date(lastRun.created_at)) : '—';
+                    if (stats.recent_runs) this.renderRecentDB(stats.recent_runs);
+                    this.updatePlatformHealthDB(stats.platforms);
+                    return;
+                }
+            }
+
+            // Fallback to GitHub API
             const runs = await GitHubAPI.getRuns(30); if (!runs.length) { this.setEmpty(); return; }
             document.getElementById('statTotalRuns').textContent = runs.length;
             const done = runs.filter(r => r.conclusion), ok = done.filter(r => r.conclusion === 'success');
@@ -177,13 +343,27 @@ const DashboardStats = {
             this.renderRecent(runs.slice(0, 5));
             this.updatePlatformHealth(runs);
             this.renderSparkline(runs);
-        } catch { this.setEmpty(); }
+        } catch (err) { console.error('Refresh stats error:', err); this.setEmpty(); }
     },
     setEmpty() { ['statTotalRuns', 'statSuccessRate', 'statLastRun'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = '—'; }); document.getElementById('recentRunsList').innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-6);"><p class="text-sm">Enter token to view stats</p></div>'; },
     renderRecent(runs) {
         const c = document.getElementById('recentRunsList'); if (!c || !runs.length) return;
         const colors = { success: 'var(--success)', failure: 'var(--error)', in_progress: 'var(--running)', queued: 'var(--queued)' };
         c.innerHTML = runs.map(r => { const st = r.conclusion || r.status; return `<div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) 0;border-bottom:1px solid var(--border-color);"><div style="width:8px;height:8px;border-radius:50%;background:${colors[st] || 'var(--text-muted)'};flex-shrink:0;"></div><div style="flex:1;"><div style="font-size:0.85rem;font-weight:600;">#${r.run_number}</div><div style="font-size:0.72rem;color:var(--text-muted);">${r.event} • ${GitHubAPI.timeAgo(new Date(r.created_at))}</div></div><a href="${r.html_url}" target="_blank" class="btn btn-secondary btn-sm" style="padding:4px 8px;font-size:0.7rem;"><i class="fas fa-external-link-alt"></i></a></div>`; }).join('');
+    },
+    renderRecentDB(runs) {
+        const c = document.getElementById('recentRunsList'); if (!c) return;
+        c.innerHTML = runs.map(r => {
+            const status = r.failed > 0 ? 'failure' : 'success';
+            return `<div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) 0;border-bottom:1px solid var(--border-color); cursor:pointer" onclick="Router.navigate('db-results'); BackendAPI.showRunDetail(${r.id})">
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--${status === 'success' ? 'success' : 'error'});flex-shrink:0;"></div>
+                <div style="flex:1;">
+                    <div style="font-size:0.85rem;font-weight:600;">${r.platform} Test</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);">${r.tester_name} • ${GitHubAPI.timeAgo(new Date(r.created_at))}</div>
+                </div>
+                <div style="font-size:0.8rem; font-weight:700; color:var(--accent)">${parseFloat(r.avg_score).toFixed(1)}</div>
+            </div>`;
+        }).join('');
     },
     updatePlatformHealth(runs) {
         const platforms = ['webchat', 'telegram', 'instagram', 'facebook', 'dhai'];
@@ -201,6 +381,17 @@ const DashboardStats = {
             }
         });
     },
+    updatePlatformHealthDB(platforms) {
+        platforms.forEach(p => {
+            const card = document.querySelector(`.ph-card[data-platform="${p.platform}"]`); if (!card) return;
+            const dot = card.querySelector('.ph-dot'), status = card.querySelector('.ph-status');
+            dot.className = 'ph-dot';
+            const score = parseFloat(p.avg_score);
+            if (score >= 0.8) { dot.classList.add('ok'); status.textContent = 'Passing'; }
+            else if (score >= 0.5) { dot.classList.add('warning'); status.textContent = 'Degraded'; }
+            else { dot.classList.add('fail'); status.textContent = 'Failing'; }
+        });
+    },
     renderSparkline(runs) {
         const c = document.getElementById('sparkRuns'); if (!c) return;
         const last7 = runs.slice(0, 7).reverse(); if (last7.length < 2) return;
@@ -212,26 +403,46 @@ const DashboardStats = {
 // ===== NOTIFICATION CENTER =====
 const NotifCenter = {
     KEY: 'acc_notifs',
-    getAll() { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); },
-    add(title, msg, type = 'info') {
-        const notifs = this.getAll();
-        notifs.unshift({ id: Date.now(), title, msg, type, time: new Date().toISOString(), read: false });
-        if (notifs.length > 50) notifs.length = 50;
-        localStorage.setItem(this.KEY, JSON.stringify(notifs));
+    getAllLocal() { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); },
+    async getAll() {
+        if (BackendAPI.connected) {
+            const resp = await BackendAPI.get('/notifications');
+            if (resp && resp.data) return resp.data.map(n => ({ ...n, time: n.created_at, read: !!n.is_read }));
+        }
+        return this.getAllLocal();
+    },
+    async add(title, msg, type = 'info') {
+        const notif = { title, msg, type, time: new Date().toISOString(), read: false };
+        // Save locally
+        const local = this.getAllLocal(); local.unshift({ id: Date.now(), ...notif });
+        if (local.length > 50) local.length = 50;
+        localStorage.setItem(this.KEY, JSON.stringify(local));
+        // Save to backend
+        if (BackendAPI.connected) await BackendAPI.post('/notifications', { title, message: msg, type });
         this.updateDot(); this.renderPanel();
     },
-    clear() { localStorage.removeItem(this.KEY); this.updateDot(); this.renderPanel(); },
-    updateDot() { const dot = document.getElementById('notifDot'); const unread = this.getAll().filter(n => !n.read).length; if (dot) dot.classList.toggle('hidden', unread === 0); },
-    renderPanel() {
+    async clear() {
+        localStorage.removeItem(this.KEY);
+        if (BackendAPI.connected) await BackendAPI.del('/notifications');
+        this.updateDot(); this.renderPanel();
+    },
+    async updateDot() {
+        const dot = document.getElementById('notifDot'); if (!dot) return;
+        const all = await this.getAll();
+        const unread = all.filter(n => !n.read).length;
+        dot.classList.toggle('hidden', unread === 0);
+    },
+    async renderPanel() {
         const body = document.getElementById('notifPanelBody'); if (!body) return;
-        const notifs = this.getAll();
+        const notifs = await this.getAll();
         if (!notifs.length) { body.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash"></i><p>No notifications</p></div>'; return; }
         const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle', dispatch: 'fa-play' };
         const colors = { success: 'color:var(--success)', error: 'color:var(--error)', warning: 'color:var(--warning)', info: 'color:var(--info)', dispatch: 'color:var(--accent)' };
         body.innerHTML = notifs.slice(0, 20).map(n => `<div class="notif-item ${n.read ? '' : 'unread'}"><div class="notif-item-icon" style="${colors[n.type] || ''}"><i class="fas ${icons[n.type] || icons.info}"></i></div><div class="notif-item-body"><div class="notif-item-title">${n.title}</div><div class="notif-item-msg">${n.msg}</div><div class="notif-item-time">${GitHubAPI.timeAgo(new Date(n.time))}</div></div></div>`).join('');
-        // Mark all as read
-        const updated = this.getAll().map(n => ({ ...n, read: true }));
-        localStorage.setItem(this.KEY, JSON.stringify(updated));
+        // Mark all as read in backend and local
+        if (BackendAPI.connected) await BackendAPI.put('/notifications/read-all');
+        const local = this.getAllLocal().map(n => ({ ...n, read: true }));
+        localStorage.setItem(this.KEY, JSON.stringify(local));
     },
     toggle() { const p = document.getElementById('notifPanel'); p?.classList.toggle('open'); if (p?.classList.contains('open')) { this.renderPanel(); setTimeout(() => this.updateDot(), 500); } }
 };
@@ -240,16 +451,30 @@ const NotifCenter = {
 const ActivityFeed = {
     KEY: 'acc_activity',
     getAll() { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); },
-    add(title, desc, type = 'system') {
+    async add(title, desc, type = 'system') {
+        // Save to localStorage
         const items = this.getAll();
         items.unshift({ id: Date.now(), title, desc, type, time: new Date().toISOString() });
         if (items.length > 100) items.length = 100;
         localStorage.setItem(this.KEY, JSON.stringify(items));
+        // Also save to backend
+        BackendAPI.post('/activity', { title, description: desc, type });
     },
-    clear() { localStorage.removeItem(this.KEY); this.render(); },
-    render() {
+    async clear() {
+        localStorage.removeItem(this.KEY);
+        await BackendAPI.del('/activity');
+        this.render();
+    },
+    async render() {
         const c = document.getElementById('activityTimeline'); if (!c) return;
-        const items = this.getAll();
+        let items = [];
+        // Try backend first
+        if (BackendAPI.connected) {
+            const resp = await BackendAPI.get('/activity?limit=50');
+            if (resp && resp.data && resp.data.length) { items = resp.data.map(a => ({ title: a.title, desc: a.description, type: a.type, time: a.created_at })); }
+        }
+        // Fallback to localStorage
+        if (!items.length) items = this.getAll();
         if (!items.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-stream" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>No activity yet</p></div>'; return; }
         c.innerHTML = items.slice(0, 50).map(a => `<div class="activity-item"><div class="activity-icon ${a.type}"><i class="fas fa-${a.type === 'dispatch' ? 'play' : a.type === 'success' ? 'check' : a.type === 'error' ? 'times' : a.type === 'config' ? 'cog' : 'info-circle'}"></i></div><div class="activity-body"><div class="activity-title">${a.title}</div><div class="activity-desc">${a.desc}</div><div class="activity-time">${GitHubAPI.timeAgo(new Date(a.time))}</div></div></div>`).join('');
     }
@@ -274,13 +499,16 @@ const CmdPalette = {
         { name: 'Refresh Dashboard', icon: 'fa-sync-alt', action: () => { DashboardStats.refresh(); CmdPalette.close(); } },
     ],
     open() {
-        document.getElementById('cmdPaletteOverlay')?.classList.add('open');
-        const inp = document.getElementById('cmdPaletteInput'); inp.value = ''; inp.focus();
+        const overlay = document.getElementById('cmdPaletteOverlay');
+        if (overlay) overlay.classList.add('open');
+        const inp = document.getElementById('cmdPaletteInput');
+        if (inp) { inp.value = ''; inp.focus(); }
         this.filter('');
     },
     close() { document.getElementById('cmdPaletteOverlay')?.classList.remove('open'); },
     filter(q) {
         const results = document.getElementById('cmdPaletteResults');
+        if (!results) return;
         const filtered = q ? this.commands.filter(c => c.name.toLowerCase().includes(q.toLowerCase())) : this.commands;
         results.innerHTML = filtered.map((c, i) => `<div class="cmd-result ${i === 0 ? 'selected' : ''}" data-idx="${i}" onclick="CmdPalette.commands.find(x=>x.name==='${c.name}').action()"><i class="fas ${c.icon}"></i><span>${c.name}</span>${c.hint ? `<span class="cmd-result-hint">${c.hint}</span>` : ''}</div>`).join('');
     }
@@ -290,30 +518,60 @@ const CmdPalette = {
 const PresetManager = {
     KEY: 'acc_presets',
     getAll() { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); },
-    save(name, color = '#6366f1') {
+    async save(name, color = '#6366f1') {
+        const presetData = { name, color, platform: document.getElementById('platformSelect').value, filename: document.getElementById('filenameInput').value, tester_name: document.getElementById('testerNameInput').value, greeting: document.getElementById('greetingInput').value, webchat_url: document.getElementById('webchatUrlInput').value, telegram_bot: document.getElementById('telegramBotInput').value, instagram_user: document.getElementById('instagramUrlInput').value, facebook_id: document.getElementById('facebookUrlInput').value, dhai_url: document.getElementById('dhaiUrlInput').value };
+        // Save to backend
+        const apiResult = await BackendAPI.post('/presets', presetData);
+        // Also save to localStorage
         const presets = this.getAll();
-        const preset = { id: Date.now(), name, color, platform: document.getElementById('platformSelect').value, filename: document.getElementById('filenameInput').value, testerName: document.getElementById('testerNameInput').value, greeting: document.getElementById('greetingInput').value, webchatUrl: document.getElementById('webchatUrlInput').value, telegramBot: document.getElementById('telegramBotInput').value, instagramUser: document.getElementById('instagramUrlInput').value, facebookId: document.getElementById('facebookUrlInput').value, dhaiUrl: document.getElementById('dhaiUrlInput').value, createdAt: new Date().toISOString() };
+        const preset = { id: apiResult?.id || Date.now(), ...presetData, createdAt: new Date().toISOString() };
         presets.push(preset); localStorage.setItem(this.KEY, JSON.stringify(presets));
         Toast.success('Saved', `"${name}" preset saved`); ActivityFeed.add('Preset Saved', `Saved "${name}" for ${preset.platform}`, 'config'); this.render();
     },
-    delete(id) { let p = this.getAll().filter(x => x.id !== id); localStorage.setItem(this.KEY, JSON.stringify(p)); Toast.info('Deleted', 'Preset removed'); this.render(); },
-    load(id) {
-        const p = this.getAll().find(x => x.id === id); if (!p) return;
-        document.getElementById('platformSelect').value = p.platform;
-        document.getElementById('filenameInput').value = p.filename || 'testing';
-        document.getElementById('testerNameInput').value = p.testerName || 'GitHub Actions Bot';
-        document.getElementById('greetingInput').value = p.greeting || 'Haloo';
-        document.getElementById('webchatUrlInput').value = p.webchatUrl || '';
-        document.getElementById('telegramBotInput').value = p.telegramBot || '';
-        document.getElementById('instagramUrlInput').value = p.instagramUser || '';
-        document.getElementById('facebookUrlInput').value = p.facebookId || '';
-        document.getElementById('dhaiUrlInput').value = p.dhaiUrl || '';
-
-        switchPlatformFields(p.platform); Toast.success('Loaded', `"${p.name}" applied`); Router.navigate('run-tests');
+    async delete(id) {
+        let p = this.getAll().filter(x => x.id !== id); localStorage.setItem(this.KEY, JSON.stringify(p));
+        await BackendAPI.del(`/presets/${id}`);
+        Toast.info('Deleted', 'Preset removed'); this.render();
     },
-    render() {
+    async load(id) {
+        let p = this.getAll().find(x => x.id === id);
+        // Try backend if not in localStorage
+        if (!p && BackendAPI.connected) {
+            const resp = await BackendAPI.get('/presets');
+            if (resp && resp.data) p = resp.data.find(x => x.id === id);
+        }
+        if (p) {
+            const platSel = document.getElementById('platformSelect');
+            if (platSel) platSel.value = p.platform;
+            const fileInp = document.getElementById('filenameInput');
+            if (fileInp) fileInp.value = p.filename || 'testing';
+            const testInp = document.getElementById('testerNameInput');
+            if (testInp) testInp.value = p.tester_name || p.testerName || 'GitHub Actions Bot';
+            const greetInp = document.getElementById('greetingInput');
+            if (greetInp) greetInp.value = p.greeting || 'Haloo';
+            const webInp = document.getElementById('webchatUrlInput');
+            if (webInp) webInp.value = p.webchat_url || p.webchatUrl || '';
+            const tgInp = document.getElementById('telegramBotInput');
+            if (tgInp) tgInp.value = p.telegram_bot || p.telegramBot || '';
+            const instInp = document.getElementById('instagramUrlInput');
+            if (instInp) instInp.value = p.instagram_user || p.instagramUser || '';
+            const fbInp = document.getElementById('facebookUrlInput');
+            if (fbInp) fbInp.value = p.facebook_id || p.facebookId || '';
+            const dhaiInp = document.getElementById('dhaiUrlInput');
+            if (dhaiInp) dhaiInp.value = p.dhai_url || p.dhaiUrl || '';
+            switchPlatformFields(p.platform); Toast.success('Loaded', `"${p.name}" applied`); Router.navigate('run-tests');
+        }
+    },
+    async render() {
         const grid = document.getElementById('presetGrid'); if (!grid) return;
-        const presets = this.getAll();
+        let presets = [];
+        // Try backend first
+        if (BackendAPI.connected) {
+            const resp = await BackendAPI.get('/presets');
+            if (resp && resp.data && resp.data.length) { presets = resp.data.map(p => ({ ...p, createdAt: p.created_at })); }
+        }
+        // Fallback to localStorage
+        if (!presets.length) presets = this.getAll();
         if (!presets.length) { grid.innerHTML = '<div class="text-center text-muted" style="grid-column:1/-1;padding:var(--sp-12);"><i class="fas fa-bookmark" style="font-size:2.5rem;opacity:0.2;margin-bottom:var(--sp-4);display:block;"></i><p>No presets saved yet</p></div>'; return; }
         const emojis = { webchat: '🌐', telegram: '✈️', instagram: '📷', facebook: '👥', dhai: '🤖' };
         grid.innerHTML = presets.map(p => `<div class="preset-card" style="--accent:${p.color || '#6366f1'}" onclick="PresetManager.load(${p.id})"><div class="preset-name"><i class="fas fa-bookmark" style="color:${p.color || 'var(--accent-light)'};"></i>${esc(p.name)}</div><div class="preset-platform">${emojis[p.platform] || '🔧'} ${p.platform}${p.filename ? ' • ' + p.filename : ''}</div><div class="preset-meta">${GitHubAPI.timeAgo(new Date(p.createdAt))}</div><button class="preset-delete" onclick="event.stopPropagation();PresetManager.delete(${p.id})" title="Delete"><i class="fas fa-trash"></i></button></div>`).join('');
@@ -332,10 +590,36 @@ const PresetManager = {
 // ===== SCHEDULER =====
 const Scheduler = {
     KEY: 'acc_schedules', timers: {},
-    getAll() { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); },
-    save(s) { const all = this.getAll(); all.push(s); localStorage.setItem(this.KEY, JSON.stringify(all)); },
-    delete(id) { localStorage.setItem(this.KEY, JSON.stringify(this.getAll().filter(x => x.id !== id))); if (this.timers[id]) { clearInterval(this.timers[id]); delete this.timers[id]; } this.render(); },
-    togglePause(id) { const all = this.getAll(); const s = all.find(x => x.id === id); if (!s) return; s.paused = !s.paused; localStorage.setItem(this.KEY, JSON.stringify(all)); if (s.paused && this.timers[id]) { clearInterval(this.timers[id]); delete this.timers[id]; } else if (!s.paused) { this.startTimer(s); } this.render(); },
+    getAllLocal() { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); },
+    async getAll() {
+        if (BackendAPI.connected) {
+            const resp = await BackendAPI.get('/schedules');
+            if (resp && resp.data) return resp.data.map(s => ({ ...s, interval: s.interval_min, createdAt: s.created_at, paused: !!s.paused }));
+        }
+        return this.getAllLocal();
+    },
+    async saveLocal(s) { const all = this.getAllLocal(); all.push(s); localStorage.setItem(this.KEY, JSON.stringify(all)); },
+    async delete(id) {
+        localStorage.setItem(this.KEY, JSON.stringify(this.getAllLocal().filter(x => x.id !== id)));
+        if (BackendAPI.connected) await BackendAPI.del(`/schedules/${id}`);
+        if (this.timers[id]) { clearInterval(this.timers[id]); delete this.timers[id]; }
+        this.render();
+    },
+    async togglePause(id) {
+        const all = await this.getAll();
+        const s = all.find(x => x.id === id);
+        if (!s) return;
+        s.paused = !s.paused;
+        // Update local
+        const local = this.getAllLocal(); const ls = local.find(x => x.id === id); if (ls) ls.paused = s.paused;
+        localStorage.setItem(this.KEY, JSON.stringify(local));
+        // Update backend
+        if (BackendAPI.connected) await BackendAPI.put(`/schedules/${id}`, { name: s.name, interval_min: s.interval, preset_id: s.presetId, paused: s.paused });
+
+        if (s.paused && this.timers[id]) { clearInterval(this.timers[id]); delete this.timers[id]; }
+        else if (!s.paused) { this.startTimer(s); }
+        this.render();
+    },
     startTimer(s) {
         if (this.timers[s.id]) clearInterval(this.timers[s.id]);
         this.timers[s.id] = setInterval(() => {
@@ -345,14 +629,20 @@ const Scheduler = {
             triggerWorkflow();
         }, s.interval * 60000);
     },
-    startAll() { this.getAll().filter(s => !s.paused).forEach(s => this.startTimer(s)); },
-    add(name, interval, presetId) {
+    async startAll() { const all = await this.getAll(); all.filter(s => !s.paused).forEach(s => this.startTimer(s)); },
+    async add(name, interval, presetId) {
         const s = { id: Date.now(), name, interval: parseInt(interval), presetId: presetId || null, paused: false, createdAt: new Date().toISOString() };
-        this.save(s); this.startTimer(s); Toast.success('Scheduled', `"${name}" will run every ${interval} min`); ActivityFeed.add('Schedule Created', `"${name}" every ${interval}min`, 'config'); this.render();
+        await this.saveLocal(s);
+        if (BackendAPI.connected) {
+            const resp = await BackendAPI.post('/schedules', { name: s.name, interval_min: s.interval, preset_id: s.presetId, paused: false });
+            if (resp && resp.id) s.id = resp.id; // Sync ID
+        }
+        this.startTimer(s); Toast.success('Scheduled', `"${name}" will run every ${interval} min`);
+        ActivityFeed.add('Schedule Created', `"${name}" every ${interval}min`, 'config'); this.render();
     },
-    render() {
+    async render() {
         const c = document.getElementById('scheduleList'); if (!c) return;
-        const all = this.getAll();
+        const all = await this.getAll();
         if (!all.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-calendar-alt" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>No scheduled runs</p></div>'; return; }
         c.innerHTML = all.map(s => `<div class="schedule-item"><div class="schedule-icon"><i class="fas fa-calendar-check"></i></div><div class="schedule-info"><div class="schedule-name">${esc(s.name)}</div><div class="schedule-detail">Every ${s.interval} min${s.presetId ? ' • Uses preset' : ' • Current config'}</div></div><span class="schedule-status ${s.paused ? 'paused' : 'active'}">${s.paused ? 'Paused' : 'Active'}</span><button class="btn btn-sm btn-ghost" onclick="Scheduler.togglePause(${s.id})"><i class="fas fa-${s.paused ? 'play' : 'pause'}"></i></button><button class="btn btn-sm btn-ghost" onclick="Scheduler.delete(${s.id})" style="color:var(--error);"><i class="fas fa-trash"></i></button></div>`).join('');
     }
@@ -362,7 +652,11 @@ const Scheduler = {
 const Settings = {
     soundEnabled: JSON.parse(localStorage.getItem('acc_sound') || 'true'),
     setSound(on) { this.soundEnabled = on; localStorage.setItem('acc_sound', JSON.stringify(on)); document.getElementById('soundOnBtn')?.classList.toggle('active', on); document.getElementById('soundOffBtn')?.classList.toggle('active', !on); Toast.info('Sound', on ? 'Sound alerts on' : 'Sound alerts off'); },
-    updateStorageUsed() { const used = new Blob(Object.values(localStorage)).size; document.getElementById('storageUsed').textContent = `${(used / 1024).toFixed(1)} KB`; }
+    updateStorageUsed() {
+        const used = new Blob(Object.values(localStorage)).size;
+        const el = document.getElementById('storageUsed');
+        if (el) el.textContent = `${(used / 1024).toFixed(1)} KB`;
+    }
 };
 
 // ===== FORM LOGIC =====
@@ -372,10 +666,34 @@ function setRunMode(m) { runMode = m; document.getElementById('modeSingleBtn').c
 function switchPlatformFields(p) { document.querySelectorAll('.platform-field').forEach(f => f.classList.remove('active')); document.getElementById(`field-${p}`)?.classList.add('active'); }
 function updateBatchPlatformFields() { document.querySelectorAll('.platform-field').forEach(f => f.classList.remove('active')); document.querySelectorAll('.platform-check input:checked').forEach(cb => { const field = document.getElementById(`field-${cb.value}`); if (field) field.classList.add('active'); }); }
 function clearFile(e) { if (e) e.stopPropagation(); uploadedFile = null; document.getElementById('fileUpload').value = ''; document.getElementById('fileDropText').innerHTML = 'Drag & drop or <strong>click to browse</strong>'; document.getElementById('fileDropZone').classList.remove('has-file'); document.getElementById('fileClearBtn').classList.add('hidden'); document.getElementById('filenameGroup').style.display = ''; document.getElementById('dataPreviewGroup')?.classList.add('hidden'); }
-function getFormData() { const p = document.getElementById('platformSelect').value; return { SELECTED_PLATFORM: p, FILENAME: uploadedFile ? uploadedFile.name : (document.getElementById('filenameInput').value + '.xlsx' || 'testing.xlsx'), TESTER_NAME: document.getElementById('testerNameInput').value || 'GitHub Actions Bot', GREETING: document.getElementById('greetingInput').value || 'Haloo', WEBCHAT_URL: document.getElementById('webchatUrlInput').value || 'https://chat.botika.online/tpUyiey', DHAI_TARGET_URL: document.getElementById('dhaiUrlInput').value || '', INSTAGRAM_USERNAME: document.getElementById('instagramUrlInput').value || '', FACEBOOK_FANPAGE_ID: document.getElementById('facebookUrlInput').value || '', TELEGRAM_BOT_USERNAME: document.getElementById('telegramBotInput').value || '' }; }
+function getFormData() {
+    const p = document.getElementById('platformSelect').value;
+    const runTitle = document.getElementById('runTitleInput')?.value?.trim() || 'Manual Test Run';
+    const user = AuthManager.user?.username || 'Guest';
+
+    const backendUrl = localStorage.getItem('acc_backend_url') || window.location.origin;
+
+    return {
+        RUN_NAME: `${user}: ${runTitle}`,
+        SELECTED_PLATFORM: p,
+        FILENAME: uploadedFile ? uploadedFile.name : (document.getElementById('filenameInput').value + '.xlsx' || 'testing.xlsx'),
+        TESTER_NAME: document.getElementById('testerNameInput').value || 'GitHub Actions Bot',
+        GREETING: document.getElementById('greetingInput').value || 'Haloo',
+        WEBCHAT_URL: document.getElementById('webchatUrlInput').value || 'https://chat.botika.online/tpUyiey',
+        WEBCHAT_NAME: document.getElementById('webchatNameInput')?.value || '',
+        WEBCHAT_EMAIL: document.getElementById('webchatEmailInput')?.value || '',
+        WEBCHAT_PHONE: document.getElementById('webchatPhoneInput')?.value || '',
+        DHAI_TARGET_URL: document.getElementById('dhaiUrlInput').value || '',
+        INSTAGRAM_USERNAME: document.getElementById('instagramUrlInput').value || '',
+        FACEBOOK_FANPAGE_ID: document.getElementById('facebookUrlInput').value || '',
+        TELEGRAM_BOT_USERNAME: document.getElementById('telegramBotInput').value || '',
+        BACKEND_URL: backendUrl
+    };
+}
 function resetForm() {
     document.getElementById('platformSelect').value = 'webchat'; switchPlatformFields('webchat');
-    document.getElementById('tokenInput').value = ''; document.getElementById('tokenInput').type = 'password';
+    document.getElementById('runTitleInput').value = 'Manual Test Run';
+    ['webchatNameInput', 'webchatEmailInput', 'webchatPhoneInput'].forEach(id => { document.getElementById(id).value = ''; });
     ['filenameInput', 'testerNameInput', 'greetingInput'].forEach((id, i) => { document.getElementById(id).value = ['testing', 'GitHub Actions Bot', 'Haloo'][i]; });
     document.getElementById('webchatUrlInput').value = 'https://chat.botika.online/tpUyiey';
     ['telegramBotInput', 'instagramUrlInput', 'facebookUrlInput', 'dhaiUrlInput'].forEach(id => { document.getElementById(id).value = ''; });
@@ -424,6 +742,7 @@ async function triggerWorkflow() {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
     Toast.init(); ThemeManager.init(); TerminalLog.init(); Router.init(); PresetManager.render(); NotifCenter.updateDot(); Scheduler.startAll(); Settings.updateStorageUsed();
+    BackendAPI.init();
 
     // Sidebar
     document.getElementById('sidebarToggle')?.addEventListener('click', () => document.getElementById('sidebar')?.classList.toggle('collapsed'));
@@ -435,7 +754,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Platform
     document.getElementById('platformSelect')?.addEventListener('change', e => switchPlatformFields(e.target.value));
-    document.querySelectorAll('.platform-check input').forEach(cb => cb.addEventListener('change', () => { cb.closest('.platform-check').classList.toggle('checked', cb.checked); if (runMode === 'batch') updateBatchPlatformFields(); }));
+    document.querySelectorAll('.platform-check').forEach(card => {
+        const cb = card.querySelector('input');
+        // No click listener needed on the card because it's a <label>
+        // Clicking the label automatically toggles the checkbox.
+        cb.addEventListener('change', () => {
+            card.classList.toggle('checked', cb.checked);
+            if (runMode === 'batch') updateBatchPlatformFields();
+        });
+    });
 
     // Token
     document.getElementById('toggleTokenBtn')?.addEventListener('click', () => { const i = document.getElementById('tokenInput'), b = document.getElementById('toggleTokenBtn'); if (i.type === 'password') { i.type = 'text'; b.innerHTML = '<i class="fas fa-eye-slash"></i>'; } else { i.type = 'password'; b.innerHTML = '<i class="fas fa-eye"></i>'; } });
@@ -503,8 +830,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Scheduler
     document.getElementById('addScheduleBtn')?.addEventListener('click', () => {
-        const sel = document.getElementById('schedulePresetInput'); sel.innerHTML = '<option value="">— Current Config —</option>';
-        PresetManager.getAll().forEach(p => { sel.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
+        const sel = document.getElementById('schedulePresetInput');
+        if (sel) {
+            sel.innerHTML = '<option value="">— Current Config —</option>';
+            PresetManager.getAll().forEach(p => { sel.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
+        }
         openModal('addScheduleModal');
     });
     document.getElementById('confirmAddScheduleBtn')?.addEventListener('click', () => {
@@ -518,11 +848,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Settings
     document.getElementById('saveSettingsBtn')?.addEventListener('click', () => {
-        CONFIG.owner = document.getElementById('settingOwner').value.trim(); CONFIG.repo = document.getElementById('settingRepo').value.trim();
-        CONFIG.workflow_id = document.getElementById('settingWorkflow').value.trim(); CONFIG.ref = document.getElementById('settingBranch').value.trim();
+        CONFIG.owner = document.getElementById('settingOwner').value.trim();
+        CONFIG.repo = document.getElementById('settingRepo').value.trim();
+        CONFIG.workflow_id = document.getElementById('settingWorkflow').value.trim();
+        CONFIG.ref = document.getElementById('settingBranch').value.trim();
+        CONFIG.token = document.getElementById('tokenInput').value.trim();
+        const backendUrl = document.getElementById('settingBackendUrl').value.trim();
+        if (backendUrl) localStorage.setItem('acc_backend_url', backendUrl);
+        else localStorage.removeItem('acc_backend_url'); // Clear if empty
+
         localStorage.setItem('acc_config', JSON.stringify(CONFIG));
         document.getElementById('envInfo').innerHTML = `<span class="env-tag"><i class="fas fa-code-branch"></i> ${CONFIG.ref}</span><span class="env-tag"><i class="fas fa-file-code"></i> ${CONFIG.workflow_id}</span><span class="env-tag"><i class="fab fa-github"></i> ${CONFIG.owner}/${CONFIG.repo}</span>`;
-        Toast.success('Saved', 'Settings updated'); ActivityFeed.add('Settings Updated', `${CONFIG.owner}/${CONFIG.repo}`, 'config'); Settings.updateStorageUsed();
+        Toast.success('Saved', 'Settings updated');
+        ActivityFeed.add('Settings Updated', `${CONFIG.owner}/${CONFIG.repo}`, 'config');
+        Settings.updateStorageUsed();
+        GitHubAPI.checkConnection(); // Update connection status after saving
     });
     document.getElementById('exportSettingsBtn')?.addEventListener('click', () => {
         const data = { config: CONFIG, presets: PresetManager.getAll(), theme: ThemeManager.get(), activity: ActivityFeed.getAll(), schedules: Scheduler.getAll() };
@@ -552,17 +892,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); triggerWorkflow(); return; }
         if ((e.ctrlKey || e.metaKey) && e.key === 'r') { e.preventDefault(); resetForm(); return; }
         if (isInput) return;
-        const keys = { 1: 'dashboard', 2: 'run-tests', 3: 'history', 4: 'reports', 5: 'presets', 6: 'activity', 7: 'scheduler', 8: 'settings' };
+        const keys = { 1: 'dashboard', 2: 'run-tests', 3: 'history', 4: 'db-results', 5: 'reports', 6: 'presets', 7: 'activity', 8: 'scheduler', 9: 'settings' };
         if (keys[e.key]) { e.preventDefault(); Router.navigate(keys[e.key]); return; }
         if (e.key === '?') { e.preventDefault(); openModal('shortcutsModal'); }
         if (e.key === 'n' || e.key === 'N') { e.preventDefault(); NotifCenter.toggle(); }
+        if (e.key === 'L' && e.shiftKey && e.ctrlKey) { e.preventDefault(); AuthManager.logout(); }
     });
+
+    // Initialize Auth
+    AuthManager.init();
 
     // Init fields
     switchPlatformFields('webchat');
-    document.getElementById('settingOwner').value = CONFIG.owner; document.getElementById('settingRepo').value = CONFIG.repo;
-    document.getElementById('settingWorkflow').value = CONFIG.workflow_id; document.getElementById('settingBranch').value = CONFIG.ref;
-    document.getElementById('envInfo').innerHTML = `<span class="env-tag"><i class="fas fa-code-branch"></i> ${CONFIG.ref}</span><span class="env-tag"><i class="fas fa-file-code"></i> ${CONFIG.workflow_id}</span><span class="env-tag"><i class="fab fa-github"></i> ${CONFIG.owner}/${CONFIG.repo}</span>`;
+    const sOwner = document.getElementById('settingOwner');
+    if (sOwner) sOwner.value = CONFIG.owner;
+    const sRepo = document.getElementById('settingRepo');
+    if (sRepo) sRepo.value = CONFIG.repo;
+    const sWorkflow = document.getElementById('settingWorkflow');
+    if (sWorkflow) sWorkflow.value = CONFIG.workflow_id;
+    const sBranch = document.getElementById('settingBranch');
+    if (sBranch) sBranch.value = CONFIG.ref;
+    const sBackend = document.getElementById('settingBackendUrl');
+    if (sBackend) sBackend.value = localStorage.getItem('acc_backend_url') || '';
+    const sToken = document.getElementById('tokenInput');
+    if (sToken) sToken.value = CONFIG.token;
+    const envInfo = document.getElementById('envInfo');
+    if (envInfo) envInfo.innerHTML = `<span class="env-tag"><i class="fas fa-code-branch"></i> ${CONFIG.ref}</span><span class="env-tag"><i class="fas fa-file-code"></i> ${CONFIG.workflow_id}</span><span class="env-tag"><i class="fab fa-github"></i> ${CONFIG.owner}/${CONFIG.repo}</span>`;
     // Sound init
     document.getElementById('soundOnBtn')?.classList.toggle('active', Settings.soundEnabled);
     document.getElementById('soundOffBtn')?.classList.toggle('active', !Settings.soundEnabled);

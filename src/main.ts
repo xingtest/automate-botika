@@ -188,7 +188,10 @@ async function main(): Promise<void> {
       console.log(`URL Pengujian: ${url}\n`);
 
       const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium');
-      await WebchatPlatform.prechatForm(page, greeting, 'Tester', 'tester@example.com', '081234567890');
+      const webchatName = process.env.WEBCHAT_NAME || 'Tester';
+      const webchatEmail = process.env.WEBCHAT_EMAIL || 'tester@example.com';
+      const webchatPhone = process.env.WEBCHAT_PHONE || '081234567890';
+      await WebchatPlatform.prechatForm(page, greeting, webchatName, webchatEmail, webchatPhone);
       await WebchatPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder);
       await Modul.closeBrowser(browser);
 
@@ -299,6 +302,9 @@ async function main(): Promise<void> {
     if (reportFilename && idTest) {
       const summaryPath = path.join('report', 'json', `${reportFilename}-${idTest}-summary.json`);
       testTracker.saveResults(summaryPath);
+
+      // Push to MySQL Database
+      await pushToDatabase(summaryPath);
     }
 
     Modul.testDone('Test Done!');
@@ -311,6 +317,67 @@ async function main(): Promise<void> {
       console.log(`\n⚠️ Some tests failed. Exit code: ${exitCode}\n`);
     }
     process.exit(exitCode);
+  }
+}
+
+/**
+ * Push test results to the MySQL database via the Backend API
+ */
+async function pushToDatabase(summaryPath: string): Promise<void> {
+  try {
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const apiUrl = `${backendUrl}/api/test-runs`;
+
+    if (!fs.existsSync(summaryPath)) {
+      log.warn(`Cannot push to DB: Summary file not found at ${summaryPath}`);
+      return;
+    }
+
+    const fileContent = fs.readFileSync(summaryPath, 'utf-8');
+    const data = JSON.parse(fileContent);
+
+    // Prepare payload for the API
+    const payload = {
+      summary: {
+        id_test: data.id_test,
+        platform: data.summary?.platform || (process.argv[2] || process.env.PLATFORM || '').toLowerCase(),
+        tester_name: data.tester_name,
+        filename: data.summary?.filename || process.env.FILENAME,
+        ai_evaluation: data.ai_evaluation,
+        url: data.url,
+        page_name: data.page_name,
+        browser_name: data.browser_name,
+        date_test: data.date_test,
+        start_time_test: data.start_time_test,
+        end_time_test: data.summary?.end_time_test || new Date().toLocaleTimeString(),
+        duration: data.summary?.totalDuration || data.duration,
+        total_title: data.total_title,
+        total_question: data.total_question || data.summary?.totalTests,
+        success: data.summary?.passed || data.success,
+        failed: data.summary?.failed || data.failed,
+        avg_score: data.summary?.averageScore || 0
+      },
+      results: data.results || []
+    };
+
+    console.log(`\n📤 Sending results to database (${backendUrl})...`);
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      const result: any = await response.json();
+      console.log(`✅ Results successfully synced to MySQL (ID: ${result.id})`);
+      log.info(`Results synced to database with ID: ${result.id}`);
+    } else {
+      console.warn(`⚠️ Failed to sync results to database: HTTP ${response.status}`);
+      log.warn(`Database sync failed with status ${response.status}`);
+    }
+  } catch (error: any) {
+    console.warn(`⚠️ Database sync error: ${error.message}`);
+    log.error('Error pushing to database', error);
   }
 }
 
