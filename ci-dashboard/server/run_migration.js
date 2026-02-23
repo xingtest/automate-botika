@@ -5,7 +5,7 @@ const path = require('path');
 async function migrate() {
     try {
         console.log('🔄 Starting migration...');
-        const sql = fs.readFileSync(path.join(__dirname, 'migration_v2.sql'), 'utf-8');
+        const sql = fs.readFileSync(path.join(__dirname, 'migration_user_id.sql'), 'utf-8');
 
         // Split by semicolon, but be careful with comments and empty strings
         const statements = sql

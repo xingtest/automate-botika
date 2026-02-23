@@ -11,6 +11,7 @@ import { DhaiPlatform } from './platforms/dhai';
 
 import { log } from './utils/logger';
 import { TestTracker } from './utils/test-tracker';
+import { ArtifactHelper } from './utils/artifact-helper';
 
 // ============================================
 // Type Definitions (exported for other modules)
@@ -303,8 +304,15 @@ async function main(): Promise<void> {
       const summaryPath = path.join('report', 'json', `${reportFilename}-${idTest}-summary.json`);
       testTracker.saveResults(summaryPath);
 
-      // Push to MySQL Database
-      await pushToDatabase(summaryPath);
+      // Push to MySQL Database and get run ID
+      const runId = await pushToDatabase(summaryPath);
+
+      // Upload artifacts to database
+      if (runId) {
+        console.log(`\n📁 Uploading test artifacts...`);
+        const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+        await ArtifactHelper.uploadTestArtifacts(backendUrl, runId, reportFilename, idTest);
+      }
     }
 
     Modul.testDone('Test Done!');
@@ -323,14 +331,14 @@ async function main(): Promise<void> {
 /**
  * Push test results to the MySQL database via the Backend API
  */
-async function pushToDatabase(summaryPath: string): Promise<void> {
+async function pushToDatabase(summaryPath: string): Promise<number | null> {
   try {
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     const apiUrl = `${backendUrl}/api/test-runs`;
 
     if (!fs.existsSync(summaryPath)) {
       log.warn(`Cannot push to DB: Summary file not found at ${summaryPath}`);
-      return;
+      return null;
     }
 
     const fileContent = fs.readFileSync(summaryPath, 'utf-8');
@@ -339,6 +347,7 @@ async function pushToDatabase(summaryPath: string): Promise<void> {
     // Prepare payload for the API
     const payload = {
       summary: {
+        user_id: process.env.USER_ID ? parseInt(process.env.USER_ID) : null,
         id_test: data.id_test,
         platform: data.summary?.platform || (process.argv[2] || process.env.PLATFORM || '').toLowerCase(),
         tester_name: data.tester_name,
@@ -371,13 +380,16 @@ async function pushToDatabase(summaryPath: string): Promise<void> {
       const result: any = await response.json();
       console.log(`✅ Results successfully synced to MySQL (ID: ${result.id})`);
       log.info(`Results synced to database with ID: ${result.id}`);
+      return result.id;
     } else {
       console.warn(`⚠️ Failed to sync results to database: HTTP ${response.status}`);
       log.warn(`Database sync failed with status ${response.status}`);
+      return null;
     }
   } catch (error: any) {
     console.warn(`⚠️ Database sync error: ${error.message}`);
     log.error('Error pushing to database', error);
+    return null;
   }
 }
 

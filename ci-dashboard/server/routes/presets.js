@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
+const { authenticateToken } = require('../middleware/auth');
 
 // GET /api/presets
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM presets ORDER BY created_at DESC');
+        const [rows] = await pool.query('SELECT * FROM presets WHERE user_id = ? ORDER BY created_at DESC', [req.user.id]);
         res.json({ data: rows });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -13,13 +14,13 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/presets
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
     try {
-        const p = req.body;
+        const { name, color, platform, filename, tester_name, greeting, webchat_url, telegram_bot, instagram_user, facebook_id, dhai_url } = req.body;
         const [result] = await pool.query(
-            `INSERT INTO presets (name, color, platform, filename, tester_name, greeting, webchat_url, telegram_bot, instagram_user, facebook_id, dhai_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [p.name, p.color || '#6366f1', p.platform, p.filename || '', p.tester_name || '', p.greeting || '', p.webchat_url || '', p.telegram_bot || '', p.instagram_user || '', p.facebook_id || '', p.dhai_url || '']
+            `INSERT INTO presets (user_id, name, color, platform, filename, tester_name, greeting, webchat_url, telegram_bot, instagram_user, facebook_id, dhai_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [req.user.id, name, color, platform, filename, tester_name, greeting, webchat_url, telegram_bot, instagram_user, facebook_id, dhai_url]
         );
         res.status(201).json({ id: result.insertId, message: 'Preset saved' });
     } catch (err) {
@@ -28,12 +29,13 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/presets/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
     try {
-        const p = req.body;
+        const { name, color, platform, filename, tester_name, greeting, webchat_url, telegram_bot, instagram_user, facebook_id, dhai_url } = req.body;
         await pool.query(
-            `UPDATE presets SET name=?, color=?, platform=?, filename=?, tester_name=?, greeting=?, webchat_url=?, telegram_bot=?, instagram_user=?, facebook_id=?, dhai_url=? WHERE id=?`,
-            [p.name, p.color, p.platform, p.filename, p.tester_name, p.greeting, p.webchat_url, p.telegram_bot, p.instagram_user, p.facebook_id, p.dhai_url, req.params.id]
+            `UPDATE presets SET name = ?, color = ?, platform = ?, filename = ?, tester_name = ?, greeting = ?, webchat_url = ?, telegram_bot = ?, instagram_user = ?, facebook_id = ?, dhai_url = ?
+       WHERE id = ? AND user_id = ?`,
+            [name, color, platform, filename, tester_name, greeting, webchat_url, telegram_bot, instagram_user, facebook_id, dhai_url, req.params.id, req.user.id]
         );
         res.json({ message: 'Preset updated' });
     } catch (err) {
@@ -42,9 +44,9 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/presets/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
     try {
-        await pool.query('DELETE FROM presets WHERE id = ?', [req.params.id]);
+        await pool.query('DELETE FROM presets WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
         res.json({ message: 'Preset deleted' });
     } catch (err) {
         res.status(500).json({ error: err.message });

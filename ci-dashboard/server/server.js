@@ -17,6 +17,7 @@ app.use('/api/auth', require('./routes/auth'));
 
 app.use('/api/test-runs', require('./routes/test-runs'));
 app.use('/api/test-results', require('./routes/test-results'));
+app.use('/api/artifacts', require('./routes/artifacts'));
 app.use('/api/presets', require('./routes/presets'));
 app.use('/api/activity', require('./routes/activity'));
 app.use('/api/notifications', require('./routes/notifications'));

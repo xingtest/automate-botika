@@ -10,6 +10,7 @@ USE automation_testing;
 -- Test Runs (Summary of each test execution)
 CREATE TABLE IF NOT EXISTS test_runs (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
   test_id VARCHAR(100) NOT NULL,
   platform VARCHAR(50) NOT NULL,
   tester_name VARCHAR(255) NOT NULL,
@@ -28,6 +29,8 @@ CREATE TABLE IF NOT EXISTS test_runs (
   failed INT DEFAULT 0,
   avg_score DECIMAL(5,3) DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_user (user_id),
   INDEX idx_platform (platform),
   INDEX idx_date (date_test),
   INDEX idx_tester (tester_name),
@@ -58,6 +61,7 @@ CREATE TABLE IF NOT EXISTS test_results (
 -- Presets (Saved test configurations)
 CREATE TABLE IF NOT EXISTS presets (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
   name VARCHAR(255) NOT NULL,
   color VARCHAR(20) DEFAULT '#6366f1',
   platform VARCHAR(50) NOT NULL,
@@ -69,16 +73,20 @@ CREATE TABLE IF NOT EXISTS presets (
   instagram_user VARCHAR(255),
   facebook_id VARCHAR(255),
   dhai_url VARCHAR(500),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Activity Logs
 CREATE TABLE IF NOT EXISTS activity_logs (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
   title VARCHAR(255) NOT NULL,
   description TEXT,
   type VARCHAR(50) DEFAULT 'system',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user (user_id),
   INDEX idx_type (type),
   INDEX idx_created (created_at)
 );
@@ -91,4 +99,19 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+-- Artifacts (Store test reports and other artifacts)
+CREATE TABLE IF NOT EXISTS artifacts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  run_id INT NOT NULL,
+  artifact_type VARCHAR(50) NOT NULL COMMENT 'json, html, excel, screenshot, etc',
+  filename VARCHAR(255) NOT NULL,
+  file_path VARCHAR(500) NOT NULL,
+  file_size INT DEFAULT 0,
+  mime_type VARCHAR(100) DEFAULT 'application/octet-stream',
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (run_id) REFERENCES test_runs(id) ON DELETE CASCADE,
+  INDEX idx_run_id (run_id),
+  INDEX idx_artifact_type (artifact_type)
 );

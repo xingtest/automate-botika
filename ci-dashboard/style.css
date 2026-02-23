@@ -1320,6 +1320,52 @@ select.form-control {
   border-bottom: none;
 }
 
+.report-filter-controls {
+  background: var(--bg-secondary);
+  padding: var(--sp-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.report-filter-controls input[type="text"],
+.report-filter-controls input[type="date"] {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.report-filter-controls input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
+}
+
+.pin-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: var(--sp-1);
+  transition: all 0.2s ease;
+}
+
+.pin-btn:hover {
+  color: var(--accent);
+  transform: scale(1.1);
+}
+
+.pin-btn.pinned {
+  color: var(--accent);
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -1387,6 +1433,33 @@ select.form-control {
   opacity: 0.15;
   margin-bottom: var(--sp-4);
   display: block;
+}
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+
+.report-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.report-card:hover {
+  border-color: var(--accent-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.report-header {
+  background: linear-gradient(135deg, var(--accent-light), var(--accent));
+  color: white;
+  padding: var(--sp-4);
 }
 
 .report-iframe {

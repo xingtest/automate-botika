@@ -79,7 +79,10 @@ const BackendAPI = {
         if (el) el.className = `conn-dot ${this.connected ? '' : 'offline'}`;
     },
     async request(endpoint, opts = {}) {
-        if (!this.connected) return null;
+        if (!this.connected) {
+            console.error(`[DEBUG] Backend not connected, cannot call ${endpoint}`);
+            return null;
+        }
         try {
             const headers = {
                 'Content-Type': 'application/json',
@@ -90,10 +93,22 @@ const BackendAPI = {
                 headers['Authorization'] = `Bearer ${AuthManager.token}`;
             }
 
+            console.log(`[DEBUG] API Request: ${endpoint}`, { headers, method: opts.method || 'GET' });
             const r = await fetch(`${this.baseUrl}${endpoint}`, { headers, ...opts });
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            return await r.json();
-        } catch (err) { console.warn(`API ${endpoint}:`, err.message); return null; }
+
+            if (!r.ok) {
+                const errText = await r.text();
+                console.error(`[DEBUG] API Error ${r.status}:`, errText);
+                throw new Error(`HTTP ${r.status}: ${errText}`);
+            }
+
+            const json = await r.json();
+            console.log(`[DEBUG] API Response (${endpoint}):`, json);
+            return json;
+        } catch (err) {
+            console.error(`[DEBUG] API ${endpoint} FAILED:`, err.message);
+            return null;
+        }
     },
     get(endpoint) { return this.request(endpoint); },
     post(endpoint, data) { return this.request(endpoint, { method: 'POST', body: JSON.stringify(data) }); },
@@ -101,17 +116,39 @@ const BackendAPI = {
     del(endpoint) { return this.request(endpoint, { method: 'DELETE' }); },
     async loadRuns() {
         const c = document.getElementById('dbResultsContent'); if (!c) return;
+        console.log('[DEBUG] BackendAPI.loadRuns() called');
+        console.log('[DEBUG] Backend connected:', this.connected);
         c.innerHTML = '<div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card"></div>';
-        const resp = await this.get('/test-runs?limit=50');
-        if (!resp || !resp.data || !resp.data.length) {
-            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-database" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>No results in database yet</p></div>';
+
+        // Make sure backend is initialized
+        if (!this.connected) {
+            console.error('[DEBUG] Backend API not connected!');
+            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-wifi-off" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>Backend API not connected</p><p class="text-sm" style="margin-top:var(--sp-3);">Please ensure the server is running at localhost:3001</p></div>';
             return;
         }
-        // Update summary stats if on the page
+
+        const resp = await this.get('/test-runs?limit=50');
+        console.log('[DEBUG] test-runs response:', resp);
+
+        if (!resp) {
+            console.error('[DEBUG] No response from /test-runs endpoint');
+            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-plug" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>API connection error</p><p class="text-sm" style="margin-top:var(--sp-3);">Check browser console for details</p></div>';
+            return;
+        }
+
+        if (!resp.data || !resp.data.length) {
+            console.warn('[DEBUG] No test runs found in database (resp.data is empty or missing)');
+            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-database" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>No results in database yet</p><p class="text-sm" style="margin-top:var(--sp-3);">Run a test to populate the database</p></div>';
+            return;
+        }
+
+        // Update summary stats
         const stats = await this.get('/stats/dashboard');
+        console.log('[DEBUG] stats/dashboard response:', stats);
         if (stats) {
             document.getElementById('dbStatTotalRuns').textContent = stats.total_runs || 0;
-            document.getElementById('dbStatAvgScore').textContent = stats.avg_score || 0;
+            const avgScore = stats.avg_score ? parseFloat(stats.avg_score).toFixed(2) : '0.00';
+            document.getElementById('dbStatAvgScore').textContent = avgScore;
             document.getElementById('dbStatSuccessRate').textContent = `${stats.success_rate || 0}%`;
         }
         this.renderRuns(resp.data);
@@ -135,14 +172,119 @@ const BackendAPI = {
     },
     async showRunDetail(id) {
         Toast.info('Loading', `Fetching details for run #${id}`);
+        console.log('[DEBUG] Fetching run details for id:', id);
         const data = await this.get(`/test-runs/${id}`);
-        if (!data) return;
-        console.log('Run Detail:', data);
-        // We could open a modal or navigate to a detail view here
-        Toast.success('Loaded', `Found ${data.results.length} results for this run`);
+        if (!data) { console.error('[DEBUG] Failed to fetch run details'); return; }
+        console.log('[DEBUG] Run Detail:', data);
+
+        // Load artifacts
+        const artifacts = await ArtifactManager.loadArtifacts(id);
+
+        // Create modal for details
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;padding:var(--sp-4);';
+
+        const content = document.createElement('div');
+        content.style.cssText = 'background:var(--bg-primary);border-radius:var(--radius);padding:var(--sp-6);max-width:900px;max-height:90vh;overflow-y:auto;width:100%;';
+
+        let artifactsHTML = '';
+        if (artifacts.length > 0) {
+            const byType = {};
+            artifacts.forEach(a => {
+                if (!byType[a.artifact_type]) byType[a.artifact_type] = [];
+                byType[a.artifact_type].push(a);
+            });
+
+            artifactsHTML = `<div style="margin-top:var(--sp-4);border-top:1px solid var(--border-color);padding-top:var(--sp-4);">
+                <h3 style="margin-bottom:var(--sp-3);"><i class="fas fa-file"></i> Artifacts (${artifacts.length})</h3>`;
+
+            for (const [type, items] of Object.entries(byType)) {
+                artifactsHTML += `<div style="margin-bottom:var(--sp-4);">
+                    <div style="font-weight:600;font-size:0.9rem;text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--sp-2);">${type}</div>
+                    <div style="display:grid;gap:var(--sp-2);">
+                        ${items.map(a => ArtifactManager.renderArtifactCard(a)).join('')}
+                    </div>
+                </div>`;
+            }
+            artifactsHTML += '</div>';
+        }
+
+        content.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-4);">
+                <h2>Test Run Details #${id}</h2>
+                <button onclick="this.closest('[style*=position\\:fixed]').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text-muted);">×</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);margin-bottom:var(--sp-4);">
+                <div><strong>Platform:</strong> ${data.run.platform}</div>
+                <div><strong>Tester:</strong> ${data.run.tester_name}</div>
+                <div><strong>Test ID:</strong> <code>${data.run.test_id}</code></div>
+                <div><strong>Score:</strong> ${parseFloat(data.run.avg_score).toFixed(2)}</div>
+                <div><strong>Status:</strong> ${data.run.failed > 0 ? '❌ FAILED' : '✅ PASSED'}</div>
+                <div><strong>Results:</strong> ${data.results?.length || 0} items</div>
+            </div>
+            ${artifactsHTML}
+        `;
+
+        modal.appendChild(content);
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+        document.body.appendChild(modal);
+
+        Toast.success('Loaded', `Found ${data.results?.length || 0} results and ${artifacts.length} artifacts`);
     }
 };
 
+// ===== ARTIFACT MANAGER =====
+const ArtifactManager = {
+    async loadArtifacts(runId) {
+        try {
+            const resp = await BackendAPI.get(`/artifacts?run_id=${runId}`);
+            if (!resp || !resp.data) return [];
+            return resp.data;
+        } catch (err) {
+            console.error('Error loading artifacts:', err);
+            return [];
+        }
+    },
+    async downloadArtifact(artifactId, filename) {
+        try {
+            window.location.href = `http://localhost:3001/api/artifacts/${artifactId}/download`;
+            Toast.success('Download started', `${filename}`);
+        } catch (err) {
+            Toast.error('Download failed', err.message);
+        }
+    },
+    renderArtifactCard(artifact) {
+        const icons = {
+            json: 'fa-file-code',
+            html: 'fa-file-lines',
+            excel: 'fa-file-excel',
+            screenshot: 'fa-image',
+            pdf: 'fa-file-pdf',
+            zip: 'fa-file-archive'
+        };
+        const icon = icons[artifact.artifact_type] || 'fa-file';
+        const size = this.formatFileSize(artifact.file_size);
+        const date = new Date(artifact.created_at).toLocaleString();
+
+        return `<div style="display:flex;align-items:center;padding:var(--sp-3);border:1px solid var(--border-color);border-radius:var(--radius);gap:var(--sp-3);background:var(--bg-secondary);">
+            <i class="fas ${icon}" style="font-size:1.5rem;color:var(--accent);opacity:0.7;"></i>
+            <div style="flex:1;min-width:0;">
+                <div style="font-weight:600;font-size:0.9rem;word-break:break-word;">${this.esc(artifact.filename)}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);">${artifact.artifact_type} • ${size} • ${date}</div>
+                ${artifact.description ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">${this.esc(artifact.description)}</div>` : ''}
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="ArtifactManager.downloadArtifact(${artifact.id}, '${artifact.filename.replace(/'/g, "\\'")}')"><i class="fas fa-download"></i></button>
+        </div>`;
+    },
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+    esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+};
 
 // ===== TOAST =====
 const Toast = {
@@ -177,8 +319,8 @@ const ThemeManager = {
 
 // ===== ROUTER =====
 const Router = {
-    pages: ['dashboard', 'run-tests', 'history', 'reports', 'presets', 'activity', 'scheduler', 'settings'],
-    titles: { dashboard: 'Dashboard', 'run-tests': 'Run Tests', history: 'Run History', reports: 'Reports', presets: 'Presets', activity: 'Activity Feed', scheduler: 'Scheduler', settings: 'Settings' },
+    pages: ['dashboard', 'run-tests', 'history', 'reports', 'db-results', 'presets', 'activity', 'scheduler', 'settings'],
+    titles: { dashboard: 'Dashboard', 'run-tests': 'Run Tests', history: 'Run History', reports: 'Reports', 'db-results': 'DB Results', presets: 'Presets', activity: 'Activity Feed', scheduler: 'Scheduler', settings: 'Settings' },
     init() { window.addEventListener('hashchange', () => this.handleRoute()); this.handleRoute(); },
     handleRoute() { const h = window.location.hash.slice(1) || 'dashboard'; this.show(this.pages.includes(h) ? h : 'dashboard'); },
     navigate(p) { window.location.hash = p; },
@@ -199,7 +341,8 @@ const Router = {
         if (page === 'presets') PresetManager.render();
         if (page === 'activity') ActivityFeed.render();
         if (page === 'scheduler') Scheduler.render();
-        if (page === 'db-results') BackendAPI.loadRuns();
+        if (page === 'db-results') { console.log('[DEBUG] Loading DB Results...'); BackendAPI.loadRuns(); }
+        if (page === 'reports') { console.log('[DEBUG] Loading Reports...'); ReportManager.render(); }
         document.getElementById('mobileOverlay')?.classList.remove('show');
         document.getElementById('sidebar')?.classList.remove('mobile-open');
     }
@@ -266,19 +409,7 @@ const GitHubAPI = {
     },
     async loadHistory() {
         const c = document.getElementById('historyContent'); if (!c) return;
-        if (!this.getToken()) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-key" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--sp-4);"></i><p>Enter token in Run Tests to view</p></div>'; return; }
-        c.innerHTML = '<div class="skeleton skeleton-card mb-4"></div><div class="skeleton skeleton-card mb-4"></div><div class="skeleton skeleton-card"></div>';
-        let runs = await this.getRuns();
-        const user = AuthManager.user?.username;
-        if (user) {
-            runs = runs.filter(r => (r.display_title || r.name || '').startsWith(`${user}:`));
-        }
-        const filter = document.getElementById('historyFilterStatus')?.value;
-        if (filter && filter !== 'all') runs = runs.filter(r => (r.conclusion || r.status) === filter);
-        if (!runs.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><p>No runs found</p></div>'; return; }
-        const badge = document.getElementById('historyBadge'); if (badge) badge.textContent = runs.length;
-        const pinned = JSON.parse(localStorage.getItem('acc_pinned') || '[]');
-        c.innerHTML = `<table class="runs-table"><thead><tr><th></th><th>Run</th><th>Status</th><th>Branch</th><th>Trigger</th><th>Started</th><th>Duration</th><th></th></tr></thead><tbody>${runs.map(r => this.renderRow(r, pinned)).join('')}</tbody></table>`;
+        c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-github" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--sp-4);"></i><p>GitHub Workflow History</p><p style="font-size:0.85rem;margin-top:var(--sp-2);">View your workflow runs directly on GitHub</p><a href="https://github.com/katanyaaman/automationtestingjudges/actions" target="_blank" class="btn btn-secondary" style="margin-top:var(--sp-4);"><i class="fas fa-external-link-alt"></i> Open on GitHub</a></div>';
     },
     renderRow(run, pinned = []) {
         const st = run.conclusion || run.status;
@@ -293,6 +424,13 @@ const GitHubAPI = {
         const s = Math.floor((new Date() - d) / 1000);
         for (const { label: l, seconds: v } of [{ label: 'y', seconds: 31536000 }, { label: 'mo', seconds: 2592000 }, { label: 'd', seconds: 86400 }, { label: 'h', seconds: 3600 }, { label: 'm', seconds: 60 }]) { const c = Math.floor(s / v); if (c > 0) return `${c}${l} ago`; }
         return 'just now';
+    },
+    formatDateTime(d) {
+        const date = new Date(d);
+        const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        const formatted = date.toLocaleDateString('en-US', options);
+        const ago = this.timeAgo(date);
+        return `${formatted} (${ago})`;
     },
     fmtDur(ms) { const s = Math.floor(ms / 1000); if (s < 60) return `${s}s`; const m = Math.floor(s / 60); if (m < 60) return `${m}m ${s % 60}s`; return `${Math.floor(m / 60)}h ${m % 60}m`; },
     startPolling(runId) {
@@ -476,7 +614,7 @@ const ActivityFeed = {
         // Fallback to localStorage
         if (!items.length) items = this.getAll();
         if (!items.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-stream" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>No activity yet</p></div>'; return; }
-        c.innerHTML = items.slice(0, 50).map(a => `<div class="activity-item"><div class="activity-icon ${a.type}"><i class="fas fa-${a.type === 'dispatch' ? 'play' : a.type === 'success' ? 'check' : a.type === 'error' ? 'times' : a.type === 'config' ? 'cog' : 'info-circle'}"></i></div><div class="activity-body"><div class="activity-title">${a.title}</div><div class="activity-desc">${a.desc}</div><div class="activity-time">${GitHubAPI.timeAgo(new Date(a.time))}</div></div></div>`).join('');
+        c.innerHTML = items.slice(0, 50).map(a => `<div class="activity-item" title="${GitHubAPI.formatDateTime(a.time)}"><div class="activity-icon ${a.type}"><i class="fas fa-${a.type === 'dispatch' ? 'play' : a.type === 'success' ? 'check' : a.type === 'error' ? 'times' : a.type === 'config' ? 'cog' : 'info-circle'}"></i></div><div class="activity-body"><div class="activity-title">${a.title}</div><div class="activity-desc">${a.desc}</div><div class="activity-time">${GitHubAPI.formatDateTime(a.time)}</div></div></div>`).join('');
     }
 };
 
@@ -512,6 +650,239 @@ const CmdPalette = {
         const filtered = q ? this.commands.filter(c => c.name.toLowerCase().includes(q.toLowerCase())) : this.commands;
         results.innerHTML = filtered.map((c, i) => `<div class="cmd-result ${i === 0 ? 'selected' : ''}" data-idx="${i}" onclick="CmdPalette.commands.find(x=>x.name==='${c.name}').action()"><i class="fas ${c.icon}"></i><span>${c.name}</span>${c.hint ? `<span class="cmd-result-hint">${c.hint}</span>` : ''}</div>`).join('');
     }
+};
+
+// ===== REPORT MANAGER =====
+const ReportManager = {
+    async render() {
+        const c = document.getElementById('reportContent'); if (!c) return;
+        console.log('[DEBUG] ReportManager.render() called');
+        c.innerHTML = '<div style="padding:var(--sp-6);text-align:center;">Loading reports...</div>';
+        try {
+            this.allRuns = []; this.filteredRuns = [];
+            if (BackendAPI.connected) {
+                const stats = await BackendAPI.get('/stats/dashboard');
+                if (stats && stats.recent_runs && stats.recent_runs.length > 0) {
+                    console.log('[DEBUG] Found recent runs from backend:', stats.recent_runs.length);
+                    this.allRuns = stats.recent_runs;
+                    this.filteredRuns = [...this.allRuns];
+                    this.renderControls();
+                    this.renderTable();
+                    return;
+                } else {
+                    console.log('[DEBUG] No recent runs in backend');
+                    c.innerHTML = '<div class="text-center" style="padding:var(--sp-6);color:var(--text-muted);"><p><i class="fas fa-inbox" style="font-size:2rem;margin-bottom:var(--sp-2);"></i></p><p>No reports available</p><p style="font-size:0.85rem;">Run a test to generate a report</p></div>';
+                    return;
+                }
+            }
+            c.innerHTML = '<div class="text-center" style="padding:var(--sp-6);color:var(--text-muted);"><p><i class="fas fa-plug" style="font-size:2rem;margin-bottom:var(--sp-2);opacity:0.3;"></i></p><p>Backend not connected</p><p style="font-size:0.85rem;">Please ensure the server is running</p></div>';
+        } catch (e) {
+            console.error('[DEBUG] Error loading reports:', e);
+            c.innerHTML = '<div style="padding:var(--sp-6);color:var(--error);"><strong>Error loading reports:</strong> ' + this.esc(e.message) + '</div>';
+        }
+    },
+    renderRecentRuns(runs) {
+        const c = document.getElementById('reportContent');
+        c.innerHTML = `<div class="reports-grid">${runs.map(r => `
+            <div class="report-card" onclick="BackendAPI.showRunDetail(${r.id})" style="cursor:pointer">
+                <div class="report-header" style="background:linear-gradient(135deg,var(--accent-light),var(--accent));padding:var(--sp-4);border-radius:var(--radius);color:white;">
+                    <div style="font-size:0.9rem;font-weight:600;">${r.platform || 'Test'} Report</div>
+                    <div style="font-size:0.75rem;opacity:0.8;">${r.test_id}</div>
+                </div>
+                <div style="padding:var(--sp-4);">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);margin-bottom:var(--sp-3);">
+                        <div>
+                            <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Tester</div>
+                            <div style="font-weight:600;font-size:0.9rem;">${r.tester_name}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Score</div>
+                            <div style="font-weight:700;font-size:0.9rem;color:var(--accent);">${parseFloat(r.avg_score).toFixed(1)}</div>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);">
+                        <div>
+                            <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Questions</div>
+                            <div style="font-weight:600;font-size:0.9rem;">${r.total_question || 0}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Status</div>
+                            <span class="status-pill ${r.failed > 0 ? 'failure' : 'success'}" style="font-size:0.75rem;">${r.failed > 0 ? '❌ FAIL' : '✅ PASS'}</span>
+                        </div>
+                    </div>
+                    <div style="margin-top:var(--sp-3);padding-top:var(--sp-3);border-top:1px solid var(--border-color);font-size:0.75rem;color:var(--text-muted);">
+                        ${GitHubAPI.formatDateTime(r.created_at)}
+                    </div>
+                </div>
+            </div>
+        `).join('')}</div>`;
+    },
+    renderGitHubRuns(runs) {
+        const c = document.getElementById('reportContent');
+        c.innerHTML = `<div class="reports-grid">${runs.slice(0, 6).map(r => `
+            <div class="report-card" style="cursor:pointer" onclick="window.open('${r.html_url}')">
+                <div class="report-header" style="background:linear-gradient(135deg,var(--accent-light),var(--accent));padding:var(--sp-4);border-radius:var(--radius);color:white;">
+                    <div style="font-size:0.9rem;font-weight:600;">Workflow Run #${r.run_number}</div>
+                    <div style="font-size:0.75rem;opacity:0.8;">${r.event}</div>
+                </div>
+                <div style="padding:var(--sp-4);">
+                    <div style="display:grid;grid-template-columns:1fr;gap:var(--sp-3);margin-bottom:var(--sp-3);">
+                        <div>
+                            <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Branch</div>
+                            <div style="font-weight:600;font-size:0.9rem;"><code>${r.head_branch}</code></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Status</div>
+                        <span class="status-pill ${r.conclusion || r.status}" style="font-size:0.75rem;"><i class="fas ${r.conclusion === 'success' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${r.conclusion || r.status}</span>
+                    </div>
+                    <div style="margin-top:var(--sp-3);padding-top:var(--sp-3);border-top:1px solid var(--border-color);font-size:0.75rem;color:var(--text-muted);">
+                        ${GitHubAPI.formatDateTime(r.created_at)}
+                    </div>
+                </div>
+            </div>
+        `).join('')}</div>`;
+    },
+
+    // TABLE RENDERING METHODS
+    renderControls() {
+        const c = document.getElementById('reportContent');
+        const parent = c.parentElement;
+        const existingControls = parent.querySelector('.report-filter-controls');
+        if (existingControls) existingControls.remove();
+        const controlsDiv = document.createElement('div');
+        controlsDiv.className = 'report-filter-controls';
+        controlsDiv.style.cssText = 'margin-bottom:var(--sp-4);display:flex;gap:var(--sp-3);flex-wrap:wrap;align-items:center;';
+        controlsDiv.innerHTML = `<input type="text" id="reportSearch" placeholder="🔍 Search tester or title..." style="flex:1;min-width:200px;padding:var(--sp-2);border:1px solid var(--border-color);border-radius:var(--radius);background:var(--input-bg);color:var(--text-primary);" onkeyup="ReportManager.applyFilters()"><div style="display:flex;gap:var(--sp-2);"><input type="date" id="reportDateFrom" title="From date" style="padding:var(--sp-2);border:1px solid var(--border-color);border-radius:var(--radius);background:var(--input-bg);color:var(--text-primary);" onchange="ReportManager.applyFilters()"><input type="date" id="reportDateTo" title="To date" style="padding:var(--sp-2);border:1px solid var(--border-color);border-radius:var(--radius);background:var(--input-bg);color:var(--text-primary);" onchange="ReportManager.applyFilters()"></div><button class="btn btn-secondary btn-sm" onclick="ReportManager.resetFilters()"><i class="fas fa-redo"></i> Reset</button>`;
+        parent.insertBefore(controlsDiv, c);
+    },
+
+    applyFilters() {
+        const searchVal = document.getElementById('reportSearch')?.value?.toLowerCase() || '';
+        const dateFrom = document.getElementById('reportDateFrom')?.value;
+        const dateTo = document.getElementById('reportDateTo')?.value;
+        this.filteredRuns = this.allRuns.filter(r => {
+            const matchesSearch = !searchVal || (r.tester_name?.toLowerCase().includes(searchVal)) || (r.test_id?.toLowerCase().includes(searchVal)) || (r.platform?.toLowerCase().includes(searchVal));
+            const runDate = new Date(r.created_at);
+            const matchesFromDate = !dateFrom || runDate >= new Date(dateFrom + 'T00:00:00');
+            const matchesToDate = !dateTo || runDate <= new Date(dateTo + 'T23:59:59');
+            return matchesSearch && matchesFromDate && matchesToDate;
+        });
+        console.log('[DEBUG] Filtered runs:', this.filteredRuns.length);
+        if (this.allRuns[0]?.html_url) { this.renderGitHubTable(); } else { this.renderTable(); }
+    },
+
+    resetFilters() {
+        document.getElementById('reportSearch').value = '';
+        document.getElementById('reportDateFrom').value = '';
+        document.getElementById('reportDateTo').value = '';
+        this.filteredRuns = [...this.allRuns];
+        if (this.allRuns[0]?.html_url) { this.renderGitHubTable(); } else { this.renderTable(); }
+    },
+
+    renderTable() {
+        const c = document.getElementById('reportContent');
+        const pinned = JSON.parse(localStorage.getItem('acc_reports_pinned') || '[]');
+        if (!this.filteredRuns.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-6);"><p>No reports match your filters</p></div>'; return; }
+        c.innerHTML = `<table class="runs-table" style="width:100%;"><thead><tr><th style="width:40px"></th><th>Run Title</th><th>Tester</th><th>Platform</th><th>Score</th><th>Status</th><th>Started</th><th>Duration</th><th style="width:100px">Actions</th></tr></thead><tbody>${this.filteredRuns.map(r => this.renderRow(r, pinned)).join('')}</tbody></table>`;
+    },
+
+    renderRow(run, pinned = []) {
+        const status = run.failed > 0 ? 'failure' : 'success';
+        const score = parseFloat(run.avg_score || 0).toFixed(2);
+        const isPinned = pinned.includes(run.id);
+        const startedTime = GitHubAPI.formatDateTime(run.created_at);
+        const duration = run.duration || '—';
+        const title = run.test_id || `${run.platform} Test`;
+        return `<tr onclick="BackendAPI.showRunDetail(${run.id})" style="cursor:pointer;"><td><button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="event.stopPropagation();ReportManager.togglePin(${run.id})" title="Pin" style="border:none;background:none;cursor:pointer;color:var(--text-muted);"><i class="fas fa-thumbtack"></i></button></td><td><strong>${this.esc(title)}</strong></td><td style="font-size:0.8rem">${this.esc(run.tester_name)}</td><td><span class="platform-tag ${run.platform}">${run.platform}</span></td><td style="font-weight:700;color:var(--accent)">${score}</td><td><span class="status-pill ${status}" style="font-size:0.75rem;">${status === 'success' ? '✅ PASS' : '❌ FAIL'}</span></td><td style="font-size:0.75rem;color:var(--text-muted);">${startedTime}</td><td style="font-size:0.75rem;color:var(--text-muted);">${duration}</td><td style="position:relative;"><div class="btn-group" style="display:flex;gap:6px;"><button onclick="event.stopPropagation();BackendAPI.showRunDetail(${run.id})" class="btn btn-secondary btn-sm" title="View Details"><i class="fas fa-eye"></i></button><button onclick="event.stopPropagation();ReportManager.showDownloadMenu(event, ${run.id})" class="btn btn-secondary btn-sm" title="Download Artifacts"><i class="fas fa-download"></i></button></div></td></tr>`;
+    },
+
+    showDownloadMenu(event, runId) {
+        event.preventDefault();
+        const menu = document.createElement('div');
+        menu.style.cssText = 'position:absolute;top:100%;right:0;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--radius);box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:1000;min-width:180px;';
+        menu.innerHTML = '<div style="padding:var(--sp-2);">Loading artifacts...</div>';
+        document.body.appendChild(menu);
+
+        // Position menu properly
+        const btn = event.target.closest('.btn-group');
+        const rect = btn.getBoundingClientRect();
+        menu.style.position = 'fixed';
+        menu.style.top = (rect.bottom + 4) + 'px';
+        menu.style.right = (window.innerWidth - rect.right) + 'px';
+
+        // Load artifacts
+        ArtifactManager.loadArtifacts(runId).then(artifacts => {
+            if (!artifacts.length) {
+                menu.innerHTML = '<div style="padding:var(--sp-3);color:var(--text-muted);font-size:0.85rem;text-align:center;">No artifacts</div>';
+                return;
+            }
+
+            const grouped = {};
+            artifacts.forEach(a => {
+                if (!grouped[a.artifact_type]) grouped[a.artifact_type] = [];
+                grouped[a.artifact_type].push(a);
+            });
+
+            let html = '';
+            for (const [type, items] of Object.entries(grouped)) {
+                html += `<div style="border-bottom:1px solid var(--border-color);padding:var(--sp-2);">
+                    <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--accent);margin-bottom:var(--sp-1);">${type}</div>`;
+                items.forEach(a => {
+                    const size = ReportManager.formatSize(a.file_size);
+                    html += `<button onclick="event.stopPropagation();ArtifactManager.downloadArtifact(${a.id}, '${a.filename.replace(/'/g, "\\'")}');this.closest('[style*=position]').remove();" style="display:block;width:100%;text-align:left;padding:var(--sp-2);background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:0.8rem;border-radius:var(--radius);" onmouseover="this.style.background='var(--bg-primary)'" onmouseout="this.style.background='none'">
+                        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;"><strong>${a.filename}</strong></div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);">${size}</div>
+                    </button>`;
+                });
+                html += '</div>';
+            }
+            menu.innerHTML = html;
+        });
+
+        // Close menu on click outside
+        setTimeout(() => {
+            document.addEventListener('click', function closeMenu(e) {
+                if (!menu.contains(e.target) && !e.target.closest('.btn-group')) {
+                    menu.remove();
+                    document.removeEventListener('click', closeMenu);
+                }
+            });
+        }, 100);
+    },
+
+    formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    },
+
+    renderGitHubTable() {
+        const c = document.getElementById('reportContent');
+        const pinned = JSON.parse(localStorage.getItem('acc_reports_pinned') || '[]');
+        if (!this.filteredRuns.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-6);"><p>No workflow runs match your filters</p></div>'; return; }
+        c.innerHTML = `<table class="runs-table" style="width:100%;"><thead><tr><th style="width:40px"></th><th>Run #</th><th>Branch</th><th>Event</th><th>Status</th><th>Started</th><th>Duration</th><th style="width:60px"></th></tr></thead><tbody>${this.filteredRuns.map(r => this.renderGitHubRow(r, pinned)).join('')}</tbody></table>`;
+    },
+
+    renderGitHubRow(run, pinned = []) {
+        const st = run.conclusion || run.status;
+        const statusIcon = st === 'success' ? '✅' : st === 'failure' ? '❌' : '🔄';
+        const isPinned = pinned.includes(run.id);
+        const duration = run.updated_at && run.created_at ? GitHubAPI.fmtDur(new Date(run.updated_at) - new Date(run.created_at)) : '—';
+        const startedTime = GitHubAPI.formatDateTime(run.created_at);
+        return `<tr style="cursor:pointer;" onclick="window.open('${run.html_url}')"><td><button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="event.stopPropagation();ReportManager.togglePin(${run.id})" title="Pin" style="border:none;background:none;cursor:pointer;color:var(--text-muted);"><i class="fas fa-thumbtack"></i></button></td><td><strong>#${run.run_number}</strong></td><td><code style="font-size:0.75rem;">${run.head_branch}</code></td><td style="font-size:0.8rem;">${run.event}</td><td><span class="status-pill ${st}" style="font-size:0.75rem;">${statusIcon} ${st}</span></td><td style="font-size:0.75rem;color:var(--text-muted);">${startedTime}</td><td style="font-size:0.75rem;color:var(--text-muted);">${duration}</td><td><a href="${run.html_url}" target="_blank" class="btn btn-secondary btn-sm" onclick="event.stopPropagation()"><i class="fas fa-external-link-alt"></i></a></td></tr>`;
+    },
+
+    togglePin(id) {
+        let pinned = JSON.parse(localStorage.getItem('acc_reports_pinned') || '[]');
+        if (pinned.includes(id)) { pinned = pinned.filter(x => x !== id); } else { pinned.push(id); }
+        localStorage.setItem('acc_reports_pinned', JSON.stringify(pinned));
+        this.renderTable();
+    },
+
+    esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 };
 
 // ===== PRESET MANAGER =====
@@ -674,6 +1045,7 @@ function getFormData() {
     const backendUrl = localStorage.getItem('acc_backend_url') || window.location.origin;
 
     return {
+        USER_ID: AuthManager.user?.id || '',
         RUN_NAME: `${user}: ${runTitle}`,
         SELECTED_PLATFORM: p,
         FILENAME: uploadedFile ? uploadedFile.name : (document.getElementById('filenameInput').value + '.xlsx' || 'testing.xlsx'),

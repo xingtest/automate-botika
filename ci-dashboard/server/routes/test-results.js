@@ -1,15 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
+const { authenticateToken } = require('../middleware/auth');
 
 // GET /api/test-results - Get results (by run_id or search)
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
     try {
         const { run_id, status, q, limit = 100, offset = 0 } = req.query;
         let sql = 'SELECT tr.*, t.platform, t.tester_name, t.date_test FROM test_results tr JOIN test_runs t ON tr.run_id = t.id WHERE 1=1';
         const params = [];
 
         if (run_id) { sql += ' AND tr.run_id = ?'; params.push(run_id); }
+
+        // Filter by user_id of the run
+        sql += ' AND t.user_id = ?';
+        params.push(req.user.id);
+
         if (status) { sql += ' AND tr.status = ?'; params.push(status); }
         if (q) { sql += ' AND (tr.question LIKE ? OR tr.title LIKE ?)'; params.push(`%${q}%`, `%${q}%`); }
 
