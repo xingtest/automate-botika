@@ -413,21 +413,104 @@ const GitHubAPI = {
         if (!resp.ok) throw new Error(`Upload failed (${resp.status})`);
         TerminalLog.log('File uploaded!', 'success'); return resp.json();
     },
-    async getRuns(count = 20) {
-        try { const r = await this.apiFetch(`/actions/workflows/${CONFIG.workflow_id}/runs?per_page=${count}`); if (!r.ok) return []; const d = await r.json(); return d.workflow_runs || []; } catch { return []; }
+    async getCurrentUser() {
+        try {
+            const r = await this.apiFetch('/user', { headers: { 'Accept': 'application/vnd.github.v3+json' }, noRepo: true });
+            if (!r.ok) return null;
+            return await r.json();
+        } catch { return null; }
+    },
+    // Override apiFetch to handle non-repo calls
+    async apiFetch(endpoint, opts = {}) {
+        const token = this.getToken();
+        const headers = { 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json', ...opts.headers };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const base = opts.noRepo ? 'https://api.github.com' : this.getApiBase();
+        return fetch(`${base}${endpoint}`, { ...opts, headers });
+    },
+    async getRuns(count = 20, actor = null) {
+        try {
+            let url = `/actions/workflows/${CONFIG.workflow_id}/runs?per_page=${count}`;
+            if (actor) url += `&actor=${actor}`;
+            const r = await this.apiFetch(url);
+            if (!r.ok) return [];
+            const d = await r.json();
+            return d.workflow_runs || [];
+        } catch { return []; }
     },
     async loadHistory() {
         const c = document.getElementById('historyContent'); if (!c) return;
-        c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-github" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--sp-4);"></i><p>GitHub Workflow History</p><p style="font-size:0.85rem;margin-top:var(--sp-2);">View your workflow runs directly on GitHub</p><a href="https://github.com/katanyaaman/automationtestingjudges/actions" target="_blank" class="btn btn-secondary" style="margin-top:var(--sp-4);"><i class="fas fa-external-link-alt"></i> Open on GitHub</a></div>';
+
+        const filterStatus = document.getElementById('historyFilterStatus')?.value || 'all';
+        const filterActor = document.getElementById('historyFilterActor')?.value?.trim() || null;
+
+        c.innerHTML = '<div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card"></div>';
+
+        try {
+            let runs = await this.getRuns(50, filterActor);
+
+            if (filterStatus !== 'all') {
+                runs = runs.filter(r => (r.conclusion || r.status) === filterStatus);
+            }
+
+            if (!runs.length) {
+                c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-inbox" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>No workflow runs found</p></div>';
+                return;
+            }
+
+            const pinned = JSON.parse(localStorage.getItem('acc_pinned') || '[]');
+
+            c.innerHTML = `<table class="runs-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px"></th>
+                        <th>Run # / Title</th>
+                        <th>Status</th>
+                        <th>Branch</th>
+                        <th>Event</th>
+                        <th>Started</th>
+                        <th>Duration</th>
+                        <th style="width:50px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${runs.map(r => this.renderRow(r, pinned)).join('')}
+                </tbody>
+            </table>`;
+        } catch (e) {
+            c.innerHTML = `<div class="text-center text-error" style="padding:var(--sp-8);"><p>Error loading history: ${e.message}</p></div>`;
+        }
     },
     renderRow(run, pinned = []) {
         const st = run.conclusion || run.status;
-        const sm = { success: { i: 'fa-check-circle', l: 'Success' }, failure: { i: 'fa-times-circle', l: 'Failed' }, in_progress: { i: 'fa-spinner', l: 'Running' }, queued: { i: 'fa-clock', l: 'Queued' }, cancelled: { i: 'fa-ban', l: 'Cancelled' } };
+        const sm = {
+            success: { i: 'fa-check-circle', l: 'Success' },
+            failure: { i: 'fa-times-circle', l: 'Failed' },
+            in_progress: { i: 'fa-spinner fa-spin', l: 'Running' },
+            queued: { i: 'fa-clock', l: 'Queued' },
+            cancelled: { i: 'fa-ban', l: 'Cancelled' }
+        };
         const s = sm[st] || { i: 'fa-question', l: st };
         const ago = run.created_at ? this.timeAgo(new Date(run.created_at)) : '—';
         const dur = run.updated_at && run.created_at ? this.fmtDur(new Date(run.updated_at) - new Date(run.created_at)) : '—';
         const isPinned = pinned.includes(run.id);
-        return `<tr><td><button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="togglePin(${run.id})" title="Pin"><i class="fas fa-thumbtack"></i></button></td><td><strong>#${run.run_number}</strong></td><td><span class="status-pill ${st}"><i class="fas ${s.i}"></i> ${s.l}</span></td><td><code style="font-size:0.78rem;">${run.head_branch}</code></td><td style="font-size:0.8rem;color:var(--text-secondary);">${run.event}</td><td style="font-size:0.8rem;color:var(--text-secondary);">${ago}</td><td style="font-size:0.8rem;color:var(--text-secondary);">${dur}</td><td><a href="${run.html_url}" target="_blank" class="btn btn-secondary btn-sm"><i class="fas fa-external-link-alt"></i></a></td></tr>`;
+
+        // Use display_title if available, otherwise find in head_commit or fallback
+        const title = run.display_title || run.head_commit?.message?.split('\n')[0] || `Run #${run.run_number}`;
+
+        return `<tr class="${isPinned ? 'pinned-row' : ''}">
+            <td><button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="togglePin(${run.id})" title="Pin"><i class="fas fa-thumbtack"></i></button></td>
+            <td>
+                <div style="font-weight:700;">${this.esc(title)}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">Run #${run.run_number} • ${this.esc(run.actor?.login || 'unknown')}</div>
+            </td>
+            <td><span class="status-pill ${st}"><i class="fas ${s.i}"></i> ${s.l}</span></td>
+            <td><code style="font-size:0.78rem;">${run.head_branch}</code></td>
+            <td style="font-size:0.8rem;color:var(--text-secondary);">${run.event}</td>
+            <td style="font-size:0.8rem;color:var(--text-secondary);">${ago}</td>
+            <td style="font-size:0.8rem;color:var(--text-secondary);">${dur}</td>
+            <td><a href="${run.html_url}" target="_blank" class="btn btn-secondary btn-sm"><i class="fas fa-external-link-alt"></i></a></td>
+        </tr>`;
     },
     timeAgo(d) {
         const s = Math.floor((new Date() - d) / 1000);
@@ -1069,27 +1152,26 @@ function switchPlatformFields(p) { document.querySelectorAll('.platform-field').
 function updateBatchPlatformFields() { document.querySelectorAll('.platform-field').forEach(f => f.classList.remove('active')); document.querySelectorAll('.platform-check input:checked').forEach(cb => { const field = document.getElementById(`field-${cb.value}`); if (field) field.classList.add('active'); }); }
 function clearFile(e) { if (e) e.stopPropagation(); uploadedFile = null; document.getElementById('fileUpload').value = ''; document.getElementById('fileDropText').innerHTML = 'Drag & drop or <strong>click to browse</strong>'; document.getElementById('fileDropZone').classList.remove('has-file'); document.getElementById('fileClearBtn').classList.add('hidden'); document.getElementById('filenameGroup').style.display = ''; document.getElementById('dataPreviewGroup')?.classList.add('hidden'); }
 function getFormData() {
-    const p = document.getElementById('platformSelect').value;
-    const runTitle = document.getElementById('runTitleInput')?.value?.trim() || 'Manual Test Run';
-    const user = AuthManager.user?.username || 'Guest';
+    const p = String(document.getElementById('platformSelect').value);
+    const runTitle = String(document.getElementById('runTitleInput')?.value?.trim() || 'Manual Test Run');
 
-    const backendUrl = localStorage.getItem('acc_backend_url') || window.location.origin;
+    const backendUrl = String(localStorage.getItem('acc_backend_url') || window.location.origin);
 
     return {
-        USER_ID: AuthManager.user?.id || '',
-        RUN_NAME: `${user}: ${runTitle}`,
+        USER_ID: String(AuthManager.user?.id || ''),
+        RUN_NAME: runTitle,
         SELECTED_PLATFORM: p,
-        FILENAME: uploadedFile ? uploadedFile.name : (document.getElementById('filenameInput').value + '.xlsx' || 'testing.xlsx'),
-        TESTER_NAME: document.getElementById('testerNameInput').value || 'GitHub Actions Bot',
-        GREETING: document.getElementById('greetingInput').value || 'Haloo',
-        WEBCHAT_URL: document.getElementById('webchatUrlInput').value || 'https://chat.botika.online/tpUyiey',
-        WEBCHAT_NAME: document.getElementById('webchatNameInput')?.value || '',
-        WEBCHAT_EMAIL: document.getElementById('webchatEmailInput')?.value || '',
-        WEBCHAT_PHONE: document.getElementById('webchatPhoneInput')?.value || '',
-        DHAI_TARGET_URL: document.getElementById('dhaiUrlInput').value || '',
-        INSTAGRAM_USERNAME: document.getElementById('instagramUrlInput').value || '',
-        FACEBOOK_FANPAGE_ID: document.getElementById('facebookUrlInput').value || '',
-        TELEGRAM_BOT_USERNAME: document.getElementById('telegramBotInput').value || '',
+        FILENAME: String(uploadedFile ? uploadedFile.name : (document.getElementById('filenameInput').value + '.xlsx' || 'testing.xlsx')),
+        TESTER_NAME: String(document.getElementById('testerNameInput').value || 'GitHub Actions Bot'),
+        GREETING: String(document.getElementById('greetingInput').value || 'Haloo'),
+        WEBCHAT_URL: String(document.getElementById('webchatUrlInput').value || 'https://chat.botika.online/tpUyiey'),
+        WEBCHAT_NAME: String(document.getElementById('webchatNameInput')?.value || ''),
+        WEBCHAT_EMAIL: String(document.getElementById('webchatEmailInput')?.value || ''),
+        WEBCHAT_PHONE: String(document.getElementById('webchatPhoneInput')?.value || ''),
+        DHAI_TARGET_URL: String(document.getElementById('dhaiUrlInput').value || ''),
+        INSTAGRAM_USERNAME: String(document.getElementById('instagramUrlInput').value || ''),
+        FACEBOOK_FANPAGE_ID: String(document.getElementById('facebookUrlInput').value || ''),
+        TELEGRAM_BOT_USERNAME: String(document.getElementById('telegramBotInput').value || ''),
         BACKEND_URL: backendUrl
     };
 }
@@ -1283,6 +1365,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('refreshDashboardBtn')?.addEventListener('click', () => { DashboardStats.refresh(); Toast.info('Refreshing', 'Loading data...'); });
     document.getElementById('refreshHistoryBtn')?.addEventListener('click', () => { GitHubAPI.loadHistory(); Toast.info('Refreshing', 'Loading runs...'); });
     document.getElementById('historyFilterStatus')?.addEventListener('change', () => GitHubAPI.loadHistory());
+    document.getElementById('historyFilterActor')?.addEventListener('input', () => {
+        clearTimeout(window.historyActorDebounce);
+        window.historyActorDebounce = setTimeout(() => GitHubAPI.loadHistory(), 500);
+    });
 
     // Terminal search
     document.getElementById('terminalSearchInput')?.addEventListener('input', e => { const q = e.target.value.toLowerCase(); TerminalLog.body.querySelectorAll('div').forEach(l => { l.style.display = l.textContent.toLowerCase().includes(q) || !q ? '' : 'none'; }); });
