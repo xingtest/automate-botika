@@ -118,7 +118,9 @@ export class EnvFile {
     // Format skor to 3 decimal places
     const formattedData = {
       ...data,
-      skor: parseFloat(data.skor.toFixed(3))
+      skor: parseFloat(data.skor.toFixed(3)),
+      ...(data.video_capture ? { video_capture: data.video_capture } : {}),
+      ...(data.audio_capture ? { audio_capture: data.audio_capture } : {})
     };
 
     existingData.push(formattedData);
@@ -131,6 +133,26 @@ export class EnvFile {
       // Log the error but don't throw to avoid breaking the test flow
       console.error('❌ Error during incremental report generation:', error);
     }
+  }
+
+  private static normalizeMediaCapturePath(
+    mediaCapture: string | null | undefined,
+    reportFolderPath: string,
+    mediaSubfolder: 'screenshots' | 'media'
+  ): string | null | undefined {
+    if (!mediaCapture) {
+      return mediaCapture;
+    }
+
+    const filename = path.basename(mediaCapture);
+    const candidateInReport = path.join(reportFolderPath, mediaSubfolder, filename);
+    const candidateGlobal = path.join('report', mediaSubfolder, filename);
+
+    if (fs.existsSync(candidateInReport) || fs.existsSync(candidateGlobal)) {
+      return path.posix.join(mediaSubfolder, filename);
+    }
+
+    return mediaCapture;
   }
 
   static writeJsonDataSummary(data: SummaryData, reportFilename: string, idTest: string): void {
@@ -329,21 +351,13 @@ export class EnvFile {
         fs.mkdirSync(reportFolderPath, { recursive: true });
       }
 
-      // Prepare botData so that image_capture points to a relative screenshots/ path
-      const screenshotsInReport = path.join(reportFolderPath, 'screenshots');
-      const botDataForRender = botData.map(item => {
-        if (item.image_capture) {
-          const candidate1 = path.join(screenshotsInReport, item.image_capture);
-          const candidate2 = path.join('report', 'screenshots', item.image_capture);
-          if (fs.existsSync(candidate1)) {
-            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
-          } else if (fs.existsSync(candidate2)) {
-            // If screenshots were placed into a global folder, prefer referencing screenshots/<file>
-            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
-          }
-        }
-        return item;
-      });
+      // Prepare botData so media captures point to relative screenshots/ & media/ paths
+      const botDataForRender = botData.map(item => ({
+        ...item,
+        image_capture: this.normalizeMediaCapturePath(item.image_capture, reportFolderPath, 'screenshots') ?? null,
+        video_capture: this.normalizeMediaCapturePath(item.video_capture, reportFolderPath, 'media') ?? null,
+        audio_capture: this.normalizeMediaCapturePath(item.audio_capture, reportFolderPath, 'media') ?? null
+      }));
 
       // If template is EJS, render using EJS with proper data context
       let htmlContent = '';
@@ -407,20 +421,13 @@ export class EnvFile {
         fs.mkdirSync(reportFolderPath, { recursive: true });
       }
 
-      // Prepare botData so that image_capture points to a relative screenshots/ path
-      const screenshotsInReport = path.join(reportFolderPath, 'screenshots');
-      const botDataForRender = botData.map(item => {
-        if (item.image_capture) {
-          const candidate1 = path.join(screenshotsInReport, item.image_capture);
-          const candidate2 = path.join('report', 'screenshots', item.image_capture);
-          if (fs.existsSync(candidate1)) {
-            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
-          } else if (fs.existsSync(candidate2)) {
-            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
-          }
-        }
-        return item;
-      });
+      // Prepare botData so media captures point to relative screenshots/ & media/ paths
+      const botDataForRender = botData.map(item => ({
+        ...item,
+        image_capture: this.normalizeMediaCapturePath(item.image_capture, reportFolderPath, 'screenshots') ?? null,
+        video_capture: this.normalizeMediaCapturePath(item.video_capture, reportFolderPath, 'media') ?? null,
+        audio_capture: this.normalizeMediaCapturePath(item.audio_capture, reportFolderPath, 'media') ?? null
+      }));
 
       // Generate HTML content using template, support EJS templates as well
       let htmlContent = '';
@@ -497,6 +504,8 @@ export class EnvFile {
         itemContent = itemContent.replace(/\{\{\s*test_item\.no\s*\}\}/g, seqNo);
         itemContent = itemContent.replace(/\{\{\s*test_item\.status\s*\}\}/g, item.status);
         itemContent = itemContent.replace(/\{\{\s*test_item\.duration\s*\}\}/g, item.duration);
+        itemContent = itemContent.replace(/\{\{\s*test_item\.video_capture\s*\}\}/g, item.video_capture || '');
+        itemContent = itemContent.replace(/\{\{\s*test_item\.audio_capture\s*\}\}/g, item.audio_capture || '');
 
         // Handle image capture with conditional
         const imageConditionRegex = /\{\%\s*if\s+test_item\.image_capture\s*\%\}([\s\S]*?)\{\%\s*else\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\}/g;
@@ -507,6 +516,24 @@ export class EnvFile {
           } else {
             return elseContent;
           }
+        });
+
+        const videoConditionRegex = /\{\%\s*if\s+test_item\.video_capture\s*\%\}([\s\S]*?)\{\%\s*else\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\}/g;
+        itemContent = itemContent.replace(videoConditionRegex, (match: string, ifContent: string, elseContent: string) => {
+          if (item.video_capture) {
+            return ifContent.replace(/\{\{\s*test_item\.video_capture\s*\}\}/g, item.video_capture);
+          }
+
+          return elseContent;
+        });
+
+        const audioConditionRegex = /\{\%\s*if\s+test_item\.audio_capture\s*\%\}([\s\S]*?)\{\%\s*else\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\}/g;
+        itemContent = itemContent.replace(audioConditionRegex, (match: string, ifContent: string, elseContent: string) => {
+          if (item.audio_capture) {
+            return ifContent.replace(/\{\{\s*test_item\.audio_capture\s*\}\}/g, item.audio_capture);
+          }
+
+          return elseContent;
         });
 
         return itemContent;

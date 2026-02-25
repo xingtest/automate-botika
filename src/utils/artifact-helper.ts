@@ -49,6 +49,34 @@ export class ArtifactHelper {
     }
   }
 
+
+  private static async uploadMediaArtifacts(
+    backendUrl: string,
+    runId: number,
+    mediaFolder: string
+  ): Promise<void> {
+    if (!fs.existsSync(mediaFolder)) {
+      return;
+    }
+
+    const mediaFiles = fs.readdirSync(mediaFolder).filter(f => /\.(webm|mp3|wav|m4a|ogg)$/i.test(f));
+    for (const mediaFile of mediaFiles) {
+      const mediaPath = path.join(mediaFolder, mediaFile);
+      const lower = mediaFile.toLowerCase();
+      const artifactType = lower.includes('_audio_') ? 'qa_audio' : 'qa_video';
+      const mediaLabel = artifactType === 'qa_audio' ? 'audio' : 'video';
+
+      await this.uploadArtifact(
+        backendUrl,
+        runId,
+        artifactType,
+        mediaFile,
+        mediaPath,
+        `QA ${mediaLabel} artifact: ${mediaFile}`
+      );
+    }
+  }
+
   /**
    * Upload report JSON file
    */
@@ -104,7 +132,7 @@ export class ArtifactHelper {
         const screenshots = fs.readdirSync(screenshotsFolder).filter(f => 
           /\.(png|jpg|jpeg|gif)$/i.test(f)
         );
-        
+
         for (const screenshot of screenshots) {
           const screenshotPath = path.join(screenshotsFolder, screenshot);
           await this.uploadArtifact(
@@ -117,6 +145,10 @@ export class ArtifactHelper {
           );
         }
       }
+
+      // Upload QA media captures
+      const mediaFolder = path.join('report', 'html', fullReportFolderName, 'media');
+      await this.uploadMediaArtifacts(backendUrl, runId, mediaFolder);
     } catch (error: any) {
       console.warn(`⚠️ Error uploading test artifacts: ${error.message}`);
     }

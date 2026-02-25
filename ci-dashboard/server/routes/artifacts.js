@@ -74,7 +74,12 @@ router.post('/', async (req, res) => {
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
       '.gif': 'image/gif',
-      '.zip': 'application/zip'
+      '.zip': 'application/zip',
+      '.webm': 'video/webm',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.m4a': 'audio/mp4',
+      '.ogg': 'audio/ogg'
     };
     const mimeType = mimeTypes[ext] || 'application/octet-stream';
 
@@ -143,17 +148,25 @@ router.get('/:id/view', async (req, res) => {
       return res.status(404).json({ error: 'File not found on disk' });
     }
 
-    const content = fs.readFileSync(filePath, 'utf-8');
-    
-    if (artifact.artifact_type === 'json') {
+    if (artifact.artifact_type === 'json' || artifact.mime_type === 'application/json') {
+      const content = fs.readFileSync(filePath, 'utf-8');
       res.setHeader('Content-Type', 'application/json');
-      res.send(content);
-    } else if (artifact.artifact_type === 'html') {
-      res.setHeader('Content-Type', 'text/html');
-      res.send(content);
-    } else {
-      res.send(content);
+      return res.send(content);
     }
+
+    if (artifact.artifact_type === 'html' || artifact.mime_type === 'text/html') {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      res.setHeader('Content-Type', 'text/html');
+      return res.send(content);
+    }
+
+    // Keep backward compatibility for existing types while supporting new media artifacts.
+    if (['qa_video', 'qa_audio', 'screenshot', 'excel', 'pdf', 'zip'].includes(artifact.artifact_type) || artifact.mime_type) {
+      res.setHeader('Content-Type', artifact.mime_type || 'application/octet-stream');
+      return fs.createReadStream(filePath).pipe(res);
+    }
+
+    return fs.createReadStream(filePath).pipe(res);
   } catch (err) {
     console.error('Error viewing artifact:', err);
     res.status(500).json({ error: err.message });
