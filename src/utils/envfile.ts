@@ -1,8 +1,106 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { BotData, SummaryData } from '../main';
+import { log } from './logger';
+
+interface HtmlRenderState {
+  writesSinceLastRender: number;
+  lastRenderAt: number;
+  timer: NodeJS.Timeout | null;
+}
 
 export class EnvFile {
+  private static readonly HTML_RENDER_THROTTLE_MS = EnvFile.readPositiveIntEnv('INCREMENTAL_HTML_THROTTLE_MS', 4000);
+  private static readonly HTML_RENDER_BATCH_SIZE = EnvFile.readPositiveIntEnv('INCREMENTAL_HTML_BATCH_SIZE', 5);
+  private static readonly htmlRenderStates = new Map<string, HtmlRenderState>();
+
+  private static readPositiveIntEnv(name: string, fallback: number): number {
+    const rawValue = process.env[name];
+    const parsedValue = Number.parseInt(rawValue || '', 10);
+
+    if (Number.isFinite(parsedValue) && parsedValue > 0) {
+      return parsedValue;
+    }
+
+    return fallback;
+  }
+
+  private static getHtmlRenderState(reportFilename: string, idTest: string): HtmlRenderState {
+    const key = `${reportFilename}-${idTest}`;
+    const existingState = this.htmlRenderStates.get(key);
+
+    if (existingState) {
+      return existingState;
+    }
+
+    const newState: HtmlRenderState = {
+      writesSinceLastRender: 0,
+      lastRenderAt: Date.now(),
+      timer: null
+    };
+
+    this.htmlRenderStates.set(key, newState);
+    return newState;
+  }
+
+  private static renderHtmlIncrementalNow(
+    reportFilename: string,
+    idTest: string,
+    reason: 'batch' | 'timer',
+    state: HtmlRenderState
+  ): void {
+    const now = Date.now();
+    const elapsedMs = now - state.lastRenderAt;
+
+    this.generateHtmlReportIncremental(reportFilename, idTest);
+
+    log.debug('Incremental HTML render executed', {
+      reportFilename,
+      idTest,
+      reason,
+      writesSinceLastRender: state.writesSinceLastRender,
+      elapsedMs,
+      throttleMs: this.HTML_RENDER_THROTTLE_MS,
+      batchSize: this.HTML_RENDER_BATCH_SIZE
+    });
+
+    state.writesSinceLastRender = 0;
+    state.lastRenderAt = now;
+
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+  }
+
+  private static scheduleIncrementalHtmlRender(reportFilename: string, idTest: string): void {
+    const state = this.getHtmlRenderState(reportFilename, idTest);
+
+    state.writesSinceLastRender += 1;
+
+    if (state.writesSinceLastRender >= this.HTML_RENDER_BATCH_SIZE) {
+      this.renderHtmlIncrementalNow(reportFilename, idTest, 'batch', state);
+      return;
+    }
+
+    if (!state.timer) {
+      state.timer = setTimeout(() => {
+        const activeState = this.getHtmlRenderState(reportFilename, idTest);
+        this.renderHtmlIncrementalNow(reportFilename, idTest, 'timer', activeState);
+      }, this.HTML_RENDER_THROTTLE_MS);
+
+      state.timer.unref?.();
+
+      log.debug('Incremental HTML render scheduled', {
+        reportFilename,
+        idTest,
+        writesSinceLastRender: state.writesSinceLastRender,
+        throttleMs: this.HTML_RENDER_THROTTLE_MS,
+        batchSize: this.HTML_RENDER_BATCH_SIZE
+      });
+    }
+  }
+
   static writeJsonDataBot(data: BotData, reportFilename: string, idTest: string): void {
     const reportDir = path.join('report', 'json');
     if (!fs.existsSync(reportDir)) {
@@ -26,13 +124,9 @@ export class EnvFile {
     existingData.push(formattedData);
     fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2));
 
-    // Auto-generate HTML and Excel reports after each data write (incremental update)
+    // Realtime update for HTML report only (throttled)
     try {
-      this.generateHtmlReportIncremental(reportFilename, idTest);
-
-      // Generate Excel report incrementally
-      const { generateExcelReportIncremental } = require('./excel-report-generator');
-      generateExcelReportIncremental(reportFilename, idTest);
+      this.scheduleIncrementalHtmlRender(reportFilename, idTest);
     } catch (error) {
       // Log the error but don't throw to avoid breaking the test flow
       console.error('❌ Error during incremental report generation:', error);
