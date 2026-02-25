@@ -4,6 +4,7 @@ import * as path from 'path';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
 import { GeminiEvaluator } from '../utils/gemini-evaluator';
+import { startQARecording, stopQARecording } from '../utils/dhai-media-recorder';
 import { TestData, BotData, SummaryData } from '../main';
 
 
@@ -261,124 +262,40 @@ export class DhaiPlatform {
     }
   }
 
-  private static buildQaCaptureFilename(idTest: string, key: string, question: string, ext: string): string {
-    const sanitizedQuestion = question.substring(0, 24).replace(/[^a-z0-9]/gi, '_');
-    return `${idTest}_${key}_${sanitizedQuestion}_${Date.now()}.${ext}`;
-  }
-
-  private static async captureQaMedia(
+  private static async startQaMediaCapture(
     page: Page,
     idTest: string,
     key: string,
-    question: string,
     options: DhaiCaptureOptions
-  ): Promise<QaMediaCaptureResult> {
+  ): Promise<void> {
+    if (!options.enabled) {
+      return;
+    }
+
+    try {
+      process.env.DHAI_MEDIA_FOLDER = options.mediaFolder;
+      process.env.DHAI_CAPTURE_MAX_SECONDS = String(options.maxSeconds);
+      await startQARecording(page, idTest, key);
+    } catch (error) {
+      console.warn(`⚠️ Gagal start QA recording (${key}):`, error);
+    }
+  }
+
+  private static async stopQaMediaCapture(key: string, options: DhaiCaptureOptions): Promise<QaMediaCaptureResult> {
     if (!options.enabled) {
       return { video_capture: null, audio_capture: null };
     }
 
-    this.ensureDirectory(options.mediaFolder);
-
-    const maxMs = Math.max(1000, options.maxSeconds * 1000);
-
-    const captureResult = await page.evaluate(async ({ mode, maxMs }) => {
-      const toDataUrl = (blob: any): Promise<string> => new Promise((resolve, reject) => {
-        const Reader = (globalThis as any).FileReader;
-        const reader = new Reader();
-        reader.onloadend = () => resolve(String(reader.result || ''));
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-
-      const output: { videoDataUrl: string | null; audioDataUrl: string | null } = {
-        videoDataUrl: null,
-        audioDataUrl: null
+    try {
+      const recording = await stopQARecording();
+      return {
+        video_capture: recording.videoPath || null,
+        audio_capture: recording.audioPath || null
       };
-
-      try {
-        if (mode === 'full') {
-          try {
-            const mediaDevices = (globalThis as any).navigator?.mediaDevices;
-            const MediaRecorderClass = (globalThis as any).MediaRecorder;
-            if (!mediaDevices || !MediaRecorderClass) {
-              throw new Error('Media devices or MediaRecorder unavailable');
-            }
-            const displayStream = await mediaDevices.getDisplayMedia({ video: true, audio: true });
-            const videoChunks: any[] = [];
-            const videoRecorder = new MediaRecorderClass(displayStream, { mimeType: 'video/webm' });
-            videoRecorder.ondataavailable = (event: any) => {
-              if (event.data?.size > 0) videoChunks.push(event.data);
-            };
-
-            await new Promise<void>(resolve => {
-              videoRecorder.onstop = () => resolve();
-              videoRecorder.start();
-              setTimeout(() => {
-                if (videoRecorder.state !== 'inactive') {
-                  videoRecorder.stop();
-                }
-                displayStream.getTracks().forEach((track: any) => track.stop());
-              }, maxMs);
-            });
-
-            if (videoChunks.length > 0) {
-              output.videoDataUrl = await toDataUrl(new Blob(videoChunks, { type: 'video/webm' }));
-            }
-          } catch (error) {
-            console.warn('⚠️ Full video capture unavailable:', error);
-          }
-        }
-
-        try {
-          const mediaDevices = (globalThis as any).navigator?.mediaDevices;
-          const MediaRecorderClass = (globalThis as any).MediaRecorder;
-          if (!mediaDevices || !MediaRecorderClass) {
-            throw new Error('Media devices or MediaRecorder unavailable');
-          }
-          const audioStream = await mediaDevices.getUserMedia({ audio: true });
-          const audioChunks: any[] = [];
-          const audioRecorder = new MediaRecorderClass(audioStream, { mimeType: 'audio/webm' });
-          audioRecorder.ondataavailable = (event: any) => {
-            if (event.data?.size > 0) audioChunks.push(event.data);
-          };
-
-          await new Promise<void>(resolve => {
-            audioRecorder.onstop = () => resolve();
-            audioRecorder.start();
-            setTimeout(() => {
-              if (audioRecorder.state !== 'inactive') {
-                audioRecorder.stop();
-              }
-              audioStream.getTracks().forEach((track: any) => track.stop());
-            }, maxMs);
-          });
-
-          if (audioChunks.length > 0) {
-            output.audioDataUrl = await toDataUrl(new Blob(audioChunks, { type: 'audio/webm' }));
-          }
-        } catch (error) {
-          console.warn('⚠️ Audio capture unavailable:', error);
-        }
-      } catch (error) {
-        console.warn('⚠️ QA media capture failed:', error);
-      }
-
-      return output;
-    }, { mode: options.mode, maxMs });
-
-    const saveDataUrl = (dataUrl: string, ext: string): string | null => {
-      if (!dataUrl || !dataUrl.includes(',')) return null;
-      const base64Data = dataUrl.split(',')[1];
-      const filename = this.buildQaCaptureFilename(idTest, key, question, ext);
-      const absolutePath = path.join(options.mediaFolder, filename);
-      fs.writeFileSync(absolutePath, Buffer.from(base64Data, 'base64'));
-      return path.posix.join('media', filename);
-    };
-
-    return {
-      video_capture: saveDataUrl(captureResult.videoDataUrl || '', 'webm'),
-      audio_capture: saveDataUrl(captureResult.audioDataUrl || '', 'webm')
-    };
+    } catch (error) {
+      console.warn(`⚠️ Gagal stop QA recording (${key}):`, error);
+      return { video_capture: null, audio_capture: null };
+    }
   }
 
   static async takeScreenshot(page: Page, idTest: string, key: string, question: string, screenshotsFolder: string): Promise<string> {
@@ -440,13 +357,15 @@ export class DhaiPlatform {
 
           try {
             await this.sendMessage(page, question);
-            await Modul.waitTime(5);
+            await this.startQaMediaCapture(page, idTest, key, captureOptions);
 
-            const qaMediaCapture = await this.captureQaMedia(page, idTest, key, question, captureOptions);
+            await Modul.waitTime(5);
 
             // Get bot response first
             const respondBotList = await this.getReply(page, question);
             let respondBot = respondBotList.join('\n').trim();
+
+            const qaMediaCapture = await this.stopQaMediaCapture(key, captureOptions);
 
             if (!respondBot) {
               respondBot = 'Error: Tidak ada balasan dari bot.';
