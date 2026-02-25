@@ -1,106 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { BotData, SummaryData } from '../main';
-import { log } from './logger';
-
-interface HtmlRenderState {
-  writesSinceLastRender: number;
-  lastRenderAt: number;
-  timer: NodeJS.Timeout | null;
-}
 
 export class EnvFile {
-  private static readonly HTML_RENDER_THROTTLE_MS = EnvFile.readPositiveIntEnv('INCREMENTAL_HTML_THROTTLE_MS', 4000);
-  private static readonly HTML_RENDER_BATCH_SIZE = EnvFile.readPositiveIntEnv('INCREMENTAL_HTML_BATCH_SIZE', 5);
-  private static readonly htmlRenderStates = new Map<string, HtmlRenderState>();
-
-  private static readPositiveIntEnv(name: string, fallback: number): number {
-    const rawValue = process.env[name];
-    const parsedValue = Number.parseInt(rawValue || '', 10);
-
-    if (Number.isFinite(parsedValue) && parsedValue > 0) {
-      return parsedValue;
-    }
-
-    return fallback;
-  }
-
-  private static getHtmlRenderState(reportFilename: string, idTest: string): HtmlRenderState {
-    const key = `${reportFilename}-${idTest}`;
-    const existingState = this.htmlRenderStates.get(key);
-
-    if (existingState) {
-      return existingState;
-    }
-
-    const newState: HtmlRenderState = {
-      writesSinceLastRender: 0,
-      lastRenderAt: Date.now(),
-      timer: null
-    };
-
-    this.htmlRenderStates.set(key, newState);
-    return newState;
-  }
-
-  private static renderHtmlIncrementalNow(
-    reportFilename: string,
-    idTest: string,
-    reason: 'batch' | 'timer',
-    state: HtmlRenderState
-  ): void {
-    const now = Date.now();
-    const elapsedMs = now - state.lastRenderAt;
-
-    this.generateHtmlReportIncremental(reportFilename, idTest);
-
-    log.debug('Incremental HTML render executed', {
-      reportFilename,
-      idTest,
-      reason,
-      writesSinceLastRender: state.writesSinceLastRender,
-      elapsedMs,
-      throttleMs: this.HTML_RENDER_THROTTLE_MS,
-      batchSize: this.HTML_RENDER_BATCH_SIZE
-    });
-
-    state.writesSinceLastRender = 0;
-    state.lastRenderAt = now;
-
-    if (state.timer) {
-      clearTimeout(state.timer);
-      state.timer = null;
-    }
-  }
-
-  private static scheduleIncrementalHtmlRender(reportFilename: string, idTest: string): void {
-    const state = this.getHtmlRenderState(reportFilename, idTest);
-
-    state.writesSinceLastRender += 1;
-
-    if (state.writesSinceLastRender >= this.HTML_RENDER_BATCH_SIZE) {
-      this.renderHtmlIncrementalNow(reportFilename, idTest, 'batch', state);
-      return;
-    }
-
-    if (!state.timer) {
-      state.timer = setTimeout(() => {
-        const activeState = this.getHtmlRenderState(reportFilename, idTest);
-        this.renderHtmlIncrementalNow(reportFilename, idTest, 'timer', activeState);
-      }, this.HTML_RENDER_THROTTLE_MS);
-
-      state.timer.unref?.();
-
-      log.debug('Incremental HTML render scheduled', {
-        reportFilename,
-        idTest,
-        writesSinceLastRender: state.writesSinceLastRender,
-        throttleMs: this.HTML_RENDER_THROTTLE_MS,
-        batchSize: this.HTML_RENDER_BATCH_SIZE
-      });
-    }
-  }
-
   static writeJsonDataBot(data: BotData, reportFilename: string, idTest: string): void {
     const reportDir = path.join('report', 'json');
     if (!fs.existsSync(reportDir)) {
@@ -118,41 +20,23 @@ export class EnvFile {
     // Format skor to 3 decimal places
     const formattedData = {
       ...data,
-      skor: parseFloat(data.skor.toFixed(3)),
-      ...(data.video_capture ? { video_capture: data.video_capture } : {}),
-      ...(data.audio_capture ? { audio_capture: data.audio_capture } : {})
+      skor: parseFloat(data.skor.toFixed(3))
     };
 
     existingData.push(formattedData);
     fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2));
 
-    // Realtime update for HTML report only (throttled)
+    // Auto-generate HTML and Excel reports after each data write (incremental update)
     try {
-      this.scheduleIncrementalHtmlRender(reportFilename, idTest);
+      this.generateHtmlReportIncremental(reportFilename, idTest);
+
+      // Generate Excel report incrementally
+      const { generateExcelReportIncremental } = require('./excel-report-generator');
+      generateExcelReportIncremental(reportFilename, idTest);
     } catch (error) {
       // Log the error but don't throw to avoid breaking the test flow
       console.error('❌ Error during incremental report generation:', error);
     }
-  }
-
-  private static normalizeMediaCapturePath(
-    mediaCapture: string | null | undefined,
-    reportFolderPath: string,
-    mediaSubfolder: 'screenshots' | 'media'
-  ): string | null | undefined {
-    if (!mediaCapture) {
-      return mediaCapture;
-    }
-
-    const filename = path.basename(mediaCapture);
-    const candidateInReport = path.join(reportFolderPath, mediaSubfolder, filename);
-    const candidateGlobal = path.join('report', mediaSubfolder, filename);
-
-    if (fs.existsSync(candidateInReport) || fs.existsSync(candidateGlobal)) {
-      return path.posix.join(mediaSubfolder, filename);
-    }
-
-    return mediaCapture;
   }
 
   static writeJsonDataSummary(data: SummaryData, reportFilename: string, idTest: string): void {
@@ -351,13 +235,21 @@ export class EnvFile {
         fs.mkdirSync(reportFolderPath, { recursive: true });
       }
 
-      // Prepare botData so media captures point to relative screenshots/ & media/ paths
-      const botDataForRender = botData.map(item => ({
-        ...item,
-        image_capture: this.normalizeMediaCapturePath(item.image_capture, reportFolderPath, 'screenshots') ?? null,
-        video_capture: this.normalizeMediaCapturePath(item.video_capture, reportFolderPath, 'media') ?? null,
-        audio_capture: this.normalizeMediaCapturePath(item.audio_capture, reportFolderPath, 'media') ?? null
-      }));
+      // Prepare botData so that image_capture points to a relative screenshots/ path
+      const screenshotsInReport = path.join(reportFolderPath, 'screenshots');
+      const botDataForRender = botData.map(item => {
+        if (item.image_capture) {
+          const candidate1 = path.join(screenshotsInReport, item.image_capture);
+          const candidate2 = path.join('report', 'screenshots', item.image_capture);
+          if (fs.existsSync(candidate1)) {
+            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
+          } else if (fs.existsSync(candidate2)) {
+            // If screenshots were placed into a global folder, prefer referencing screenshots/<file>
+            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
+          }
+        }
+        return item;
+      });
 
       // If template is EJS, render using EJS with proper data context
       let htmlContent = '';
@@ -421,13 +313,20 @@ export class EnvFile {
         fs.mkdirSync(reportFolderPath, { recursive: true });
       }
 
-      // Prepare botData so media captures point to relative screenshots/ & media/ paths
-      const botDataForRender = botData.map(item => ({
-        ...item,
-        image_capture: this.normalizeMediaCapturePath(item.image_capture, reportFolderPath, 'screenshots') ?? null,
-        video_capture: this.normalizeMediaCapturePath(item.video_capture, reportFolderPath, 'media') ?? null,
-        audio_capture: this.normalizeMediaCapturePath(item.audio_capture, reportFolderPath, 'media') ?? null
-      }));
+      // Prepare botData so that image_capture points to a relative screenshots/ path
+      const screenshotsInReport = path.join(reportFolderPath, 'screenshots');
+      const botDataForRender = botData.map(item => {
+        if (item.image_capture) {
+          const candidate1 = path.join(screenshotsInReport, item.image_capture);
+          const candidate2 = path.join('report', 'screenshots', item.image_capture);
+          if (fs.existsSync(candidate1)) {
+            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
+          } else if (fs.existsSync(candidate2)) {
+            return { ...item, image_capture: path.posix.join('screenshots', item.image_capture) };
+          }
+        }
+        return item;
+      });
 
       // Generate HTML content using template, support EJS templates as well
       let htmlContent = '';
@@ -504,8 +403,6 @@ export class EnvFile {
         itemContent = itemContent.replace(/\{\{\s*test_item\.no\s*\}\}/g, seqNo);
         itemContent = itemContent.replace(/\{\{\s*test_item\.status\s*\}\}/g, item.status);
         itemContent = itemContent.replace(/\{\{\s*test_item\.duration\s*\}\}/g, item.duration);
-        itemContent = itemContent.replace(/\{\{\s*test_item\.video_capture\s*\}\}/g, item.video_capture || '');
-        itemContent = itemContent.replace(/\{\{\s*test_item\.audio_capture\s*\}\}/g, item.audio_capture || '');
 
         // Handle image capture with conditional
         const imageConditionRegex = /\{\%\s*if\s+test_item\.image_capture\s*\%\}([\s\S]*?)\{\%\s*else\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\}/g;
@@ -516,24 +413,6 @@ export class EnvFile {
           } else {
             return elseContent;
           }
-        });
-
-        const videoConditionRegex = /\{\%\s*if\s+test_item\.video_capture\s*\%\}([\s\S]*?)\{\%\s*else\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\}/g;
-        itemContent = itemContent.replace(videoConditionRegex, (match: string, ifContent: string, elseContent: string) => {
-          if (item.video_capture) {
-            return ifContent.replace(/\{\{\s*test_item\.video_capture\s*\}\}/g, item.video_capture);
-          }
-
-          return elseContent;
-        });
-
-        const audioConditionRegex = /\{\%\s*if\s+test_item\.audio_capture\s*\%\}([\s\S]*?)\{\%\s*else\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\}/g;
-        itemContent = itemContent.replace(audioConditionRegex, (match: string, ifContent: string, elseContent: string) => {
-          if (item.audio_capture) {
-            return ifContent.replace(/\{\{\s*test_item\.audio_capture\s*\}\}/g, item.audio_capture);
-          }
-
-          return elseContent;
         });
 
         return itemContent;

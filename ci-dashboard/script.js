@@ -204,8 +204,6 @@ const ArtifactManager = {
             html: 'fa-file-lines',
             excel: 'fa-file-excel',
             screenshot: 'fa-image',
-            qa_video: 'fa-video',
-            qa_audio: 'fa-music',
             pdf: 'fa-file-pdf',
             zip: 'fa-file-archive'
         };

@@ -62,13 +62,7 @@ export class Modul {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
   }
 
-  static async readBrowser(
-    url: string,
-    browserType: string = 'chromium',
-    headless: boolean = true,
-    customViewport?: { width: number; height: number },
-    recordVideoDir?: string
-  ): Promise<{ browser: Browser; context: BrowserContext; page: Page; title: string; browserName: string }> {
+  static async readBrowser(url: string, browserType: string = 'chromium', headless: boolean = true, customViewport?: { width: number; height: number }): Promise<{ browser: Browser; context: BrowserContext; page: Page; title: string; browserName: string }> {
     const title = `Choose ${browserType.toUpperCase()} as a main browser and open the URL`;
     this.showLoading(title);
 
@@ -121,25 +115,13 @@ export class Modul {
       devtools: false
     });
 
-    const contextOptions: Parameters<Browser['newContext']>[0] = {
+    const context = await browser.newContext({
       viewport: viewport,
       permissions: ['microphone', 'camera', 'notifications'],
       ignoreHTTPSErrors: true,
       bypassCSP: true,
       acceptDownloads: true
-    };
-
-    if (recordVideoDir) {
-      if (!fs.existsSync(recordVideoDir)) {
-        fs.mkdirSync(recordVideoDir, { recursive: true });
-      }
-      contextOptions.recordVideo = {
-        dir: recordVideoDir,
-        size: viewport
-      };
-    }
-
-    const context = await browser.newContext(contextOptions);
+    });
 
     const page = await context.newPage();
 

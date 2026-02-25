@@ -90,11 +90,6 @@ TARGET_URL=https://your-chatbot-url.com
 # Gemini AI (Optional)
 ENABLE_GEMINI_EVALUATION=false
 API_KEY_GEMINI=your_api_key
-
-# Incremental report tuning (optional)
-INCREMENTAL_HTML_THROTTLE_MS=4000
-INCREMENTAL_HTML_BATCH_SIZE=5
-INCREMENTAL_EXCEL=false
 ```
 
 ### 2. Prepare Test Data
@@ -144,9 +139,9 @@ session/    # Session files
 
 ## Reports
 
-Setiap test akan menghasilkan 2 jenis report:
-- **HTML Report**: Dashboard interaktif dengan visualisasi (incremental realtime, throttled)
-- **Excel Report**: Spreadsheet dengan 3 sheets (Summary, Test Results, Statistics), di-generate saat akhir run agar konsisten
+Setiap test akan menghasilkan 2 jenis report secara real-time:
+- **HTML Report**: Dashboard interaktif dengan visualisasi
+- **Excel Report**: Spreadsheet dengan 3 sheets (Summary, Test Results, Statistics)
 
 ### Scoring System
 - **Format**: 0.000 - 1.000 (3 desimal)
@@ -154,7 +149,7 @@ Setiap test akan menghasilkan 2 jenis report:
 - **Fail Threshold**: < 0.7 (Merah)
 - **Auto-Evaluation**: Gemini AI atau keyword matching
 
-Report HTML di-generate incremental (real-time) dengan throttle/batch, sementara Excel di-finalize di akhir run dan disimpan dalam satu folder per test.
+Report di-generate secara incremental (real-time) dan disimpan dalam satu folder per test.
 
 ## Commands
 

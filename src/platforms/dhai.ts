@@ -1,24 +1,8 @@
 import { Page } from 'playwright';
-import * as fs from 'fs';
-import * as path from 'path';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
 import { GeminiEvaluator } from '../utils/gemini-evaluator';
-import { startQARecording, stopQARecording } from '../utils/dhai-media-recorder';
 import { TestData, BotData, SummaryData } from '../main';
-
-
-interface DhaiCaptureOptions {
-  enabled: boolean;
-  mode: 'light' | 'full';
-  maxSeconds: number;
-  mediaFolder: string;
-}
-
-interface QaMediaCaptureResult {
-  video_capture: string | null;
-  audio_capture: string | null;
-}
 
 export class DhaiPlatform {
   static async startChat(page: Page): Promise<void> {
@@ -255,52 +239,13 @@ export class DhaiPlatform {
     }
   }
 
-
-  private static ensureDirectory(dirPath: string): void {
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
-  }
-
-  private static async startQaMediaCapture(
-    page: Page,
-    idTest: string,
-    key: string,
-    options: DhaiCaptureOptions
-  ): Promise<void> {
-    if (!options.enabled) {
-      return;
-    }
-
-    try {
-      process.env.DHAI_MEDIA_FOLDER = options.mediaFolder;
-      process.env.DHAI_CAPTURE_MAX_SECONDS = String(options.maxSeconds);
-      await startQARecording(page, idTest, key);
-    } catch (error) {
-      console.warn(`⚠️ Gagal start QA recording (${key}):`, error);
-    }
-  }
-
-  private static async stopQaMediaCapture(key: string, options: DhaiCaptureOptions): Promise<QaMediaCaptureResult> {
-    if (!options.enabled) {
-      return { video_capture: null, audio_capture: null };
-    }
-
-    try {
-      const recording = await stopQARecording();
-      return {
-        video_capture: recording.videoPath || null,
-        audio_capture: recording.audioPath || null
-      };
-    } catch (error) {
-      console.warn(`⚠️ Gagal stop QA recording (${key}):`, error);
-      return { video_capture: null, audio_capture: null };
-    }
-  }
-
   static async takeScreenshot(page: Page, idTest: string, key: string, question: string, screenshotsFolder: string): Promise<string> {
+    const fs = require('fs');
+    const path = require('path');
     const screenshotDir = screenshotsFolder || 'report/screenshoot';
-    this.ensureDirectory(screenshotDir);
+    if (!fs.existsSync(screenshotDir)) {
+      fs.mkdirSync(screenshotDir, { recursive: true });
+    }
 
     const sanitizedQuestion = question.substring(0, 30).replace(/[^a-z0-9]/gi, '_');
     const filename = `${idTest}_${key}_${sanitizedQuestion}.png`;
@@ -325,8 +270,7 @@ export class DhaiPlatform {
     url: string,
     titlePage: string,
     browserName: string,
-    screenshotsFolder: string,
-    captureOptions: DhaiCaptureOptions
+    screenshotsFolder: string
   ): Promise<void> {
     const title = '当 Membaca pertanyaan dan mengirim ke DHAI';
     Modul.showLoading(title);
@@ -357,15 +301,11 @@ export class DhaiPlatform {
 
           try {
             await this.sendMessage(page, question);
-            await this.startQaMediaCapture(page, idTest, key, captureOptions);
-
             await Modul.waitTime(5);
 
             // Get bot response first
             const respondBotList = await this.getReply(page, question);
             let respondBot = respondBotList.join('\n').trim();
-
-            const qaMediaCapture = await this.stopQaMediaCapture(key, captureOptions);
 
             if (!respondBot) {
               respondBot = 'Error: Tidak ada balasan dari bot.';
@@ -405,8 +345,6 @@ export class DhaiPlatform {
               status,
               duration: endDurationPerSampleText,
               image_capture: imageCapture,
-              video_capture: qaMediaCapture.video_capture,
-              audio_capture: qaMediaCapture.audio_capture,
               skor,
               explanation
             };
