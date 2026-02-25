@@ -282,14 +282,23 @@ async function main(): Promise<void> {
     // Generate HTML and Excel reports even if test failed (if data exists)
     try {
       if (reportFilename && idTest) {
+        const incrementalExcel = process.env.INCREMENTAL_EXCEL === 'true';
+
         console.log('📊 Generating HTML report...');
         log.info('Generating HTML report');
         EnvFile.generateHtmlReport(reportFilename, idTest);
 
         console.log('📊 Generating Excel report...');
-        log.info('Generating Excel report');
-        const { generateExcelReport } = await import('./utils/excel-report-generator');
-        generateExcelReport(reportFilename, idTest);
+        log.info('Generating Excel report', { incrementalExcel });
+        const { generateExcelReport, generateExcelReportIncremental } = await import('./utils/excel-report-generator');
+
+        // Excel tetap di-generate saat finalization agar output tetap konsisten.
+        // Flag INCREMENTAL_EXCEL hanya menentukan fungsi final generator yang dipakai.
+        if (incrementalExcel) {
+          generateExcelReportIncremental(reportFilename, idTest);
+        } else {
+          generateExcelReport(reportFilename, idTest);
+        }
       }
     } catch (reportError) {
       log.error('Failed to generate reports', reportError);
