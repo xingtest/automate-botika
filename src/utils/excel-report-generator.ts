@@ -9,6 +9,8 @@ interface TestData {
   response_llm: string;
   explanation: string;
   image_capture: string;
+  video_capture?: string | null;
+  audio_capture?: string | null;
   skor: number;
   status: string;
   duration: string;
@@ -128,14 +130,16 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
       'Score': item.skor.toFixed(3),
       'Status': item.skor >= PASS_THRESHOLD ? 'PASS' : 'FAILED',
       'Duration': item.duration,
-      'Screenshot': item.image_capture || 'N/A'
+      'Screenshot': item.image_capture || 'N/A',
+      'Video Artifact': item.video_capture || 'N/A',
+      'Audio Artifact': item.audio_capture || 'N/A'
     }));
 
     const ws2 = XLSX.utils.json_to_sheet(testResultsData);
     ws2['!cols'] = [
       { wch: 5 }, { wch: 30 }, { wch: 40 }, { wch: 40 }, 
       { wch: 40 }, { wch: 50 }, { wch: 10 }, { wch: 10 }, 
-      { wch: 12 }, { wch: 30 }
+      { wch: 12 }, { wch: 30 }, { wch: 35 }, { wch: 35 }
     ];
     XLSX.utils.book_append_sheet(workbook, ws2, 'Test Results');
 

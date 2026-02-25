@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS artifacts (
   id INT AUTO_INCREMENT PRIMARY KEY,
   run_id INT NOT NULL,
-  artifact_type VARCHAR(50) NOT NULL COMMENT 'json, html, excel, screenshot, etc',
+  artifact_type VARCHAR(50) NOT NULL COMMENT 'json, html, excel, screenshot, qa_video, qa_audio, etc',
   filename VARCHAR(255) NOT NULL,
   file_path VARCHAR(500) NOT NULL,
   file_size INT DEFAULT 0,
