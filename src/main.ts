@@ -47,6 +47,11 @@ async function main(): Promise<void> {
     Modul.setupLogging(reportFilename, idTest);
 
     console.log(`Platform Pengujian: ${config.platform.charAt(0).toUpperCase() + config.platform.slice(1)}`);
+    if (config.platform === 'dhai') {
+      console.log(`DHAI Capture Q&A Media: ${config.dhaiCaptureQaMedia}`);
+      console.log(`DHAI Capture Mode: ${config.dhaiCaptureMode}`);
+      console.log(`DHAI Capture Max Seconds: ${config.dhaiCaptureMaxSeconds}`);
+    }
     console.log(`Greeting: ${config.greeting}\n`);
     console.log(`File Uji yang Digunakan: ${config.filename}\n`);
     console.log(`Tester: ${config.testerName}\n`);

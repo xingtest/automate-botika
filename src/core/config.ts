@@ -18,6 +18,8 @@ export interface BotData {
   status: string;
   duration: string;
   image_capture: string | null;
+  video_capture?: string | null;
+  audio_capture?: string | null;
   skor: number;
   explanation: string;
 }
@@ -44,6 +46,9 @@ export interface PlatformConfig {
   filename: string;
   testerName: string;
   greeting: string;
+  dhaiCaptureQaMedia: boolean;
+  dhaiCaptureMode: 'light' | 'full';
+  dhaiCaptureMaxSeconds: number;
 }
 
 export interface ExecutionContext {
@@ -70,11 +75,21 @@ export function getValidatedConfig(argv: string[] = process.argv): PlatformConfi
     throw new Error('Nama file data uji tidak ditemukan.');
   }
 
+  const dhaiCaptureQaMedia = (process.env.DHAI_CAPTURE_QA_MEDIA || 'false').toLowerCase() === 'true';
+  const dhaiCaptureMode = (process.env.DHAI_CAPTURE_MODE || 'light').toLowerCase() === 'full' ? 'full' : 'light';
+  const parsedMaxSeconds = Number(process.env.DHAI_CAPTURE_MAX_SECONDS || 20);
+  const dhaiCaptureMaxSeconds = Number.isFinite(parsedMaxSeconds) && parsedMaxSeconds > 0
+    ? Math.floor(parsedMaxSeconds)
+    : 20;
+
   return {
     platform,
     filename,
     testerName: process.env.TESTER_NAME || 'Nama Penguji Baru',
-    greeting: process.env.GREETING || 'Halo'
+    greeting: process.env.GREETING || 'Halo',
+    dhaiCaptureQaMedia,
+    dhaiCaptureMode,
+    dhaiCaptureMaxSeconds
   };
 }
 
