@@ -6,29 +6,29 @@ const { authenticateToken } = require('../middleware/auth');
 // GET /api/stats/dashboard - Aggregated dashboard statistics
 router.get('/dashboard', authenticateToken, async (req, res) => {
     try {
-        // Total runs
-        const [totalRows] = await pool.query('SELECT COUNT(*) as total FROM test_runs WHERE user_id = ?', [req.user.id]);
+        // Total runs (exclude llm_judge)
+        const [totalRows] = await pool.query("SELECT COUNT(*) as total FROM test_runs WHERE user_id = ? AND platform != 'llm_judge'", [req.user.id]);
         const totalRuns = totalRows[0].total;
 
         // Success rate
-        const [successRows] = await pool.query('SELECT COUNT(*) as cnt FROM test_runs WHERE failed = 0 AND total_question > 0 AND user_id = ?', [req.user.id]);
+        const [successRows] = await pool.query("SELECT COUNT(*) as cnt FROM test_runs WHERE failed = 0 AND total_question > 0 AND user_id = ? AND platform != 'llm_judge'", [req.user.id]);
         const successRate = totalRuns > 0 ? Math.round((successRows[0].cnt / totalRuns) * 100) : 0;
 
         // Average score
-        const [avgRows] = await pool.query('SELECT AVG(avg_score) as avg FROM test_runs WHERE avg_score > 0 AND user_id = ?', [req.user.id]);
+        const [avgRows] = await pool.query("SELECT AVG(avg_score) as avg FROM test_runs WHERE avg_score > 0 AND user_id = ? AND platform != 'llm_judge'", [req.user.id]);
         const avgScore = avgRows[0].avg ? parseFloat(avgRows[0].avg).toFixed(2) : 0;
 
         // Platform breakdown
         const [platformRows] = await pool.query(
-            'SELECT platform, COUNT(*) as runs, AVG(avg_score) as avg_score, SUM(success) as total_success, SUM(failed) as total_failed FROM test_runs WHERE user_id = ? GROUP BY platform ORDER BY runs DESC',
+            "SELECT platform, COUNT(*) as runs, AVG(avg_score) as avg_score, SUM(success) as total_success, SUM(failed) as total_failed FROM test_runs WHERE user_id = ? AND platform != 'llm_judge' GROUP BY platform ORDER BY runs DESC",
             [req.user.id]
         );
 
-        // Recent runs (last 10)
-        const [recentRows] = await pool.query('SELECT id, test_id, platform, tester_name, date_test, duration, success, failed, avg_score, created_at FROM test_runs WHERE user_id = ? ORDER BY created_at DESC LIMIT 10', [req.user.id]);
+        // Recent runs (last 10, exclude llm_judge)
+        const [recentRows] = await pool.query("SELECT id, test_id, platform, tester_name, date_test, duration, success, failed, avg_score, created_at FROM test_runs WHERE user_id = ? AND platform != 'llm_judge' ORDER BY created_at DESC LIMIT 10", [req.user.id]);
 
         // Total questions tested
-        const [qRows] = await pool.query('SELECT SUM(total_question) as total FROM test_runs WHERE user_id = ?', [req.user.id]);
+        const [qRows] = await pool.query("SELECT SUM(total_question) as total FROM test_runs WHERE user_id = ? AND platform != 'llm_judge'", [req.user.id]);
 
         res.json({
             total_runs: totalRuns,

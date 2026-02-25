@@ -97,9 +97,9 @@ const BackendAPI = {
             const r = await fetch(`${this.baseUrl}${endpoint}`, { headers, ...opts });
 
             if (!r.ok) {
-                const errText = await r.text();
-                console.error(`[DEBUG] API Error ${r.status}:`, errText);
-                throw new Error(`HTTP ${r.status}: ${errText}`);
+                const errJson = await r.json().catch(() => null);
+                const msg = errJson?.error || errJson?.message || `HTTP ${r.status}`;
+                throw new Error(msg);
             }
 
             const json = await r.json();
@@ -107,77 +107,13 @@ const BackendAPI = {
             return json;
         } catch (err) {
             console.error(`[DEBUG] API ${endpoint} FAILED:`, err.message);
-            return null;
+            return { success: false, error: err.message };
         }
     },
     get(endpoint) { return this.request(endpoint); },
     post(endpoint, data) { return this.request(endpoint, { method: 'POST', body: JSON.stringify(data) }); },
     put(endpoint, data) { return this.request(endpoint, { method: 'PUT', body: JSON.stringify(data) }); },
     del(endpoint) { return this.request(endpoint, { method: 'DELETE' }); },
-    async loadRuns() {
-        const c = document.getElementById('dbResultsContent'); if (!c) return;
-        console.log('[DEBUG] BackendAPI.loadRuns() called');
-        console.log('[DEBUG] Backend connected:', this.connected);
-        c.innerHTML = '<div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card"></div>';
-
-        // Make sure backend is initialized
-        if (!this.connected) {
-            console.error('[DEBUG] Backend API not connected!');
-            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-wifi-off" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>Backend API not connected</p><p class="text-sm" style="margin-top:var(--sp-3);">Please ensure the server is running at localhost:3001</p></div>';
-            return;
-        }
-
-        const resp = await this.get('/test-runs?limit=50');
-        console.log('[DEBUG] test-runs response:', resp);
-
-        if (!resp) {
-            console.error('[DEBUG] No response from /test-runs endpoint');
-            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-plug" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>API connection error</p><p class="text-sm" style="margin-top:var(--sp-3);">Check browser console for details</p></div>';
-            return;
-        }
-
-        if (!resp.data || !resp.data.length) {
-            console.warn('[DEBUG] No test runs found in database (resp.data is empty or missing)');
-            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-database" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>No results in database yet</p><p class="text-sm" style="margin-top:var(--sp-3);">Run a test to populate the database</p></div>';
-            return;
-        }
-
-        // Update summary stats
-        const stats = await this.get('/stats/dashboard');
-        console.log('[DEBUG] stats/dashboard response:', stats);
-        if (stats) {
-            document.getElementById('dbStatTotalRuns').textContent = stats.total_runs || 0;
-            const avgScore = stats.avg_score ? parseFloat(stats.avg_score).toFixed(2) : '0.00';
-            document.getElementById('dbStatAvgScore').textContent = avgScore;
-            document.getElementById('dbStatSuccessRate').textContent = `${stats.success_rate || 0}%`;
-        }
-        this.renderRuns(resp.data);
-    },
-    renderRuns(runs) {
-        const c = document.getElementById('dbResultsContent');
-        const stMap = { success: 'Success', failure: 'Failed' };
-        c.innerHTML = `<table class="runs-table"><thead><tr><th>Run Title</th><th>Platform</th><th>Tester</th><th>Date</th><th>Score</th><th>Status</th><th style="width:100px">Actions</th></tr></thead><tbody>${runs.map(r => {
-            const status = r.failed > 0 ? 'failure' : 'success';
-            const score = parseFloat(r.avg_score).toFixed(2);
-            const title = r.run_title || r.test_id || `${r.platform} Test`;
-            return `<tr onclick="BackendAPI.showRunDetail(${r.id})" style="cursor:pointer">
-                <td>
-                    <div style="font-weight:700;">${this.esc(title)}</div>
-                    <div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">${this.esc(r.test_id)}</div>
-                </td>
-                <td><span class="platform-tag ${r.platform}">${r.platform}</span></td>
-                <td style="font-size:0.8rem">${this.esc(r.tester_name)}</td>
-                <td style="font-size:0.8rem">${r.date_test}</td>
-                <td style="font-weight:700; color:var(--accent)">${score}</td>
-                <td><span class="status-pill ${status}">${status === 'success' ? '✅ PASS' : '❌ FAIL'}</span></td>
-                <td>
-                    <div class="btn-group">
-                        <button onclick="event.stopPropagation();ReportManager.showDownloadMenu(event, ${r.id})" class="btn btn-secondary btn-sm" title="Download Artifacts"><i class="fas fa-download"></i></button>
-                    </div>
-                </td>
-            </tr>`;
-        }).join('')}</tbody></table>`;
-    },
     esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; },
     async showRunDetail(id) {
         Toast.info('Loading', `Fetching details for run #${id}`);
@@ -328,8 +264,8 @@ const ThemeManager = {
 
 // ===== ROUTER =====
 const Router = {
-    pages: ['dashboard', 'run-tests', 'history', 'reports', 'db-results', 'presets', 'activity', 'scheduler', 'settings'],
-    titles: { dashboard: 'Dashboard', 'run-tests': 'Run Tests', history: 'Run History', reports: 'Reports', 'db-results': 'DB Results', presets: 'Presets', activity: 'Activity Feed', scheduler: 'Scheduler', settings: 'Settings' },
+    pages: ['dashboard', 'run-tests', 'history', 'reports', 'judge', 'judge-reports', 'presets', 'activity', 'scheduler', 'settings'],
+    titles: { dashboard: 'Dashboard', 'run-tests': 'Run Tests', history: 'Run History', reports: 'Reports', judge: 'LLM as Judge', 'judge-reports': 'Judge Reports', presets: 'Presets', activity: 'Activity Feed', scheduler: 'Scheduler', settings: 'Settings' },
     init() { window.addEventListener('hashchange', () => this.handleRoute()); this.handleRoute(); },
     handleRoute() { const h = window.location.hash.slice(1) || 'dashboard'; this.show(this.pages.includes(h) ? h : 'dashboard'); },
     navigate(p) { window.location.hash = p; },
@@ -350,8 +286,9 @@ const Router = {
         if (page === 'presets') PresetManager.render();
         if (page === 'activity') ActivityFeed.render();
         if (page === 'scheduler') Scheduler.render();
-        if (page === 'db-results') { console.log('[DEBUG] Loading DB Results...'); BackendAPI.loadRuns(); }
         if (page === 'reports') { console.log('[DEBUG] Loading Reports...'); ReportManager.render(); }
+        if (page === 'judge') { JudgeManager.init(); }
+        if (page === 'judge-reports') { JudgeManager.renderReports(); }
         document.getElementById('mobileOverlay')?.classList.remove('show');
         document.getElementById('sidebar')?.classList.remove('mobile-open');
     }
@@ -385,13 +322,16 @@ const TerminalLog = {
 // ===== GITHUB API =====
 const GitHubAPI = {
     pollingInterval: null,
+    historyPage: 1,
+    historyPicker: null,
     getToken() { return CONFIG.token || document.getElementById('tokenInput')?.value?.trim() || ''; },
     getApiBase() { return `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}`; },
     async apiFetch(endpoint, opts = {}) {
         const token = this.getToken();
         const headers = { 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json', ...opts.headers };
         if (token) headers['Authorization'] = `Bearer ${token}`;
-        return fetch(`${this.getApiBase()}${endpoint}`, { ...opts, headers });
+        const base = opts.noRepo ? 'https://api.github.com' : this.getApiBase();
+        return fetch(`${base}${endpoint}`, { ...opts, headers });
     },
     async checkConnection() {
         const dot = document.getElementById('connDot'); if (!dot) return;
@@ -428,26 +368,118 @@ const GitHubAPI = {
         const base = opts.noRepo ? 'https://api.github.com' : this.getApiBase();
         return fetch(`${base}${endpoint}`, { ...opts, headers });
     },
-    async getRuns(count = 20, actor = null) {
+    async getRuns(count = 20, actor = null, created = null, page = 1) {
         try {
-            let url = `/actions/workflows/${CONFIG.workflow_id}/runs?per_page=${count}`;
+            let url = `/actions/workflows/${CONFIG.workflow_id}/runs?per_page=${count}&page=${page}`;
             if (actor) url += `&actor=${actor}`;
+            if (created) url += `&created=${created}`;
             const r = await this.apiFetch(url);
             if (!r.ok) return [];
             const d = await r.json();
             return d.workflow_runs || [];
         } catch { return []; }
     },
+    async getRunArtifacts(runId) {
+        try {
+            const r = await this.apiFetch(`/actions/runs/${runId}/artifacts`);
+            if (!r.ok) return [];
+            const d = await r.json();
+            return d.artifacts || [];
+        } catch { return []; }
+    },
+    async downloadGitHubArtifact(artifactId, filename) {
+        try {
+            Toast.info('Downloading', `Preparing ${filename}...`);
+            const r = await this.apiFetch(`/actions/artifacts/${artifactId}/zip`, {
+                headers: { 'Accept': 'application/vnd.github.v3+json' }
+            });
+            if (!r.ok) throw new Error('Download failed');
+            const blob = await r.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${filename}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            Toast.success('Success', 'Download started');
+        } catch (e) {
+            Toast.error('Error', 'Failed to download artifact');
+        }
+    },
+    esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; },
     async loadHistory() {
         const c = document.getElementById('historyContent'); if (!c) return;
 
+        const filterActorEl = document.getElementById('historyFilterActor');
         const filterStatus = document.getElementById('historyFilterStatus')?.value || 'all';
-        const filterActor = document.getElementById('historyFilterActor')?.value?.trim() || null;
+        const filterTimeEl = document.getElementById('historyFilterTime');
+        const filterTime = filterTimeEl?.value || 'all';
+        const customGroup = document.getElementById('historyCustomDateGroup');
+
+        // Handle time filter
+        let created = null;
+        if (filterTime === 'custom') {
+            customGroup?.classList.remove('hidden');
+            if (!this.historyPicker) {
+                this.historyPicker = flatpickr("#historyRangePicker", {
+                    mode: "range",
+                    dateFormat: "Y-m-d",
+                    onClose: (selectedDates) => {
+                        if (selectedDates.length === 2) {
+                            this.historyPage = 1;
+                            this.loadHistory();
+                        }
+                    }
+                });
+            }
+            const dates = this.historyPicker.selectedDates;
+            if (dates.length === 2) {
+                const start = dates[0].toISOString().split('T')[0];
+                const end = dates[1].toISOString().split('T')[0];
+                created = `${start}..${end}`;
+            }
+        } else {
+            customGroup?.classList.add('hidden');
+            if (this.historyPicker) {
+                this.historyPicker.clear();
+                const pickerInput = document.getElementById('historyRangePicker');
+                if (pickerInput) pickerInput.value = '';
+            }
+            if (filterTime !== 'all') {
+                const now = new Date();
+                if (filterTime === '24h') now.setHours(now.getHours() - 24);
+                else if (filterTime === '7d') now.setDate(now.getDate() - 7);
+                else if (filterTime === '30d') now.setDate(now.getDate() - 30);
+                created = `>${now.toISOString().split('.')[0]}Z`;
+            }
+        }
+
+        // Auto-detect actor if it's the first time and empty
+        if (filterActorEl && !filterActorEl.value && !this._actorDetected) {
+            const user = await this.getCurrentUser();
+            if (user && user.login) {
+                filterActorEl.value = user.login;
+                this._actorDetected = true;
+            }
+        }
+
+        const filterActor = filterActorEl?.value?.trim() || null;
 
         c.innerHTML = '<div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card mb-2"></div><div class="skeleton skeleton-card"></div>';
 
         try {
-            let runs = await this.getRuns(50, filterActor);
+            const perPage = 10;
+            let runs = await this.getRuns(perPage, filterActor, created, this.historyPage);
+
+            // Update Pagination UI
+            const prevBtn = document.getElementById('historyPrevBtn');
+            const nextBtn = document.getElementById('historyNextBtn');
+            const pageNum = document.getElementById('historyPageNum');
+            if (prevBtn) prevBtn.disabled = this.historyPage === 1;
+            if (pageNum) pageNum.textContent = `Page ${this.historyPage}`;
+            if (nextBtn) nextBtn.disabled = runs.length < perPage;
 
             if (filterStatus !== 'all') {
                 runs = runs.filter(r => (r.conclusion || r.status) === filterStatus);
@@ -585,7 +617,7 @@ const DashboardStats = {
         const c = document.getElementById('recentRunsList'); if (!c) return;
         c.innerHTML = runs.map(r => {
             const status = r.failed > 0 ? 'failure' : 'success';
-            return `<div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) 0;border-bottom:1px solid var(--border-color); cursor:pointer" onclick="Router.navigate('db-results'); BackendAPI.showRunDetail(${r.id})">
+            return `<div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) 0;border-bottom:1px solid var(--border-color); cursor:pointer" onclick="BackendAPI.showRunDetail(${r.id})">
                 <div style="width:8px;height:8px;border-radius:50%;background:var(--${status === 'success' ? 'success' : 'error'});flex-shrink:0;"></div>
                 <div style="flex:1;">
                     <div style="font-size:0.85rem;font-weight:600;">${this.esc(r.run_title || r.platform + ' Test')}</div>
@@ -747,28 +779,44 @@ const CmdPalette = {
 
 // ===== REPORT MANAGER =====
 const ReportManager = {
+    reportPicker: null,
+    reportPage: 1,
+    perPage: 10,
     async render() {
         const c = document.getElementById('reportContent'); if (!c) return;
         console.log('[DEBUG] ReportManager.render() called');
         c.innerHTML = '<div style="padding:var(--sp-6);text-align:center;">Loading reports...</div>';
         try {
             this.allRuns = []; this.filteredRuns = [];
+
+            // 1. Try Backend first
             if (BackendAPI.connected) {
                 const stats = await BackendAPI.get('/stats/dashboard');
                 if (stats && stats.recent_runs && stats.recent_runs.length > 0) {
-                    console.log('[DEBUG] Found recent runs from backend:', stats.recent_runs.length);
                     this.allRuns = stats.recent_runs;
                     this.filteredRuns = [...this.allRuns];
                     this.renderControls();
                     this.renderTable();
                     return;
-                } else {
-                    console.log('[DEBUG] No recent runs in backend');
-                    c.innerHTML = '<div class="text-center" style="padding:var(--sp-6);color:var(--text-muted);"><p><i class="fas fa-inbox" style="font-size:2rem;margin-bottom:var(--sp-2);"></i></p><p>No reports available</p><p style="font-size:0.85rem;">Run a test to generate a report</p></div>';
-                    return;
                 }
             }
-            c.innerHTML = '<div class="text-center" style="padding:var(--sp-6);color:var(--text-muted);"><p><i class="fas fa-plug" style="font-size:2rem;margin-bottom:var(--sp-2);opacity:0.3;"></i></p><p>Backend not connected</p><p style="font-size:0.85rem;">Please ensure the server is running</p></div>';
+
+            // 2. Fallback to GitHub API (Current Repo)
+            c.innerHTML = '<div style="padding:var(--sp-6);text-align:center;">Fetching from GitHub...</div>';
+            const githubRuns = await GitHubAPI.getRuns(30);
+            if (githubRuns && githubRuns.length > 0) {
+                this.allRuns = githubRuns;
+                this.filteredRuns = [...this.allRuns];
+                this.renderControls();
+                this.renderGitHubTable();
+            } else {
+                const hasToken = !!GitHubAPI.getToken();
+                c.innerHTML = `<div class="text-center" style="padding:var(--sp-8);color:var(--text-muted);">
+                    <i class="fas fa-inbox" style="font-size:2.5rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i>
+                    <p>No reports found in Backend or GitHub</p>
+                    ${!hasToken ? '<p style="font-size:0.85rem;color:var(--warning);margin-top:var(--sp-2);">⚠️ GitHub Token is missing. Please set it in Settings.</p>' : ''}
+                </div>`;
+            }
         } catch (e) {
             console.error('[DEBUG] Error loading reports:', e);
             c.innerHTML = '<div style="padding:var(--sp-6);color:var(--error);"><strong>Error loading reports:</strong> ' + this.esc(e.message) + '</div>';
@@ -846,29 +894,93 @@ const ReportManager = {
         const controlsDiv = document.createElement('div');
         controlsDiv.className = 'report-filter-controls';
         controlsDiv.style.cssText = 'margin-bottom:var(--sp-4);display:flex;gap:var(--sp-3);flex-wrap:wrap;align-items:center;';
-        controlsDiv.innerHTML = `<input type="text" id="reportSearch" placeholder="🔍 Search tester or title..." style="flex:1;min-width:200px;padding:var(--sp-2);border:1px solid var(--border-color);border-radius:var(--radius);background:var(--input-bg);color:var(--text-primary);" onkeyup="ReportManager.applyFilters()"><div style="display:flex;gap:var(--sp-2);"><input type="date" id="reportDateFrom" title="From date" style="padding:var(--sp-2);border:1px solid var(--border-color);border-radius:var(--radius);background:var(--input-bg);color:var(--text-primary);" onchange="ReportManager.applyFilters()"><input type="date" id="reportDateTo" title="To date" style="padding:var(--sp-2);border:1px solid var(--border-color);border-radius:var(--radius);background:var(--input-bg);color:var(--text-primary);" onchange="ReportManager.applyFilters()"></div><button class="btn btn-secondary btn-sm" onclick="ReportManager.resetFilters()"><i class="fas fa-redo"></i> Reset</button>`;
+
+        controlsDiv.innerHTML = `
+            <input type="text" id="reportSearch" placeholder="🔍 Search tester or title..." style="flex:1;min-width:200px;padding:var(--sp-2);border:1px solid var(--border-color);border-radius:var(--radius);background:var(--input-bg);color:var(--text-primary);" onkeyup="ReportManager.applyFilters()">
+            
+            <div style="display:flex;gap:var(--sp-2);align-items:center;">
+                <select id="reportFilterTime" class="form-select" style="width:140px;padding:var(--sp-2);border:1px solid var(--border-color);border-radius:var(--radius);background:var(--input-bg);color:var(--text-primary);" onchange="ReportManager.handleTimeFilterChange()">
+                    <option value="all">All Time</option>
+                    <option value="24h">Last 24 Hours</option>
+                    <option value="7d">Last 7 Days</option>
+                    <option value="30d">Last 30 Days</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+                
+                <div id="reportCustomDateGroup" class="hidden" style="display:flex;gap:4px;align-items:center;">
+                    <input type="text" id="reportRangePicker" placeholder="Select dates..." style="width:200px;padding:var(--sp-2);border:1px solid var(--border-color);border-radius:var(--radius);background:var(--input-bg);color:var(--text-primary);">
+                </div>
+            </div>
+            
+            <button class="btn btn-secondary btn-sm" onclick="ReportManager.resetFilters()"><i class="fas fa-redo"></i> Reset</button>
+        `;
         parent.insertBefore(controlsDiv, c);
+    },
+
+    handleTimeFilterChange() {
+        const filterTime = document.getElementById('reportFilterTime')?.value;
+        const customGroup = document.getElementById('reportCustomDateGroup');
+
+        if (filterTime === 'custom') {
+            customGroup?.classList.remove('hidden');
+            if (!this.reportPicker) {
+                this.reportPicker = flatpickr("#reportRangePicker", {
+                    mode: "range",
+                    dateFormat: "Y-m-d",
+                    onClose: (selectedDates) => {
+                        if (selectedDates.length === 2) {
+                            this.applyFilters();
+                        }
+                    }
+                });
+            }
+        } else {
+            customGroup?.classList.add('hidden');
+            if (this.reportPicker) {
+                this.reportPicker.clear();
+            }
+            this.applyFilters();
+        }
     },
 
     applyFilters() {
         const searchVal = document.getElementById('reportSearch')?.value?.toLowerCase() || '';
-        const dateFrom = document.getElementById('reportDateFrom')?.value;
-        const dateTo = document.getElementById('reportDateTo')?.value;
+        const filterTime = document.getElementById('reportFilterTime')?.value || 'all';
+
+        let startDate = null;
+        let endDate = null;
+
+        if (filterTime === 'custom' && this.reportPicker?.selectedDates.length === 2) {
+            startDate = this.reportPicker.selectedDates[0];
+            endDate = new Date(this.reportPicker.selectedDates[1]);
+            endDate.setHours(23, 59, 59, 999);
+        } else if (filterTime !== 'all') {
+            endDate = new Date();
+            startDate = new Date();
+            if (filterTime === '24h') startDate.setHours(startDate.getHours() - 24);
+            else if (filterTime === '7d') startDate.setDate(startDate.getDate() - 7);
+            else if (filterTime === '30d') startDate.setDate(startDate.getDate() - 30);
+        }
+
         this.filteredRuns = this.allRuns.filter(r => {
-            const matchesSearch = !searchVal || (r.tester_name?.toLowerCase().includes(searchVal)) || (r.test_id?.toLowerCase().includes(searchVal)) || (r.run_title?.toLowerCase().includes(searchVal)) || (r.platform?.toLowerCase().includes(searchVal));
+            const matchesSearch = !searchVal || (r.tester_name?.toLowerCase().includes(searchVal)) || (r.test_id?.toLowerCase().includes(searchVal)) || (r.run_title?.toLowerCase().includes(searchVal)) || (r.platform?.toLowerCase().includes(searchVal)) || (r.display_title?.toLowerCase().includes(searchVal)) || (r.head_commit?.message?.toLowerCase().includes(searchVal));
+
             const runDate = new Date(r.created_at);
-            const matchesFromDate = !dateFrom || runDate >= new Date(dateFrom + 'T00:00:00');
-            const matchesToDate = !dateTo || runDate <= new Date(dateTo + 'T23:59:59');
-            return matchesSearch && matchesFromDate && matchesToDate;
+            const matchesTime = !startDate || (runDate >= startDate && runDate <= endDate);
+
+            return matchesSearch && matchesTime;
         });
-        console.log('[DEBUG] Filtered runs:', this.filteredRuns.length);
+
+        this.reportPage = 1;
         if (this.allRuns[0]?.html_url) { this.renderGitHubTable(); } else { this.renderTable(); }
     },
 
     resetFilters() {
         document.getElementById('reportSearch').value = '';
-        document.getElementById('reportDateFrom').value = '';
-        document.getElementById('reportDateTo').value = '';
+        document.getElementById('reportFilterTime').value = 'all';
+        document.getElementById('reportCustomDateGroup')?.classList.add('hidden');
+        if (this.reportPicker) this.reportPicker.clear();
+        this.reportPage = 1;
         this.filteredRuns = [...this.allRuns];
         if (this.allRuns[0]?.html_url) { this.renderGitHubTable(); } else { this.renderTable(); }
     },
@@ -876,8 +988,18 @@ const ReportManager = {
     renderTable() {
         const c = document.getElementById('reportContent');
         const pinned = JSON.parse(localStorage.getItem('acc_reports_pinned') || '[]');
-        if (!this.filteredRuns.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-6);"><p>No reports match your filters</p></div>'; return; }
-        c.innerHTML = `<table class="runs-table" style="width:100%;"><thead><tr><th style="width:40px"></th><th>Run Title</th><th>Platform</th><th>Tester</th><th>Score</th><th>Status</th><th>Started</th><th style="width:120px">Actions</th></tr></thead><tbody>${this.filteredRuns.map(r => this.renderRow(r, pinned)).join('')}</tbody></table>`;
+        if (!this.filteredRuns.length) {
+            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-6);"><p>No reports match your filters</p></div>';
+            document.getElementById('reportPagination')?.classList.add('hidden');
+            return;
+        }
+
+        const start = (this.reportPage - 1) * this.perPage;
+        const end = start + this.perPage;
+        const pagedRuns = this.filteredRuns.slice(start, end);
+
+        c.innerHTML = `<table class="runs-table" style="width:100%;"><thead><tr><th style="width:40px"></th><th>Run Title</th><th>Platform</th><th>Tester</th><th>Score</th><th>Status</th><th>Started</th><th style="width:120px">Actions</th></tr></thead><tbody>${pagedRuns.map(r => this.renderRow(r, pinned)).join('')}</tbody></table>`;
+        this.updatePaginationUI();
     },
 
     renderRow(run, pinned = []) {
@@ -905,65 +1027,22 @@ const ReportManager = {
             <td style="position:relative;">
                 <div class="btn-group" style="display:flex;gap:6px;">
                     <button onclick="event.stopPropagation();BackendAPI.showRunDetail(${run.id})" class="btn btn-secondary btn-sm" title="View Details"><i class="fas fa-eye"></i></button>
-                    <button onclick="event.stopPropagation();ReportManager.showDownloadMenu(event, ${run.id})" class="btn btn-secondary btn-sm" title="Download Artifacts"><i class="fas fa-download"></i></button>
+                    <button onclick="event.stopPropagation();ReportManager.downloadArtifacts(${run.id})" class="btn btn-secondary btn-sm" title="Download Artifacts"><i class="fas fa-download"></i></button>
                 </div>
             </td>
         </tr>`;
     },
 
-    showDownloadMenu(event, runId) {
-        event.preventDefault();
-        const menu = document.createElement('div');
-        menu.style.cssText = 'position:absolute;top:100%;right:0;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--radius);box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:1000;min-width:180px;';
-        menu.innerHTML = '<div style="padding:var(--sp-2);">Loading artifacts...</div>';
-        document.body.appendChild(menu);
-
-        // Position menu properly
-        const btn = event.target.closest('.btn-group');
-        const rect = btn.getBoundingClientRect();
-        menu.style.position = 'fixed';
-        menu.style.top = (rect.bottom + 4) + 'px';
-        menu.style.right = (window.innerWidth - rect.right) + 'px';
-
-        // Load artifacts
-        ArtifactManager.loadArtifacts(runId).then(artifacts => {
-            if (!artifacts.length) {
-                menu.innerHTML = '<div style="padding:var(--sp-3);color:var(--text-muted);font-size:0.85rem;text-align:center;">No artifacts</div>';
-                return;
-            }
-
-            const grouped = {};
-            artifacts.forEach(a => {
-                if (!grouped[a.artifact_type]) grouped[a.artifact_type] = [];
-                grouped[a.artifact_type].push(a);
-            });
-
-            let html = '';
-            for (const [type, items] of Object.entries(grouped)) {
-                html += `<div style="border-bottom:1px solid var(--border-color);padding:var(--sp-2);">
-                    <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--accent);margin-bottom:var(--sp-1);">${type}</div>`;
-                items.forEach(a => {
-                    const size = ReportManager.formatSize(a.file_size);
-                    html += `<button onclick="event.stopPropagation();ArtifactManager.downloadArtifact(${a.id}, '${a.filename.replace(/'/g, "\\'")}');this.closest('[style*=position]').remove();" style="display:block;width:100%;text-align:left;padding:var(--sp-2);background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:0.8rem;border-radius:var(--radius);" onmouseover="this.style.background='var(--bg-primary)'" onmouseout="this.style.background='none'">
-                        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;"><strong>${a.filename}</strong></div>
-                        <div style="font-size:0.7rem;color:var(--text-muted);">${size}</div>
-                    </button>`;
-                });
-                html += '</div>';
-            }
-            menu.innerHTML = html;
-        });
-
-        // Close menu on click outside
-        setTimeout(() => {
-            document.addEventListener('click', function closeMenu(e) {
-                if (!menu.contains(e.target) && !e.target.closest('.btn-group')) {
-                    menu.remove();
-                    document.removeEventListener('click', closeMenu);
-                }
-            });
-        }, 100);
+    async downloadArtifacts(runId) {
+        try {
+            Toast.info('Downloading', 'Checking for artifacts...');
+            const artifacts = await ArtifactManager.loadArtifacts(runId);
+            if (!artifacts.length) { Toast.warning('No Artifacts', 'No files found for this run'); return; }
+            Toast.success('Direct Download', `Starting download for ${artifacts.length} file(s)`);
+            for (const a of artifacts) { ArtifactManager.downloadArtifact(a.id, a.name || a.filename); }
+        } catch (e) { Toast.error('Error', 'Failed to start download'); }
     },
+
 
     formatSize(bytes) {
         if (bytes === 0) return '0 B';
@@ -976,8 +1055,32 @@ const ReportManager = {
     renderGitHubTable() {
         const c = document.getElementById('reportContent');
         const pinned = JSON.parse(localStorage.getItem('acc_reports_pinned') || '[]');
-        if (!this.filteredRuns.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-6);"><p>No workflow runs match your filters</p></div>'; return; }
-        c.innerHTML = `<table class="runs-table" style="width:100%;"><thead><tr><th style="width:40px"></th><th>Run #</th><th>Branch</th><th>Event</th><th>Status</th><th>Started</th><th>Duration</th><th style="width:60px"></th></tr></thead><tbody>${this.filteredRuns.map(r => this.renderGitHubRow(r, pinned)).join('')}</tbody></table>`;
+        if (!this.filteredRuns.length) {
+            c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-6);"><p>No workflow runs match your filters</p></div>';
+            document.getElementById('reportPagination')?.classList.add('hidden');
+            return;
+        }
+
+        const start = (this.reportPage - 1) * this.perPage;
+        const end = start + this.perPage;
+        const pagedRuns = this.filteredRuns.slice(start, end);
+
+        c.innerHTML = `<table class="runs-table" style="width:100%;"><thead><tr><th style="width:40px"></th><th>Run Title</th><th>Run #</th><th>Event</th><th>Status</th><th>Started</th><th>Duration</th><th style="width:100px"></th></tr></thead><tbody>${pagedRuns.map(r => this.renderGitHubRow(r, pinned)).join('')}</tbody></table>`;
+        this.updatePaginationUI();
+    },
+
+    updatePaginationUI() {
+        const pag = document.getElementById('reportPagination');
+        if (!pag) return;
+
+        pag.classList.remove('hidden');
+        const prevBtn = document.getElementById('reportPrevBtn');
+        const nextBtn = document.getElementById('reportNextBtn');
+        const pageNum = document.getElementById('reportPageNum');
+
+        if (prevBtn) prevBtn.disabled = this.reportPage === 1;
+        if (pageNum) pageNum.textContent = `Page ${this.reportPage}`;
+        if (nextBtn) nextBtn.disabled = (this.reportPage * this.perPage) >= this.filteredRuns.length;
     },
 
     renderGitHubRow(run, pinned = []) {
@@ -986,8 +1089,21 @@ const ReportManager = {
         const isPinned = pinned.includes(run.id);
         const duration = run.updated_at && run.created_at ? GitHubAPI.fmtDur(new Date(run.updated_at) - new Date(run.created_at)) : '—';
         const startedTime = GitHubAPI.formatDateTime(run.created_at);
-        return `<tr style="cursor:pointer;" onclick="window.open('${run.html_url}')"><td><button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="event.stopPropagation();ReportManager.togglePin(${run.id})" title="Pin" style="border:none;background:none;cursor:pointer;color:var(--text-muted);"><i class="fas fa-thumbtack"></i></button></td><td><strong>#${run.run_number}</strong></td><td><code style="font-size:0.75rem;">${run.head_branch}</code></td><td style="font-size:0.8rem;">${run.event}</td><td><span class="status-pill ${st}" style="font-size:0.75rem;">${statusIcon} ${st}</span></td><td style="font-size:0.75rem;color:var(--text-muted);">${startedTime}</td><td style="font-size:0.75rem;color:var(--text-muted);">${duration}</td><td><a href="${run.html_url}" target="_blank" class="btn btn-secondary btn-sm" onclick="event.stopPropagation()"><i class="fas fa-external-link-alt"></i></a></td></tr>`;
+        const title = run.display_title || run.head_commit?.message?.split('\n')[0] || `Run #${run.run_number}`;
+
+        return `<tr style="cursor:pointer;" onclick="window.open('${run.html_url}')"><td><button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="event.stopPropagation();ReportManager.togglePin(${run.id})" title="Pin" style="border:none;background:none;cursor:pointer;color:var(--text-muted);"><i class="fas fa-thumbtack"></i></button></td><td><div style="font-weight:700; max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${this.esc(title)}</div></td><td><strong>#${run.run_number}</strong></td><td style="font-size:0.8rem;">${run.event}</td><td><span class="status-pill ${st}" style="font-size:0.75rem;">${statusIcon} ${st}</span></td><td style="font-size:0.75rem;color:var(--text-muted);">${startedTime}</td><td style="font-size:0.75rem;color:var(--text-muted);">${duration}</td><td><div class="btn-group" style="display:flex;gap:6px;"><button onclick="event.stopPropagation();ReportManager.downloadGitHubArtifacts(${run.id})" class="btn btn-secondary btn-sm" title="Download Artifacts"><i class="fas fa-download"></i></button><a href="${run.html_url}" target="_blank" class="btn btn-secondary btn-sm" onclick="event.stopPropagation()"><i class="fas fa-external-link-alt"></i></a></div></td></tr>`;
     },
+
+    async downloadGitHubArtifacts(runId) {
+        try {
+            Toast.info('Downloading', 'Checking for artifacts...');
+            const artifacts = await GitHubAPI.getRunArtifacts(runId);
+            if (!artifacts.length) { Toast.warning('No Artifacts', 'No files found for this run'); return; }
+            Toast.success('GitHub Download', `Starting download for ${artifacts.length} file(s)`);
+            for (const a of artifacts) { GitHubAPI.downloadGitHubArtifact(a.id, a.name); }
+        } catch (e) { Toast.error('Error', 'Failed to start download'); }
+    },
+
 
     togglePin(id) {
         let pinned = JSON.parse(localStorage.getItem('acc_reports_pinned') || '[]');
@@ -996,6 +1112,611 @@ const ReportManager = {
         this.renderTable();
     },
 
+    esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+};
+
+// ===== LLM JUDGE MANAGER =====
+const JudgeManager = {
+    selectedFile: null,
+    fileData: [],
+    DEFAULT_PROMPT: `Anda adalah QA Engineer Senior dan Linguist Specialist. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot dengan metodologi "Chain of Thought".
+
+KONTEKS PENGUJIAN:
+- Topik: {title}
+- Pertanyaan User: "{question}"
+- Referensi Kebenaran (Knowledge Base): "{expected}"
+- Jawaban Chatbot (Yang dievaluasi): "{actual}"
+
+INSTRUKSI EVALUASI:
+Lakukan analisa langkah demi langkah sebelum memberikan skor akhir. WAJIB JELASKAN SEMUA LANGKAH:
+
+LANGKAH 1: ANALISA KEBENARAN FAKTUAL (Bobot Tertinggi)
+- Bandingkan fakta di "Jawaban Chatbot" dengan "Referensi Kebenaran".
+- Apakah ada angka, nama, atau prosedur yang salah?
+- Jika Referensi Kebenaran bilang "A", tapi Chatbot bilang "B", ini FATAL.
+- PENTING: Sebutkan secara spesifik fakta mana yang benar/salah!
+
+LANGKAH 2: ANALISA RELEVANSI & KONTEKS
+- Apakah Chatbot menjawab pertanyaan user secara langsung?
+- Apakah ada informasi berlebih (hallucination) yang tidak diminta dan berpotensi salah?
+- PENTING: Sebutkan apakah jawaban sudah menjawab inti pertanyaan!
+
+ATURAN SCORING:
+- 1.00 (Sempurna): Faktual 100% benar, lengkap, relevan, bahasa bagus.
+- 0.70 - 0.99 (Pass): Faktual benar, mungkin ada kekurangan minor di gaya bahasa atau kelengkapan detail non-krusial.
+- 0.40 - 0.69 (Fail - Minor): Ada info yang kurang tepat tapi tidak fatal, atau bahasa sangat kaku/berulang.
+- 0.00 - 0.39 (Fail - Major): Halusinasi (mengarang fakta), salah total, atau tidak nyambung.
+
+FORMAT EXPLANATION YANG DIHARAPKAN:
+Gunakan format bullet point dengan detail JELAS per langkah:
+
+• Langkah 1 (Faktual): [Sebutkan fakta apa yang benar/salah/kurang]
+• Langkah 2 (Relevansi): [Apakah menjawab pertanyaan atau tidak]
+• Simpulan: [Kesimpulan final]
+
+OUTPUT FINAL:
+Berikan output HANYA dalam format JSON valid tanpa markdown block:
+{
+  "score": [angka desimal 0.00 - 1.00],
+  "explanation": "[Status: ✓/⚠/✗] + Detail analisa menggunakan format bullet point di atas. Maksimal 50 kata."
+}`,
+    init() {
+        this.setupEventListeners();
+        this.renderGeminiSettings();
+    },
+    setupEventListeners() {
+        const zone = document.getElementById('judgeFileZone');
+        const input = document.getElementById('judgeFileInput');
+        const startBtn = document.getElementById('startJudgeBtn');
+
+        if (zone) {
+            zone.onclick = () => input.click();
+            zone.ondragover = (e) => { e.preventDefault(); zone.style.background = 'var(--bg-secondary)'; };
+            zone.ondragleave = () => { zone.style.background = 'none'; };
+            zone.ondrop = (e) => {
+                e.preventDefault();
+                zone.style.background = 'none';
+                if (e.dataTransfer.files.length) this.handleFileSelect(e.dataTransfer.files[0]);
+            };
+        }
+
+        if (input) {
+            input.onchange = (e) => { if (e.target.files.length) this.handleFileSelect(e.target.files[0]); };
+        }
+
+        if (startBtn) {
+            startBtn.onclick = () => this.startEvaluation();
+        }
+
+        const downloadBtn = document.getElementById('downloadJudgeExampleBtn');
+        if (downloadBtn) {
+            downloadBtn.onclick = (e) => { e.preventDefault(); this.downloadExample(); };
+        }
+
+        const saveKeyBtn = document.getElementById('saveJudgeSettingsBtn');
+        if (saveKeyBtn) {
+            saveKeyBtn.onclick = () => {
+                const key = document.getElementById('settingGeminiKey').value;
+                const model = document.getElementById('settingGeminiModel').value;
+                const prompt = document.getElementById('settingJudgePrompt')?.value || '';
+                localStorage.setItem('acc_gemini_api_key', key);
+                localStorage.setItem('acc_gemini_model', model);
+                if (prompt.trim()) localStorage.setItem('acc_judge_prompt', prompt);
+                Toast.success('Settings Saved', 'Gemini configuration updated');
+            };
+        }
+
+        const testBtn = document.getElementById('testJudgeSettingsBtn');
+        if (testBtn) {
+            testBtn.onclick = async () => {
+                const key = document.getElementById('settingGeminiKey').value;
+                const model = document.getElementById('settingGeminiModel').value;
+                if (!key) { Toast.warning('Missing Key', 'Enter your API key first'); return; }
+
+                testBtn.disabled = true;
+                testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+
+                try {
+                    const resp = await BackendAPI.post('/judge/test-connection', {
+                        gemini_api_key: key,
+                        gemini_model: model
+                    });
+                    if (resp && resp.success) Toast.success('Success', `Connected to ${model}`);
+                    else Toast.error('Failed', resp?.error || 'Connection failed');
+                } catch (err) {
+                    Toast.error('Error', err.message);
+                } finally {
+                    testBtn.disabled = false;
+                    testBtn.innerHTML = '<i class="fas fa-vial"></i> Test Connection';
+                }
+            };
+        }
+        const resetBtn = document.getElementById('resetJudgePromptBtn');
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                const el = document.getElementById('settingJudgePrompt');
+                if (el) el.value = this.DEFAULT_PROMPT;
+                localStorage.removeItem('acc_judge_prompt');
+                Toast.info('Reset', 'Prompt reset to default');
+            };
+        }
+    },
+    renderGeminiSettings() {
+        const key = localStorage.getItem('acc_gemini_api_key') || '';
+        const model = localStorage.getItem('acc_gemini_model') || 'gemini-1.5-flash';
+        const prompt = localStorage.getItem('acc_judge_prompt') || this.DEFAULT_PROMPT;
+
+        const keyInput = document.getElementById('settingGeminiKey');
+        if (keyInput) keyInput.value = key;
+
+        const modelInput = document.getElementById('settingGeminiModel');
+        if (modelInput) modelInput.value = model;
+
+        const promptInput = document.getElementById('settingJudgePrompt');
+        if (promptInput) promptInput.value = prompt;
+    },
+    downloadExample() {
+        try {
+            const data = [
+                { Title: "Product Inquiry", Question: "Berapa harga produk X?", Expected: "Harga produk X adalah Rp 50.000", Actual: "Produk X seharga Rp 50.000" },
+                { Title: "Store Hours", Question: "Kapan toko buka?", Expected: "Toko buka setiap hari jam 09.00 - 21.00", Actual: "Kami buka jam 9 pagi sampai jam 9 malam" },
+                { Title: "Return Policy", Question: "Apa bisa return barang?", Expected: "Barang bisa direturn dalam 7 hari dengan struk asli.", Actual: "Boleh return kok kak asal ada struknya." }
+            ];
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Judge Example");
+
+            // Format column widths
+            const wscols = [{ wch: 15 }, { wch: 30 }, { wch: 40 }, { wch: 40 }];
+            ws['!cols'] = wscols;
+
+            XLSX.writeFile(wb, "llm_judge_example.xlsx");
+            Toast.success('Downloaded', 'Example Excel file generated');
+        } catch (e) {
+            console.error('Download error:', e);
+            Toast.error('Error', 'Failed to generate example file');
+        }
+    },
+    handleFileSelect(file) {
+        this.selectedFile = file;
+        const nameEl = document.getElementById('judgeFileName');
+        if (nameEl) {
+            nameEl.textContent = `Selected: ${file.name}`;
+            nameEl.classList.remove('hidden');
+        }
+        document.getElementById('startJudgeBtn').disabled = false;
+        Toast.info('File selected', file.name);
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(firstSheet);
+
+                if (rows.length > 0) {
+                    const keys = Object.keys(rows[0]).map(k => k.toLowerCase());
+                    const required = ['question', 'expected', 'actual'];
+                    const missing = required.filter(r => !keys.includes(r));
+
+                    if (missing.length) {
+                        Toast.warning('Column Mismatch', `Missing: ${missing.join(', ')}. Please check columns.`);
+                    } else {
+                        this.fileData = rows.map(r => {
+                            const normalized = {};
+                            Object.keys(r).forEach(k => normalized[k.toLowerCase()] = r[k]);
+                            return {
+                                no: normalized.no || '',
+                                title: normalized.title || '',
+                                question: normalized.question,
+                                expected: normalized.expected,
+                                actual: normalized.actual
+                            };
+                        });
+                        Toast.success('File Parsed', `Found ${this.fileData.length} rows`);
+
+                        // Show preview in progress section
+                        const listEl = document.getElementById('judgeProgressList');
+                        document.getElementById('judgeProgressContent').classList.add('hidden');
+                        listEl.classList.remove('hidden');
+                        listEl.style.maxHeight = '500px';
+                        listEl.style.overflowY = 'auto';
+
+                        listEl.innerHTML = `
+                            <div style="padding:var(--sp-4); text-align:center; border:2px dashed var(--border-color); border-radius:var(--radius); margin-bottom:var(--sp-4); background:rgba(255,255,255,0.02);">
+                                <i class="fas fa-file-excel" style="font-size:2.5rem; color:var(--success); margin-bottom:var(--sp-2);"></i>
+                                <div style="font-weight:700; font-size:1rem;">${file.name}</div>
+                                <div style="font-size:0.8rem; color:var(--text-muted);">${this.fileData.length} rows detected</div>
+                            </div>
+                            <div class="preview-header" style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:var(--sp-2); display:flex; padding:0 var(--sp-2); border-bottom:1px solid var(--border-color); padding-bottom:5px;">
+                                <div style="width:30px;">#</div>
+                                <div style="flex:1; margin-left:10px;">Question</div>
+                                <div style="flex:1; margin-left:10px;">Expected</div>
+                                <div style="flex:1; margin-left:10px;">Actual</div>
+                            </div>
+                            <div id="judgeProgressHistory" style="display:flex; flex-direction:column; gap:6px;">
+                                ${this.fileData.slice(0, 5).map(r => `
+                                    <div style="font-size:0.75rem; padding:var(--sp-2); background:var(--bg-secondary); border-radius:var(--r-sm); border:1px solid var(--border-color); display:flex; gap:10px; align-items:flex-start;">
+                                        <div style="width:20px; font-weight:700; color:var(--accent); font-family:monospace;">${r.no || '?'}</div>
+                                        <div style="flex:1; color:var(--text-secondary); line-height:1.4;">${BackendAPI.esc(r.question?.substring(0, 50))}...</div>
+                                        <div style="flex:1; color:var(--text-muted); line-height:1.4; font-style:italic;">${BackendAPI.esc(r.expected?.substring(0, 50))}...</div>
+                                        <div style="flex:1; color:var(--text-muted); line-height:1.4;">${BackendAPI.esc(r.actual?.substring(0, 50))}...</div>
+                                    </div>
+                                `).join('')}
+                                ${this.fileData.length > 5 ? `<div style="text-align:center; font-size:0.7rem; color:var(--text-muted); padding:var(--sp-2); border-top:1px solid var(--border-color); background:var(--bg-muted);">+ ${this.fileData.length - 5} more rows...</div>` : ''}
+                            </div>
+                        `;
+                    }
+                }
+            } catch (err) {
+                console.error('File Parse Error:', err);
+                Toast.error('Format Error', 'Could not parse the file.');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    },
+    async startEvaluation() {
+        if (!this.fileData.length) return;
+        const title = document.getElementById('judgeTitle').value || 'Evaluation Dataset';
+        const tester = document.getElementById('judgeTester').value || 'User';
+        const apiKey = localStorage.getItem('acc_gemini_api_key');
+        const customPrompt = localStorage.getItem('acc_judge_prompt') || '';
+
+        if (!apiKey) {
+            Toast.warning('API Key Missing', 'Please set your Gemini API key in Settings');
+            Router.navigate('settings');
+            SettingsUI.showSection('judge-config');
+            return;
+        }
+
+        document.getElementById('startJudgeBtn').disabled = true;
+        document.getElementById('judgeProgressContent').classList.add('hidden');
+        document.getElementById('judgeSummaryPlaceholder').innerHTML = ''; // Clear old summary
+        const listEl = document.getElementById('judgeProgressList');
+        listEl.classList.remove('hidden');
+        listEl.innerHTML = `
+            <div style="margin-bottom:var(--sp-4); padding:var(--sp-4); background:var(--bg-secondary); border-radius:var(--radius); border-left:4px solid var(--accent); position:sticky; top:0; z-index:100; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-2);">
+                    <div style="font-weight:700;">Evaluating Status</div>
+                    <div id="judgeProgressBadge" class="badge badge-info">Starting...</div>
+                </div>
+                <div class="progress-bar-container" style="height:8px; background:var(--bg-muted); border-radius:4px; overflow:hidden;">
+                    <div id="judgeProgressBar" style="width:0%; height:100%; background:var(--accent); transition:width 0.3s; box-shadow: 0 0 10px var(--accent);"></div>
+                </div>
+                <div id="judgeProgressStat" style="font-size:0.75rem; margin-top:var(--sp-2); color:var(--text-muted); display:flex; justify-content:space-between;">
+                    <span>Processing details...</span>
+                    <span id="judgeProgressCount">0/${this.fileData.length}</span>
+                </div>
+            </div>
+            <div style="overflow-x:auto; background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius);">
+                <table id="judgeProgressTable" style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead style="background:var(--bg-secondary); position:sticky; top:0; z-index:10;">
+                        <tr>
+                            <th style="padding:var(--sp-3); text-align:left; border-bottom:1px solid var(--border-color); width:40px;">#</th>
+                            <th style="padding:var(--sp-3); text-align:left; border-bottom:1px solid var(--border-color); min-width:150px;">Question</th>
+                            <th style="padding:var(--sp-3); text-align:left; border-bottom:1px solid var(--border-color); min-width:120px;">Expected</th>
+                            <th style="padding:var(--sp-3); text-align:left; border-bottom:1px solid var(--border-color); min-width:120px;">Actual</th>
+                            <th style="padding:var(--sp-3); text-align:center; border-bottom:1px solid var(--border-color); width:80px;">Score</th>
+                            <th style="padding:var(--sp-3); text-align:center; border-bottom:1px solid var(--border-color); width:100px;">Status</th>
+                            <th style="padding:var(--sp-3); text-align:left; border-bottom:1px solid var(--border-color); min-width:200px;">Analysis</th>
+                        </tr>
+                    </thead>
+                    <tbody id="judgeProgressHistory">
+                        ${this.fileData.map((row, i) => `
+                            <tr id="judge-row-${i}" style="border-bottom:1px solid var(--border-color); transition:background 0.2s;">
+                                <td style="padding:var(--sp-3); color:var(--text-muted); font-family:monospace;">${row.no || i + 1}</td>
+                                <td style="padding:var(--sp-3); vertical-align:top;">${BackendAPI.esc(row.question?.substring(0, 100))}...</td>
+                                <td style="padding:var(--sp-3); vertical-align:top; color:var(--text-secondary); font-style:italic;">${BackendAPI.esc(row.expected?.substring(0, 100))}...</td>
+                                <td style="padding:var(--sp-3); vertical-align:top; color:var(--text-secondary);">${BackendAPI.esc(row.actual?.substring(0, 100))}...</td>
+                                <td class="row-score" style="padding:var(--sp-3); text-align:center; font-weight:700;">-</td>
+                                <td class="row-status" style="padding:var(--sp-3); text-align:center;"><span class="badge badge-secondary" style="opacity:0.5;">Pending</span></td>
+                                <td class="row-analysis" style="padding:var(--sp-3); font-size:0.75rem; color:var(--text-muted);">Waiting...</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <div style="height:var(--sp-20);"></div>
+        `;
+
+        try {
+            // 1. Initialize Run
+            const initResp = await BackendAPI.post('/judge/init', {
+                title,
+                tester_name: tester,
+                total_question: this.fileData.length
+            });
+            if (!initResp || !initResp.success) throw new Error(initResp?.error || 'Initialization failed');
+
+            const runId = initResp.runId;
+            const historyEl = document.getElementById('judgeProgressHistory');
+            const model = localStorage.getItem('acc_gemini_model') || 'gemini-1.5-flash';
+
+            // 2. Process Row by Row
+            for (let i = 0; i < this.fileData.length; i++) {
+                const row = this.fileData[i];
+
+                // Update Progress UI
+                const progress = Math.round(((i) / this.fileData.length) * 100);
+                document.getElementById('judgeProgressBar').style.width = `${progress}%`;
+                document.getElementById('judgeProgressStat').children[0].textContent = `Row ${i + 1}: ${row.question?.substring(0, 30)}...`;
+                document.getElementById('judgeProgressCount').textContent = `${i + 1}/${this.fileData.length}`;
+                document.getElementById('judgeProgressBadge').textContent = 'Processing';
+
+                const item = document.getElementById(`judge-row-${i}`);
+                if (item) item.style.background = 'rgba(99, 102, 241, 0.05)';
+
+                const stepResp = await BackendAPI.post('/judge/step', {
+                    runId,
+                    row,
+                    gemini_api_key: apiKey,
+                    gemini_model: model,
+                    custom_prompt: customPrompt
+                });
+
+                if (item) {
+                    if (stepResp && stepResp.success) {
+                        const res = stepResp.result;
+                        item.style.background = '';
+                        item.style.borderLeft = `4px solid ${res.status === 'pass' ? 'var(--success)' : 'var(--error)'}`;
+                        item.querySelector('.row-score').innerHTML = `<span style="color:${res.score >= 0.7 ? 'var(--success)' : 'var(--error)'}">${(res.score * 100).toFixed(0)}%</span>`;
+                        item.querySelector('.row-status').innerHTML = `<span class="badge ${res.status === 'pass' ? 'badge-success' : 'badge-error'}">${res.status.toUpperCase()}</span>`;
+                        item.querySelector('.row-analysis').innerHTML = BackendAPI.esc(res.explanation || 'No explanation provided');
+
+                        // Scroll current row into view if needed
+                        item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    } else {
+                        const errorMsg = stepResp?.error || 'Timed out or connection error';
+                        item.style.background = 'rgba(239, 68, 68, 0.1)';
+                        item.style.borderLeft = '4px solid var(--error)';
+                        item.querySelector('.row-status').innerHTML = `<span class="badge badge-error">FAILED</span>`;
+                        item.querySelector('.row-analysis').innerHTML = `
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="color:var(--error);">${BackendAPI.esc(errorMsg)}</span>
+                                <button class="btn btn-secondary btn-xs" onclick="JudgeManager.retryStep(${runId}, ${i}, ${JSON.stringify(row).replace(/"/g, '&quot;')})">
+                                    <i class="fas fa-sync-alt"></i> Retry
+                                </button>
+                            </div>
+                        `;
+
+                        if (errorMsg.includes('Quota') || errorMsg.includes('Key')) {
+                            throw new Error(errorMsg);
+                        }
+                    }
+                }
+            }
+
+            // 3. Finalize
+            const finalizeResp = await BackendAPI.post('/judge/finalize', { runId });
+            document.getElementById('judgeProgressBar').style.width = '100%';
+            document.getElementById('judgeProgressStat').children[0].textContent = 'Evaluation Complete';
+            document.getElementById('judgeProgressBadge').textContent = 'Done';
+            document.getElementById('judgeProgressBadge').className = 'badge badge-success';
+
+            Toast.success('Evaluation Complete', 'Results saved');
+            ActivityFeed.add('Evaluation Complete', `Judge run completed for "${title}"`, 'status');
+
+            const stats = finalizeResp.stats || { totalPass: 0, totalFail: 0, avgScore: 0 };
+            const totalDone = stats.totalPass + stats.totalFail;
+            const errorCount = this.fileData.length - totalDone;
+            document.getElementById('judgeSummaryPlaceholder').innerHTML = `
+                <div class="glass-card" style="padding:var(--sp-4); border-top:4px solid var(--success); animation: fadeIn 0.5s ease;">
+                    <div style="text-align:center; margin-bottom:var(--sp-4);">
+                        <i class="fas fa-check-circle" style="font-size:2rem; color:var(--success); margin-bottom:var(--sp-2);"></i>
+                        <h4 style="margin:0;">Evaluation Complete!</h4>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--sp-2); margin-bottom:var(--sp-4);">
+                        <div style="background:var(--bg-secondary); padding:var(--sp-3); border-radius:var(--r-sm); text-align:center;">
+                            <div class="text-xs" style="color:var(--success); font-weight:600;">✅ PASS</div>
+                            <div style="font-size:1.2rem; font-weight:800; color:var(--success);">${stats.totalPass}</div>
+                        </div>
+                        <div style="background:var(--bg-secondary); padding:var(--sp-3); border-radius:var(--r-sm); text-align:center;">
+                            <div class="text-xs" style="color:var(--error); font-weight:600;">❌ FAILED</div>
+                            <div style="font-size:1.2rem; font-weight:800; color:var(--error);">${stats.totalFail}</div>
+                        </div>
+                        <div style="background:var(--bg-secondary); padding:var(--sp-3); border-radius:var(--r-sm); text-align:center;">
+                            <div class="text-xs" style="color:var(--warning); font-weight:600;">⚠ ERROR</div>
+                            <div style="font-size:1.2rem; font-weight:800; color:var(--warning);">${errorCount}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:var(--sp-2);">
+                        ${errorCount > 0 ? `
+                        <button class="btn btn-sm" style="background:var(--warning);color:#000;width:100%;" onclick="JudgeManager.retryAllErrorRows(${runId})">
+                            <i class="fas fa-redo"></i> Retry ${errorCount} Error Row${errorCount > 1 ? 's' : ''}
+                        </button>` : ''}
+                        <button class="btn btn-primary w-full btn-sm" onclick="Router.navigate('judge-reports')">
+                            <i class="fas fa-eye"></i> View Detailed Reports
+                        </button>
+                    </div>
+                </div>
+            `;
+
+        } catch (err) {
+            Toast.error('Evaluation Failed', err.message);
+            document.getElementById('startJudgeBtn').disabled = false;
+            document.getElementById('judgeProgressStat').children[0].textContent = `Stopped: ${err.message}`;
+            document.getElementById('judgeProgressBar').style.background = 'var(--error)';
+        }
+    },
+    async retryAllErrorRows(runId) {
+        // Find all rows that still show 'Pending' or have error state
+        const errorRows = [];
+        this.fileData.forEach((row, i) => {
+            const item = document.getElementById(`judge-row-${i}`);
+            if (!item) return;
+            const statusCell = item.querySelector('.row-status');
+            if (!statusCell) return;
+            const text = statusCell.textContent || '';
+            // Pending or error state rows
+            if (text.includes('Pending') || item.querySelector('.btn-secondary')) {
+                errorRows.push({ i, row });
+            }
+        });
+
+        if (!errorRows.length) {
+            Toast.info('No errors', 'No error rows found to retry');
+            return;
+        }
+
+        const apiKey = localStorage.getItem('acc_gemini_api_key');
+        const model = localStorage.getItem('acc_gemini_model') || 'gemini-1.5-flash';
+        const customPrompt = localStorage.getItem('acc_judge_prompt') || '';
+        if (!apiKey) { Toast.error('API Key Missing', 'Set Gemini key in Settings'); return; }
+
+        Toast.info('Retrying', `Retrying ${errorRows.length} error row(s)...`);
+
+        for (const { i, row } of errorRows) {
+            await this.retryStep(runId, i, row);
+        }
+
+        // Re-finalize to update stats
+        const finalizeResp = await BackendAPI.post('/judge/finalize', { runId });
+        const stats = finalizeResp?.stats || {};
+        Toast.success('Retry Done', `Retry complete. Pass: ${stats.totalPass || 0}, Fail: ${stats.totalFail || 0}`);
+    },
+    async retryStep(runId, i, row) {
+        const apiKey = localStorage.getItem('acc_gemini_api_key');
+        const model = localStorage.getItem('acc_gemini_model') || 'gemini-1.5-flash';
+        const item = document.getElementById(`judge-row-${i}`);
+        if (!item || !apiKey) return;
+
+        const originalHTML = item.innerHTML;
+        item.style.background = 'rgba(99, 102, 241, 0.05)';
+        item.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px; padding:var(--sp-2);">
+                <i class="fas fa-spinner fa-spin" style="color:var(--accent);"></i>
+                <div style="font-size:0.8rem;">Retrying row ${i + 1}...</div>
+            </div>
+        `;
+
+        try {
+            const customPrompt = localStorage.getItem('acc_judge_prompt') || '';
+            const stepResp = await BackendAPI.post('/judge/step', {
+                runId, row, gemini_api_key: apiKey, gemini_model: model, custom_prompt: customPrompt
+            });
+
+            if (stepResp && stepResp.success) {
+                const res = stepResp.result;
+                item.style.background = '';
+                item.style.borderLeft = `4px solid ${res.status === 'pass' ? 'var(--success)' : 'var(--error)'}`;
+                item.querySelector('.row-score').innerHTML = `<span style="color:${res.score >= 0.7 ? 'var(--success)' : 'var(--error)'}">${(res.score * 100).toFixed(0)}%</span>`;
+                item.querySelector('.row-status').innerHTML = `<span class="badge ${res.status === 'pass' ? 'badge-success' : 'badge-error'}">${res.status.toUpperCase()}</span>`;
+                item.querySelector('.row-analysis').innerHTML = BackendAPI.esc(res.explanation || 'No explanation provided');
+                Toast.success('Retry Success', `Row ${i + 1} updated`);
+            } else {
+                throw new Error(stepResp?.error || 'Retry failed');
+            }
+        } catch (e) {
+            item.innerHTML = originalHTML;
+            item.style.background = 'rgba(239, 68, 68, 0.05)';
+            Toast.error('Retry Failed', e.message);
+        }
+    },
+    async renderReports() {
+        const c = document.getElementById('judgeReportsContent');
+        if (!c) return;
+        c.innerHTML = '<div class="text-center p-12"><i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i><p class="mt-4">Loading reports...</p></div>';
+        const data = await BackendAPI.get('/test-runs?platform=llm_judge');
+        if (!data || !data.data || !data.data.length) {
+            c.innerHTML = '<div class="report-empty"><i class="fas fa-gavel"></i><p>No judge reports found</p></div>';
+            return;
+        }
+        c.innerHTML = `
+            <div style="display:flex;justify-content:flex-end;margin-bottom:0.5rem;">
+                <button class="btn btn-sm" style="background:var(--error);color:#fff;" onclick="JudgeManager.clearAllJudgeRuns()"><i class="fas fa-trash-alt"></i> Clear All</button>
+            </div>
+            <table class="runs-table" style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Title</th><th>Tester</th><th>Questions</th>
+                        <th style="text-align:center;color:var(--success);">✅ PASS</th>
+                        <th style="text-align:center;color:var(--error);">❌ FAILED</th>
+                        <th style="text-align:center;color:var(--warning);">⚠ ERROR</th>
+                        <th>Date</th><th style="width:160px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.data.map(r => {
+            const pass = parseInt(r.success) || 0;
+            const fail = parseInt(r.failed) || 0;
+            const total = parseInt(r.total_question) || 0;
+            const error = Math.max(0, total - pass - fail);
+            return `
+                        <tr>
+                            <td><div style="font-weight:700;">${this.esc(r.run_title || r.test_id)}</div></td>
+                            <td>${this.esc(r.tester_name)}</td>
+                            <td style="text-align:center;">${total}</td>
+                            <td style="text-align:center; font-weight:700; color:var(--success);">${pass}</td>
+                            <td style="text-align:center; font-weight:700; color:var(--error);">${fail}</td>
+                            <td style="text-align:center; font-weight:700; color:var(--warning);">${error}</td>
+                            <td style="font-size:0.75rem; color:var(--text-muted);">${GitHubAPI.formatDateTime(r.created_at)}</td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();JudgeManager.viewHTMLReport(${r.id})" title="View Report"><i class="fas fa-eye"></i></button>
+                                <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();JudgeManager.downloadHTMLReport(${r.id})" title="Download HTML"><i class="fas fa-download"></i></button>
+                                <button class="btn btn-sm" style="background:var(--error);color:#fff;" onclick="event.stopPropagation();JudgeManager.deleteJudgeRun(${r.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>`;
+        }).join('')}
+                </tbody>
+            </table>
+        `;
+    },
+    viewHTMLReport(runId) {
+        window.open(`${BackendAPI.baseUrl}/judge/view/${runId}?token=${AuthManager.token}`, '_blank');
+    },
+    async downloadHTMLReport(runId) {
+        try {
+            Toast.info('Preparing', 'Generating report...');
+            const response = await fetch(`${BackendAPI.baseUrl}/judge/report/${runId}`, {
+                headers: { 'Authorization': `Bearer ${AuthManager.token}` }
+            });
+
+            if (!response.ok) throw new Error('Failed to generate report');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `judge-report-${runId}.html`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            Toast.success('Success', 'Report downloaded');
+        } catch (err) {
+            Toast.error('Download Failed', err.message);
+        }
+    },
+    async deleteJudgeRun(runId) {
+        if (!confirm('Are you sure you want to delete this judge report? This action cannot be undone.')) return;
+        try {
+            const resp = await BackendAPI.del(`/judge/run/${runId}`);
+            if (resp && resp.success) {
+                Toast.success('Deleted', 'Judge report deleted successfully');
+                this.renderReports();
+            } else {
+                throw new Error(resp?.error || 'Delete failed');
+            }
+        } catch (err) {
+            Toast.error('Delete Failed', err.message);
+        }
+    },
+    async clearAllJudgeRuns() {
+        if (!confirm('Are you sure you want to delete ALL judge reports? This action cannot be undone.')) return;
+        try {
+            const resp = await BackendAPI.del('/judge/clear-all');
+            if (resp && resp.success) {
+                Toast.success('Cleared', resp.message || 'All judge reports deleted');
+                this.renderReports();
+            } else {
+                throw new Error(resp?.error || 'Clear failed');
+            }
+        } catch (err) {
+            Toast.error('Clear Failed', err.message);
+        }
+    },
     esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 };
 
@@ -1015,7 +1736,7 @@ const PresetManager = {
     },
     async delete(id) {
         let p = this.getAll().filter(x => x.id !== id); localStorage.setItem(this.KEY, JSON.stringify(p));
-        await BackendAPI.del(`/presets/${id}`);
+        await BackendAPI.del(`/ presets / ${id}`);
         Toast.info('Deleted', 'Preset removed'); this.render();
     },
     async load(id) {
@@ -1059,7 +1780,7 @@ const PresetManager = {
         if (!presets.length) presets = this.getAll();
         if (!presets.length) { grid.innerHTML = '<div class="text-center text-muted" style="grid-column:1/-1;padding:var(--sp-12);"><i class="fas fa-bookmark" style="font-size:2.5rem;opacity:0.2;margin-bottom:var(--sp-4);display:block;"></i><p>No presets saved yet</p></div>'; return; }
         const emojis = { webchat: '🌐', telegram: '✈️', instagram: '📷', facebook: '👥', dhai: '🤖' };
-        grid.innerHTML = presets.map(p => `<div class="preset-card" style="--accent:${p.color || '#6366f1'}" onclick="PresetManager.load(${p.id})"><div class="preset-name"><i class="fas fa-bookmark" style="color:${p.color || 'var(--accent-light)'};"></i>${esc(p.name)}</div><div class="preset-platform">${emojis[p.platform] || '🔧'} ${p.platform}${p.filename ? ' • ' + p.filename : ''}</div><div class="preset-meta">${GitHubAPI.timeAgo(new Date(p.createdAt))}</div><button class="preset-delete" onclick="event.stopPropagation();PresetManager.delete(${p.id})" title="Delete"><i class="fas fa-trash"></i></button></div>`).join('');
+        grid.innerHTML = presets.map(p => `< div class="preset-card" style = "--accent:${p.color || '#6366f1'}" onclick = "PresetManager.load(${p.id})" ><div class="preset-name"><i class="fas fa-bookmark" style="color:${p.color || 'var(--accent-light)'};"></i>${esc(p.name)}</div><div class="preset-platform">${emojis[p.platform] || '🔧'} ${p.platform}${p.filename ? ' • ' + p.filename : ''}</div><div class="preset-meta">${GitHubAPI.timeAgo(new Date(p.createdAt))}</div><button class="preset-delete" onclick="event.stopPropagation();PresetManager.delete(${p.id})" title="Delete"><i class="fas fa-trash"></i></button></div > `).join('');
     },
     exportAll() {
         const blob = new Blob([JSON.stringify(this.getAll(), null, 2)], { type: 'application/json' });
@@ -1086,7 +1807,7 @@ const Scheduler = {
     async saveLocal(s) { const all = this.getAllLocal(); all.push(s); localStorage.setItem(this.KEY, JSON.stringify(all)); },
     async delete(id) {
         localStorage.setItem(this.KEY, JSON.stringify(this.getAllLocal().filter(x => x.id !== id)));
-        if (BackendAPI.connected) await BackendAPI.del(`/schedules/${id}`);
+        if (BackendAPI.connected) await BackendAPI.del(`/ schedules / ${id} `);
         if (this.timers[id]) { clearInterval(this.timers[id]); delete this.timers[id]; }
         this.render();
     },
@@ -1099,7 +1820,7 @@ const Scheduler = {
         const local = this.getAllLocal(); const ls = local.find(x => x.id === id); if (ls) ls.paused = s.paused;
         localStorage.setItem(this.KEY, JSON.stringify(local));
         // Update backend
-        if (BackendAPI.connected) await BackendAPI.put(`/schedules/${id}`, { name: s.name, interval_min: s.interval, preset_id: s.presetId, paused: s.paused });
+        if (BackendAPI.connected) await BackendAPI.put(`/ schedules / ${id} `, { name: s.name, interval_min: s.interval, preset_id: s.presetId, paused: s.paused });
 
         if (s.paused && this.timers[id]) { clearInterval(this.timers[id]); delete this.timers[id]; }
         else if (!s.paused) { this.startTimer(s); }
@@ -1110,7 +1831,7 @@ const Scheduler = {
         this.timers[s.id] = setInterval(() => {
             if (s.presetId) { PresetManager.load(s.presetId); }
             Toast.info('Scheduled Run', `Running "${s.name}"`);
-            ActivityFeed.add('Scheduled Run', `Auto-triggered "${s.name}"`, 'dispatch');
+            ActivityFeed.add('Scheduled Run', `Auto - triggered "${s.name}"`, 'dispatch');
             triggerWorkflow();
         }, s.interval * 60000);
     },
@@ -1123,13 +1844,13 @@ const Scheduler = {
             if (resp && resp.id) s.id = resp.id; // Sync ID
         }
         this.startTimer(s); Toast.success('Scheduled', `"${name}" will run every ${interval} min`);
-        ActivityFeed.add('Schedule Created', `"${name}" every ${interval}min`, 'config'); this.render();
+        ActivityFeed.add('Schedule Created', `"${name}" every ${interval} min`, 'config'); this.render();
     },
     async render() {
         const c = document.getElementById('scheduleList'); if (!c) return;
         const all = await this.getAll();
         if (!all.length) { c.innerHTML = '<div class="text-center text-muted" style="padding:var(--sp-8);"><i class="fas fa-calendar-alt" style="font-size:2rem;opacity:0.2;display:block;margin-bottom:var(--sp-4);"></i><p>No scheduled runs</p></div>'; return; }
-        c.innerHTML = all.map(s => `<div class="schedule-item"><div class="schedule-icon"><i class="fas fa-calendar-check"></i></div><div class="schedule-info"><div class="schedule-name">${esc(s.name)}</div><div class="schedule-detail">Every ${s.interval} min${s.presetId ? ' • Uses preset' : ' • Current config'}</div></div><span class="schedule-status ${s.paused ? 'paused' : 'active'}">${s.paused ? 'Paused' : 'Active'}</span><button class="btn btn-sm btn-ghost" onclick="Scheduler.togglePause(${s.id})"><i class="fas fa-${s.paused ? 'play' : 'pause'}"></i></button><button class="btn btn-sm btn-ghost" onclick="Scheduler.delete(${s.id})" style="color:var(--error);"><i class="fas fa-trash"></i></button></div>`).join('');
+        c.innerHTML = all.map(s => `< div class="schedule-item" ><div class="schedule-icon"><i class="fas fa-calendar-check"></i></div><div class="schedule-info"><div class="schedule-name">${esc(s.name)}</div><div class="schedule-detail">Every ${s.interval} min${s.presetId ? ' • Uses preset' : ' • Current config'}</div></div><span class="schedule-status ${s.paused ? 'paused' : 'active'}">${s.paused ? 'Paused' : 'Active'}</span><button class="btn btn-sm btn-ghost" onclick="Scheduler.togglePause(${s.id})"><i class="fas fa-${s.paused ? 'play' : 'pause'}"></i></button><button class="btn btn-sm btn-ghost" onclick="Scheduler.delete(${s.id})" style="color:var(--error);"><i class="fas fa-trash"></i></button></div > `).join('');
     }
 };
 
@@ -1148,8 +1869,8 @@ const Settings = {
 let uploadedFile = null, runMode = 'single';
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function setRunMode(m) { runMode = m; document.getElementById('modeSingleBtn').classList.toggle('active', m === 'single'); document.getElementById('modeBatchBtn').classList.toggle('active', m === 'batch'); document.getElementById('singlePlatformGroup').classList.toggle('hidden', m === 'batch'); document.getElementById('batchPlatformGroup').classList.toggle('hidden', m === 'single'); if (m === 'batch') { updateBatchPlatformFields(); } else { switchPlatformFields(document.getElementById('platformSelect').value); } }
-function switchPlatformFields(p) { document.querySelectorAll('.platform-field').forEach(f => f.classList.remove('active')); document.getElementById(`field-${p}`)?.classList.add('active'); }
-function updateBatchPlatformFields() { document.querySelectorAll('.platform-field').forEach(f => f.classList.remove('active')); document.querySelectorAll('.platform-check input:checked').forEach(cb => { const field = document.getElementById(`field-${cb.value}`); if (field) field.classList.add('active'); }); }
+function switchPlatformFields(p) { document.querySelectorAll('.platform-field').forEach(f => f.classList.remove('active')); document.getElementById(`field - ${p} `)?.classList.add('active'); }
+function updateBatchPlatformFields() { document.querySelectorAll('.platform-field').forEach(f => f.classList.remove('active')); document.querySelectorAll('.platform-check input:checked').forEach(cb => { const field = document.getElementById(`field - ${cb.value} `); if (field) field.classList.add('active'); }); }
 function clearFile(e) { if (e) e.stopPropagation(); uploadedFile = null; document.getElementById('fileUpload').value = ''; document.getElementById('fileDropText').innerHTML = 'Drag & drop or <strong>click to browse</strong>'; document.getElementById('fileDropZone').classList.remove('has-file'); document.getElementById('fileClearBtn').classList.add('hidden'); document.getElementById('filenameGroup').style.display = ''; document.getElementById('dataPreviewGroup')?.classList.add('hidden'); }
 function getFormData() {
     const p = String(document.getElementById('platformSelect').value);
@@ -1204,7 +1925,7 @@ async function triggerWorkflow() {
         else platforms = [document.getElementById('platformSelect').value];
         if (uploadedFile) { TerminalLog.log('Uploading test file...', 'info'); await GitHubAPI.uploadFile(uploadedFile); await new Promise(r => setTimeout(r, 2000)); }
         for (let rep = 0; rep < repeatCount; rep++) {
-            if (repeatCount > 1) TerminalLog.log(`--- Repeat ${rep + 1}/${repeatCount} ---`, 'info');
+            if (repeatCount > 1) TerminalLog.log(`-- - Repeat ${rep + 1}/${repeatCount} ---`, 'info');
             for (let i = 0; i < platforms.length; i++) {
                 const plat = platforms[i], fd = getFormData(); fd.SELECTED_PLATFORM = plat;
                 if (tag) fd.RUN_TAG = tag;
@@ -1225,9 +1946,10 @@ async function triggerWorkflow() {
 }
 
 // ===== INIT =====
-document.addEventListener('DOMContentLoaded', () => {
-    Toast.init(); ThemeManager.init(); TerminalLog.init(); Router.init(); PresetManager.render(); NotifCenter.updateDot(); Scheduler.startAll(); Settings.updateStorageUsed();
-    BackendAPI.init();
+document.addEventListener('DOMContentLoaded', async () => {
+    Toast.init(); ThemeManager.init(); TerminalLog.init(); PresetManager.render(); NotifCenter.updateDot(); Scheduler.startAll(); Settings.updateStorageUsed();
+    await BackendAPI.init();
+    Router.init();
 
     // Sidebar
     document.getElementById('sidebarToggle')?.addEventListener('click', () => document.getElementById('sidebar')?.classList.toggle('collapsed'));
@@ -1364,11 +2086,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('connStatusBtn')?.addEventListener('click', () => { Toast.info('Checking...', 'Testing connection'); GitHubAPI.checkConnection().then(ok => { if (ok) Toast.success('Connected', 'GitHub API reachable'); else Toast.error('Disconnected', 'Check your token'); }); });
     document.getElementById('refreshDashboardBtn')?.addEventListener('click', () => { DashboardStats.refresh(); Toast.info('Refreshing', 'Loading data...'); });
     document.getElementById('refreshHistoryBtn')?.addEventListener('click', () => { GitHubAPI.loadHistory(); Toast.info('Refreshing', 'Loading runs...'); });
-    document.getElementById('historyFilterStatus')?.addEventListener('change', () => GitHubAPI.loadHistory());
+    document.getElementById('refreshReportsBtn')?.addEventListener('click', () => { ReportManager.render(); Toast.info('Refreshing', 'Loading reports...'); });
+    document.getElementById('historyFilterStatus')?.addEventListener('change', () => { GitHubAPI.historyPage = 1; GitHubAPI.loadHistory(); });
+    document.getElementById('historyFilterTime')?.addEventListener('change', () => { GitHubAPI.historyPage = 1; GitHubAPI.loadHistory(); });
+    document.getElementById('historyPrevBtn')?.addEventListener('click', () => { if (GitHubAPI.historyPage > 1) { GitHubAPI.historyPage--; GitHubAPI.loadHistory(); document.getElementById('page-history')?.scrollIntoView({ behavior: 'smooth' }); } });
+    document.getElementById('historyNextBtn')?.addEventListener('click', () => { GitHubAPI.historyPage++; GitHubAPI.loadHistory(); document.getElementById('page-history')?.scrollIntoView({ behavior: 'smooth' }); });
+
+    document.getElementById('reportPrevBtn')?.addEventListener('click', () => { if (ReportManager.reportPage > 1) { ReportManager.reportPage--; if (ReportManager.allRuns[0]?.html_url) { ReportManager.renderGitHubTable(); } else { ReportManager.renderTable(); } document.getElementById('page-reports')?.scrollIntoView({ behavior: 'smooth' }); } });
+    document.getElementById('reportNextBtn')?.addEventListener('click', () => { if ((ReportManager.reportPage * ReportManager.perPage) < ReportManager.filteredRuns.length) { ReportManager.reportPage++; if (ReportManager.allRuns[0]?.html_url) { ReportManager.renderGitHubTable(); } else { ReportManager.renderTable(); } document.getElementById('page-reports')?.scrollIntoView({ behavior: 'smooth' }); } });
     document.getElementById('historyFilterActor')?.addEventListener('input', () => {
         clearTimeout(window.historyActorDebounce);
-        window.historyActorDebounce = setTimeout(() => GitHubAPI.loadHistory(), 500);
+        window.historyActorDebounce = setTimeout(() => { GitHubAPI.historyPage = 1; GitHubAPI.loadHistory(); }, 500);
     });
+
 
     // Terminal search
     document.getElementById('terminalSearchInput')?.addEventListener('input', e => { const q = e.target.value.toLowerCase(); TerminalLog.body.querySelectorAll('div').forEach(l => { l.style.display = l.textContent.toLowerCase().includes(q) || !q ? '' : 'none'; }); });
@@ -1381,7 +2111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); triggerWorkflow(); return; }
         if ((e.ctrlKey || e.metaKey) && e.key === 'r') { e.preventDefault(); resetForm(); return; }
         if (isInput) return;
-        const keys = { 1: 'dashboard', 2: 'run-tests', 3: 'history', 4: 'db-results', 5: 'reports', 6: 'presets', 7: 'activity', 8: 'scheduler', 9: 'settings' };
+        const keys = { 1: 'dashboard', 2: 'run-tests', 3: 'history', 4: 'reports', 5: 'presets', 6: 'activity', 7: 'scheduler', 8: 'settings' };
         if (keys[e.key]) { e.preventDefault(); Router.navigate(keys[e.key]); return; }
         if (e.key === '?') { e.preventDefault(); openModal('shortcutsModal'); }
         if (e.key === 'n' || e.key === 'N') { e.preventDefault(); NotifCenter.toggle(); }
@@ -1410,6 +2140,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sound init
     document.getElementById('soundOnBtn')?.classList.toggle('active', Settings.soundEnabled);
     document.getElementById('soundOffBtn')?.classList.toggle('active', !Settings.soundEnabled);
+
+    // Judge init
+    JudgeManager.setupEventListeners();
+    JudgeManager.renderGeminiSettings();
 
     ActivityFeed.add('Dashboard Started', 'Command Center initialized', 'system');
     console.log('%c🚀 Automation Command Center v2.0', 'color:#6366f1;font-size:16px;font-weight:bold;');

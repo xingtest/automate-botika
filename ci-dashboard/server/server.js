@@ -12,6 +12,12 @@ const PORT = process.env.BACKEND_PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Logging middleware
+app.use((req, res, next) => {
+    console.log(`[DEBUG] ${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+});
+
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 
@@ -23,6 +29,7 @@ app.use('/api/activity', require('./routes/activity'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/schedules', require('./routes/schedules'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/judge', require('./routes/judge'));
 
 // Serve static dashboard files
 app.use(express.static(path.join(__dirname, '..')));

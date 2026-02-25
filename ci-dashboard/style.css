@@ -2402,4 +2402,93 @@ footer a:hover {
   display: none !important;
 }
 
+/* ===== HISTORY ENHANCEMENTS ===== */
+.pagination-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-4);
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--sp-4);
+}
+
+#historyCustomDateGroup.hidden {
+  display: none !important;
+}
+
+#historyCustomDateGroup:not(.hidden) {
+  display: flex !important;
+}
+
+/* ===== FLAT PICKR DARK THEME ===== */
+[data-theme="dark"] .flatpickr-calendar {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .flatpickr-day {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .flatpickr-day.nextMonthDay,
+[data-theme="dark"] .flatpickr-day.prevMonthDay {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .flatpickr-day:hover {
+  background: var(--bg-hover);
+}
+
+[data-theme="dark"] .flatpickr-current-month,
+[data-theme="dark"] .flatpickr-month {
+  color: var(--text-primary);
+  fill: var(--text-primary);
+}
+
+[data-theme="dark"] .flatpickr-weekday {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .flatpickr-day.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+[data-theme="dark"] .flatpickr-months .flatpickr-prev-month,
+[data-theme="dark"] .flatpickr-months .flatpickr-next-month {
+  fill: var(--text-primary);
+  color: var(--text-primary);
+}
+
+/* ===== UTILITIES ===== */
+.btn-group {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+}
+
+.select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.select-wrapper select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--sp-10) !important;
+}
+
+.select-arrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
 /* End of file */
