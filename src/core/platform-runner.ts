@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { Modul } from '../utils/modul';
 import { WebchatPlatform } from '../platforms/webchat';
 import { TelegramPlatform } from '../platforms/telegram';
@@ -82,7 +83,12 @@ export async function runPlatform(params: PlatformRunParams): Promise<void> {
     const headlessMode = process.env.HEADLESS !== 'false';
     const dhaiViewport = { width: 1280, height: 720 };
     const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium', headlessMode, dhaiViewport);
-    await DhaiPlatform.actions(page, testData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder);
+    await DhaiPlatform.actions(page, testData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder, {
+      enabled: config.dhaiCaptureQaMedia,
+      mode: config.dhaiCaptureMode,
+      maxSeconds: config.dhaiCaptureMaxSeconds,
+      mediaFolder: path.join('report', 'html', `${reportFilename}-${idTest}`, 'media')
+    });
     await Modul.closeBrowser(browser);
     return;
   }
