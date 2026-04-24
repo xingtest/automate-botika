@@ -10,7 +10,7 @@ export interface TestResult {
   response_kb: string;
   response_llm: string;
   score: number;
-  status: 'PASS' | 'FAILED';
+  status: 'pass' | 'failed';
   duration: string;
   image_capture: string;
   explanation: string;
@@ -53,8 +53,8 @@ export class TestTracker {
    */
   getSummary(): TestSummary {
     const totalTests = this.results.length;
-    const passed = this.results.filter(r => r.status === 'PASS').length;
-    const failed = this.results.filter(r => r.status === 'FAILED').length;
+    const passed = this.results.filter(r => r.status === 'pass').length;
+    const failed = this.results.filter(r => r.status === 'failed').length;
 
     const passRate = totalTests > 0 ? (passed / totalTests) * 100 : 0;
     const failRate = totalTests > 0 ? (failed / totalTests) * 100 : 0;
@@ -96,7 +96,7 @@ export class TestTracker {
       console.log('❌ FAILED TESTS:');
       console.log('-'.repeat(60));
       this.results
-        .filter(r => r.status === 'FAILED')
+        .filter(r => r.status === 'failed')
         .forEach(r => {
           console.log(`  ${r.no}. ${r.title}`);
           console.log(`     Question: ${r.question}`);
@@ -121,7 +121,7 @@ export class TestTracker {
    * Assert that a test passed
    */
   assertPassed(result: TestResult): void {
-    if (result.status !== 'PASS') {
+    if (result.status !== 'pass') {
       console.warn(`⚠️ Test failed: ${result.title} (Score: ${result.score})`);
     }
   }
@@ -193,6 +193,7 @@ export class TestTracker {
       // Preserve existing metadata fields (from platform-specific code)
       ...existingData,
       // Update summary statistics (from TestTracker)
+      duration: newSummary.totalDuration, // Root level duration for report compatibility
       summary: {
         ...(existingData.summary || {}),
         totalTests: newSummary.totalTests,

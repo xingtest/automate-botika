@@ -1,8 +1,9 @@
 import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
-import { GeminiEvaluator } from '../utils/gemini-evaluator';
+import { EvaluatorFactory } from '../utils/ai-evaluator';
 import { TestData, BotData, SummaryData } from '../main';
+import { TestTracker } from '../utils/test-tracker';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -371,7 +372,7 @@ export class FacebookPlatform {
   }
 
   static calculateStatus(score: number): string {
-    return score >= 0.7 ? 'PASS' : 'FAILED';
+    return score >= 0.7 ? 'pass' : 'failed';
   }
 
   async actions(
@@ -383,8 +384,11 @@ export class FacebookPlatform {
     timeStart: string,
     today: string,
     testerName: string,
-    screenshotsFolder: string
+    screenshotsFolder: string,
+    testTracker: TestTracker
   ): Promise<void> {
+    const start = Modul.startTime();
+    
     await this.navigateToChatbot(targetFanpageId);
 
     const title = '当 Membaca pertanyaan dan mengirim ke Facebook';
@@ -424,10 +428,10 @@ export class FacebookPlatform {
           const respondCsv = (element.context || '').trim();
           const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
 
-          // AI evaluation using Gemini
-          console.log('🤖 Evaluating response with Gemini AI...');
-          const geminiEvaluator = new GeminiEvaluator();
-          const evaluationResult = await geminiEvaluator.evaluateResponse(
+          // AI evaluation using selected provider
+          console.log(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
+          const aiEvaluator = EvaluatorFactory.getEvaluator();
+          const evaluationResult = await aiEvaluator.evaluateResponse(
             question,
             respondCsv,
             respondBot,
@@ -436,7 +440,7 @@ export class FacebookPlatform {
 
           const skor = evaluationResult.score;
           const explanation = evaluationResult.explanation;
-          const AI = evaluationResult.success ? 'Gemini AI + Playwright TypeScript' : 'Playwright TypeScript (Gemini fallback)';
+          const AI = evaluationResult.success ? `${evaluationResult.provider} + Playwright TypeScript` : `Playwright TypeScript (${evaluationResult.provider} fallback)`;
 
           const status = FacebookPlatform.calculateStatus(skor);
 
@@ -455,6 +459,22 @@ export class FacebookPlatform {
 
           EnvFile.writeJsonDataBot(dataBotData, reportFilename, idTest);
 
+          // Add result to tracker
+          testTracker.addResult({
+            no: element.no || '',
+            title: element.title || '',
+            question,
+            response_kb: respondCsv,
+            response_llm: respondBot,
+            score: skor,
+            status: status as 'pass' | 'failed',
+            duration: endDurationPerSampleText,
+            image_capture: imageCapture,
+            explanation: explanation
+          });
+
+          const trackerSummary = testTracker.getSummary();
+
           const chatbotUrl = `https://www.facebook.com/messages/t/${targetFanpageId}`;
           const dataSummary: SummaryData = {
             id_test: idTest,
@@ -467,8 +487,8 @@ export class FacebookPlatform {
             start_time_test: timeStart,
             total_title: countPerElementTitle,
             total_question: questionCount,
-            success: 0,
-            failed: 0
+            success: trackerSummary.passed,
+            failed: trackerSummary.failed
           };
 
           EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
@@ -482,5 +502,13 @@ export class FacebookPlatform {
     }
 
     console.log('識 Topik Terakhir \n');
+    
+    // Write end time and total duration
+    const endTime = new Date().toTimeString().split(' ')[0];
+    const totalDuration = Modul.endTime(start);
+    EnvFile.writeEndTimeSummary(endTime, totalDuration, reportFilename, idTest);
+    
+    console.log(`✅ Test completed at: ${endTime}`);
+    console.log(`⏱️ Total test duration: ${totalDuration}`);
   }
 }

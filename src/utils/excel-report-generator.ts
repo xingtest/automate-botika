@@ -125,8 +125,8 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
       'Expected Response (KB)': item.response_kb,
       'Actual Response (LLM)': item.response_llm,
       'Explanation': item.explanation,
-      'Score': item.skor.toFixed(3),
-      'Status': item.skor >= PASS_THRESHOLD ? 'PASS' : 'FAILED',
+      'Score': item.skor,
+      'Status': item.skor >= PASS_THRESHOLD ? 'pass' : 'failed',
       'Duration': item.duration,
       'Screenshot': item.image_capture || 'N/A'
     }));

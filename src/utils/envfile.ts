@@ -179,14 +179,24 @@ export class EnvFile {
         fs.mkdirSync(htmlDir, { recursive: true });
       }
 
-      // Choose template: prefer template.html, fallback to template.ejs
+      // Choose template: prefer report/template, fallback to root template
       let templatePath: string | null = null;
-      if (fs.existsSync(templateHtmlPath)) {
-        templatePath = templateHtmlPath;
-      } else if (fs.existsSync(templateEjsPath)) {
-        templatePath = templateEjsPath;
-      } else {
-        console.warn(`⚠️ No template found at ${templateHtmlPath} or ${templateEjsPath}. Skipping HTML generation.`);
+      const possiblePaths = [
+        path.join('report', 'template', 'template.html'),
+        path.join('report', 'template', 'template.ejs'),
+        path.join('template', 'template.html'),
+        path.join('template', 'template.ejs')
+      ];
+
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          templatePath = p;
+          break;
+        }
+      }
+
+      if (!templatePath) {
+        // Silent warning for incremental generation
         return;
       }
 
@@ -220,8 +230,8 @@ export class EnvFile {
           duration: 'In Progress...',
           total_title: 0,
           total_question: botData.length,
-          success: botData.filter(d => d.status === 'PASS').length,
-          failed: botData.filter(d => d.status === 'FAILED').length
+          success: botData.filter(d => d.status === 'pass').length,
+          failed: botData.filter(d => d.status === 'failed').length
         };
       }
 
@@ -278,15 +288,24 @@ export class EnvFile {
     try {
       const reportDir = path.join('report', 'json');
       const htmlDir = path.join('report', 'html');
-      const templatePath = path.join('report', 'template', 'template.html');
+      // Choose template: prefer report/template, fallback to root template
+      let templatePath: string | null = null;
+      const possiblePaths = [
+        path.join('report', 'template', 'template.html'),
+        path.join('report', 'template', 'template.ejs'),
+        path.join('template', 'template.html'),
+        path.join('template', 'template.ejs')
+      ];
 
-      if (!fs.existsSync(htmlDir)) {
-        fs.mkdirSync(htmlDir, { recursive: true });
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          templatePath = p;
+          break;
+        }
       }
 
-      // Check if template exists
-      if (!fs.existsSync(templatePath)) {
-        console.log('⚠️ Template file not found at report/template/template.html');
+      if (!templatePath) {
+        console.log('⚠️ Template file not found in report/template or root template folder');
         return;
       }
 
@@ -361,8 +380,8 @@ export class EnvFile {
   ): string {
     // Calculate statistics
     const totalQuestions = botData.length;
-    const passedQuestions = botData.filter(item => item.status === 'PASS').length;
-    const failedQuestions = botData.filter(item => item.status === 'FAILED').length;
+    const passedQuestions = botData.filter(item => item.status === 'pass').length;
+    const failedQuestions = botData.filter(item => item.status === 'failed').length;
 
     // Create summary array for template compatibility
     const summaryArray = [summaryData];

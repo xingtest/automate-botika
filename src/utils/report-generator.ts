@@ -179,7 +179,7 @@ export async function generateReportFromLatestTest(openInBrowser: boolean = fals
       }
 
       const totalTests = testData.length;
-      const passedTests = testData.filter(item => item.status?.toUpperCase() === 'PASS').length;
+      const passedTests = testData.filter(item => item.status?.toLowerCase() === 'pass').length;
       const failedTests = totalTests - passedTests;
       const totalDuration = calculateTotalDuration(testData);
 

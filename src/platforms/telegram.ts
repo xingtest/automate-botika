@@ -5,8 +5,9 @@ import * as path from 'path';
 import * as readline from 'readline';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
-import { GeminiEvaluator } from '../utils/gemini-evaluator';
+import { EvaluatorFactory } from '../utils/ai-evaluator';
 import { TestData, BotData, SummaryData } from '../main';
+import { TestTracker } from '../utils/test-tracker';
 
 export class TelegramPlatform {
   private client: TelegramClient | null = null;
@@ -308,7 +309,7 @@ export class TelegramPlatform {
   }
 
   static calculateStatus(score: number): string {
-    return score >= 0.7 ? 'PASS' : 'FAILED';
+    return score >= 0.7 ? 'pass' : 'failed';
   }
 
   async actions(
@@ -320,8 +321,11 @@ export class TelegramPlatform {
     timeStart: string,
     today: string,
     testerName: string,
+    testTracker: TestTracker,
     screenshotsFolder?: string
   ): Promise<void> {
+    const start = Modul.startTime();
+    
     console.log(`🤖 Activating bot with /start command...`);
     await this.sendMessage(targetBotUsername, '/start');
     await Modul.waitTime(3);
@@ -363,9 +367,9 @@ export class TelegramPlatform {
           const respondCsv = (element.context || '').trim();
           const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
 
-          console.log('🤖 Evaluating response with Gemini AI...');
-          const geminiEvaluator = new GeminiEvaluator();
-          const evaluationResult = await geminiEvaluator.evaluateResponse(
+          console.log(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
+          const aiEvaluator = EvaluatorFactory.getEvaluator();
+          const evaluationResult = await aiEvaluator.evaluateResponse(
             question,
             respondCsv,
             respondBot,
@@ -374,7 +378,7 @@ export class TelegramPlatform {
 
           const skor = evaluationResult.score;
           const explanation = evaluationResult.explanation;
-          const AI = evaluationResult.success ? 'Gemini AI + Telegram Client' : 'Telegram Client (Gemini fallback)';
+          const AI = evaluationResult.success ? `${evaluationResult.provider} + Telegram Client` : `Telegram Client (${evaluationResult.provider} fallback)`;
 
           const status = TelegramPlatform.calculateStatus(skor);
 
@@ -393,6 +397,22 @@ export class TelegramPlatform {
 
           EnvFile.writeJsonDataBot(dataBotData, reportFilename, idTest);
 
+          // Add result to tracker
+          testTracker.addResult({
+            no: element.no || '',
+            title: element.title || '',
+            question,
+            response_kb: respondCsv,
+            response_llm: respondBot,
+            score: skor,
+            status: status as 'pass' | 'failed',
+            duration: endDurationPerSampleText,
+            image_capture: '',
+            explanation: explanation
+          });
+
+          const trackerSummary = testTracker.getSummary();
+
           const dataSummary: SummaryData = {
             id_test: idTest,
             tester_name: testerName,
@@ -404,8 +424,8 @@ export class TelegramPlatform {
             start_time_test: timeStart,
             total_title: countPerElementTitle,
             total_question: questionCount,
-            success: 0,
-            failed: 0
+            success: trackerSummary.passed,
+            failed: trackerSummary.failed
           };
 
           EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
@@ -419,6 +439,14 @@ export class TelegramPlatform {
     }
 
     console.log('識 Topik Terakhir \n');
+    
+    // Write end time and total duration
+    const endTime = new Date().toTimeString().split(' ')[0];
+    const totalDuration = Modul.endTime(start);
+    EnvFile.writeEndTimeSummary(endTime, totalDuration, reportFilename, idTest);
+    
+    console.log(`✅ Test completed at: ${endTime}`);
+    console.log(`⏱️ Total test duration: ${totalDuration}`);
   }
 
   async disconnect(): Promise<void> {

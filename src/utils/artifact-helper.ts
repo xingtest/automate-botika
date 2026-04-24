@@ -86,7 +86,7 @@ export class ArtifactHelper {
       }
 
       // Upload HTML report
-      const htmlReportPath = path.join('report', 'html', fullReportFolderName, 'index.html');
+      const htmlReportPath = path.join('report', 'html', fullReportFolderName, 'dashboard.html');
       if (fs.existsSync(htmlReportPath)) {
         await this.uploadArtifact(
           backendUrl,

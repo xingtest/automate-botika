@@ -72,6 +72,14 @@ on:
         description: 'User ID for data isolation'
         required: false
         default: ''
+      AI_PROVIDER:
+        description: 'AI Provider for evaluation (gemini/groq)'
+        required: false
+        default: 'gemini'
+      GROQ_API_KEY:
+        description: 'Groq API Key (if using Groq)'
+        required: false
+        default: ''
 
 jobs:
   test-single-platform:
@@ -98,9 +106,10 @@ jobs:
       TELEGRAM_BOT_USERNAME: "TestingNewIntegrasiBot"
 
       # -----------------------------
-      # GEMINI EVALUATION
+      # AI EVALUATION CONFIG (Mengambil dari Secrets)
       # -----------------------------
-      API_KEY_GEMINI: "AIzaSyAn7_5FYqOUbHGGVGam48wxv14zXmh1dr0"
+      API_KEY_GEMINI: ${{ secrets.API_KEY_GEMINI }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -186,6 +195,18 @@ jobs:
           echo "API_KEY_GEMINI=${API_KEY_GEMINI}" >> .env
           echo "BACKEND_URL=\"${{ github.event.inputs.BACKEND_URL }}\"" >> .env
           echo "USER_ID=\"${{ github.event.inputs.USER_ID }}\"" >> .env
+
+          # AI Provider setup
+          AI_P="${{ github.event.inputs.AI_PROVIDER }}"
+          [ -z "$AI_P" ] && AI_P="gemini"
+          echo "AI_PROVIDER=$AI_P" >> .env
+          echo "ENABLE_GEMINI_EVALUATION=true" >> .env
+          echo "ENABLE_GROQ_EVALUATION=true" >> .env
+          
+          GROQ_K="${{ github.event.inputs.GROQ_API_KEY }}"
+          [ -z "$GROQ_K" ] && GROQ_K="${GROQ_API_KEY}"
+          echo "GROQ_API_KEY=$GROQ_K" >> .env
+          echo "GROQ_MODEL=llama-3.3-70b-versatile" >> .env
 
           # =====================================================
           # PLATFORM-SPECIFIC TARGET CONFIG (inputs override env)

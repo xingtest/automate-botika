@@ -193,7 +193,7 @@ async function main(): Promise<void> {
       const webchatEmail = process.env.WEBCHAT_EMAIL || 'tester@example.com';
       const webchatPhone = process.env.WEBCHAT_PHONE || '081234567890';
       await WebchatPlatform.prechatForm(page, greeting, webchatName, webchatEmail, webchatPhone);
-      await WebchatPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder);
+      await WebchatPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder, testTracker);
       await Modul.closeBrowser(browser);
 
     } else if (platform === 'telegram') {
@@ -211,7 +211,7 @@ async function main(): Promise<void> {
       console.log(`Target Bot Telegram: ${targetBotUsername}\n`);
       const telegramPlatform = new TelegramPlatform();
       await telegramPlatform.initialize(apiId, apiHash, sessionString);
-      await telegramPlatform.actions(targetBotUsername, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName, screenshotsFolder);
+      await telegramPlatform.actions(targetBotUsername, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName, testTracker, screenshotsFolder);
       await telegramPlatform.disconnect();
 
     } else if (platform === 'instagram') {
@@ -226,7 +226,7 @@ async function main(): Promise<void> {
       const { browser, page } = await Modul.readBrowser('https://www.instagram.com', 'chromium');
       const instagramPlatform = new InstagramPlatform();
       await instagramPlatform.initialize(page);
-      await instagramPlatform.actions(targetUsername, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName, screenshotsFolder);
+      await instagramPlatform.actions(targetUsername, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName, screenshotsFolder, testTracker);
       await Modul.closeBrowser(browser);
 
     } else if (platform === 'facebook') {
@@ -241,7 +241,7 @@ async function main(): Promise<void> {
       const { browser, page } = await Modul.readBrowser('https://www.facebook.com', 'chromium');
       const facebookPlatform = new FacebookPlatform();
       await facebookPlatform.initialize(page);
-      await facebookPlatform.actions(targetFanpageId, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName, screenshotsFolder);
+      await facebookPlatform.actions(targetFanpageId, greeting, jsonData, reportFilename, idTest, timeStart, today, testerName, screenshotsFolder, testTracker);
       await Modul.closeBrowser(browser);
 
     } else if (platform === 'dhai') {
@@ -258,7 +258,7 @@ async function main(): Promise<void> {
       const headlessMode = process.env.HEADLESS !== 'false'; // Defaults to true if not set
       const dhaiViewport = { width: 1280, height: 720 };
       const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium', headlessMode, dhaiViewport);
-      await DhaiPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder);
+      await DhaiPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder, testTracker);
       await Modul.closeBrowser(browser);
 
     }
@@ -279,22 +279,6 @@ async function main(): Promise<void> {
     console.log(`End Time : ${timeEnd}\nDuration : ${endDurationMeasurement}\n`);
     log.info(`Test completed - Duration: ${endDurationMeasurement}`);
 
-    // Generate HTML and Excel reports even if test failed (if data exists)
-    try {
-      if (reportFilename && idTest) {
-        console.log('📊 Generating HTML report...');
-        log.info('Generating HTML report');
-        EnvFile.generateHtmlReport(reportFilename, idTest);
-
-        console.log('📊 Generating Excel report...');
-        log.info('Generating Excel report');
-        const { generateExcelReport } = await import('./utils/excel-report-generator');
-        generateExcelReport(reportFilename, idTest);
-      }
-    } catch (reportError) {
-      log.error('Failed to generate reports', reportError);
-      console.error('⚠️ Failed to generate reports:', reportError);
-    }
 
     // Print test summary
     testTracker.printSummary();
@@ -312,6 +296,21 @@ async function main(): Promise<void> {
         console.log(`\n📁 Uploading test artifacts...`);
         const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
         await ArtifactHelper.uploadTestArtifacts(backendUrl, runId, reportFilename, idTest);
+      }
+
+      // Generate HTML and Excel reports
+      try {
+        console.log('📊 Generating HTML report...');
+        log.info('Generating HTML report');
+        EnvFile.generateHtmlReport(reportFilename, idTest);
+
+        console.log('📊 Generating Excel report...');
+        log.info('Generating Excel report');
+        const { generateExcelReport } = await import('./utils/excel-report-generator');
+        generateExcelReport(reportFilename, idTest);
+      } catch (reportError) {
+        log.error('Failed to generate reports', reportError);
+        console.error('⚠️ Failed to generate reports:', reportError);
       }
     }
 
