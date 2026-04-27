@@ -231,7 +231,59 @@ export class GroqEvaluator extends BaseEvaluator implements AIEvaluator {
 }
 
 // ============================================
-// 6. FACTORY
+// 6. CEREBRAS IMPLEMENTATION (OpenAI-compatible)
+// ============================================
+export class CerebrasEvaluator extends BaseEvaluator implements AIEvaluator {
+  private apiKey: string = process.env.CEREBRAS_API_KEY || '';
+  private model: string = process.env.CEREBRAS_MODEL || 'llama-3.3-70b';
+
+  async evaluateResponse(q: string, exp: string, act: string, t: string): Promise<EvaluationResult> {
+    if (process.env.ENABLE_CEREBRAS_EVALUATION !== 'true' || !this.apiKey) {
+      return this.simpleTextEvaluation(exp, act, 'Cerebras disabled or key missing');
+    }
+
+    try {
+      const prompt = this.createPrompt(q, exp, act, t);
+      const resp = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: EVAL_CONFIG.prompts.systemRole }, 
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.1,
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(`Cerebras API Error ${resp.status}: ${errorText}`);
+      }
+      
+      const data: any = await resp.json();
+      const result = JSON.parse(data.choices[0].message.content);
+
+      return {
+        score: parseFloat(result.score),
+        explanation: result.explanation,
+        success: true,
+        provider: `Cerebras (${this.model})`
+      };
+    } catch (e: any) {
+      console.error(`❌ Cerebras evaluation failed: ${e.message}`);
+      return this.simpleTextEvaluation(exp, act, `Cerebras Error: ${e.message}`);
+    }
+  }
+}
+
+// ============================================
+// 7. FACTORY
 // ============================================
 export class EvaluatorFactory {
   static getEvaluator(): AIEvaluator {
@@ -242,6 +294,9 @@ export class EvaluatorFactory {
     if (provider === 'groq') {
       console.log(`🚀 Initializing Groq evaluator with model: ${process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'}`);
       return new GroqEvaluator();
+    } else if (provider === 'cerebras') {
+      console.log(`🚀 Initializing Cerebras evaluator with model: ${process.env.CEREBRAS_MODEL || 'llama-3.3-70b'}`);
+      return new CerebrasEvaluator();
     } else {
       console.log(`🚀 Initializing Gemini evaluator with model: ${process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest'}`);
       return new GeminiEvaluator();

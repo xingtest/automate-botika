@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 Groq Umum Indo' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 Cerebras' }}
 
 on:
   push:
@@ -81,11 +81,15 @@ on:
         required: false
         default: ''
       AI_PROVIDER:
-        description: 'AI Provider for evaluation (gemini/groq)'
+        description: 'AI Provider for evaluation (gemini/groq/cerebras)'
         required: false
-        default: 'groq'
+        default: 'cerebras'
       GROQ_API_KEY:
         description: 'Groq API Key (if using Groq)'
+        required: false
+        default: ''
+      CEREBRAS_API_KEY:
+        description: 'Cerebras API Key (if using Cerebras)'
         required: false
         default: ''
 
@@ -98,7 +102,7 @@ jobs:
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: webchat-v3
+      SELECTED_PLATFORM: webchat
       DEFAULT_FILENAME: testing.xlsx
       DEFAULT_TESTER_NAME: Cik test webchat
       DEFAULT_GREETING: Haloo
@@ -120,6 +124,7 @@ jobs:
       # -----------------------------
       API_KEY_GEMINI: ${{ secrets.API_KEY_GEMINI }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -226,6 +231,10 @@ jobs:
           [ -z "$GROQ_K" ] && GROQ_K="${GROQ_API_KEY}"
           echo "GROQ_API_KEY=$GROQ_K" >> .env
           echo "GROQ_MODEL=llama-3.3-70b-versatile" >> .env
+
+          CEREBRAS_K="${{ github.event.inputs.CEREBRAS_API_KEY }}"
+          [ -z "$CEREBRAS_K" ] && CEREBRAS_K="${CEREBRAS_API_KEY}"
+          echo "CEREBRAS_API_KEY=$CEREBRAS_K" >> .env
 
           # =====================================================
           # PLATFORM-SPECIFIC TARGET CONFIG (inputs override env)
