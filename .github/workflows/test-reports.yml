@@ -102,7 +102,7 @@ jobs:
       DEFAULT_FILENAME: testing.xlsx
       DEFAULT_TESTER_NAME: Cik test webchat
       DEFAULT_GREETING: Haloo
-      DEFAULT_GREETING_2: ""
+      DEFAULT_GREETING_2: Indonesia
 
       # -----------------------------
       # TARGET URL / ID / USERNAME
