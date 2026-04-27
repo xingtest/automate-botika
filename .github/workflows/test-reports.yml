@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing CIk Luna' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing V3' }}
 
 on:
   push:
@@ -33,7 +33,11 @@ on:
         required: false
         default: ''
       WEBCHAT_URL:
-        description: 'WebChat URL'
+        description: 'WebChat URL (V2)'
+        required: false
+        default: ''
+      WEBCHAT_V3_URL:
+        description: 'WebChat V3 URL'
         required: false
         default: ''
       WEBCHAT_NAME:
@@ -94,7 +98,7 @@ jobs:
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: webchat
+      SELECTED_PLATFORM: webchat-v3
       DEFAULT_FILENAME: testing.xlsx
       DEFAULT_TESTER_NAME: Cik test webchat
       DEFAULT_GREETING: Haloo
@@ -104,6 +108,7 @@ jobs:
       # TARGET URL / ID / USERNAME
       # -----------------------------
       WEBCHAT_URL: "https://chat.botika.online/EJUnkrW"
+      WEBCHAT_V3_URL: "https://chat.botika.online/v3/mk6YoYD"
       DHAI_TARGET_URL: "https://client.botika.online/virtual-avatar-pln-icon/?mode=wake-word"
       DHAI_WAKE_WORD: "halo luna"
       INSTAGRAM_USERNAME: "ahmadnurbrasta2.2"
@@ -233,6 +238,11 @@ jobs:
               echo "WEBCHAT_NAME=\"${{ github.event.inputs.WEBCHAT_NAME }}\"" >> .env
               echo "WEBCHAT_EMAIL=\"${{ github.event.inputs.WEBCHAT_EMAIL }}\"" >> .env
               echo "WEBCHAT_PHONE=\"${{ github.event.inputs.WEBCHAT_PHONE }}\"" >> .env
+              ;;
+            webchat-v3)
+              URL="${{ github.event.inputs.WEBCHAT_V3_URL }}"
+              [ -z "$URL" ] && URL="${WEBCHAT_V3_URL}"
+              echo "WEBCHAT_V3_TARGET_URL=${URL}" >> .env
               ;;
             dhai)
               URL="${{ github.event.inputs.DHAI_TARGET_URL }}"
