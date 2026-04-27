@@ -262,6 +262,8 @@ export class DhaiPlatform {
 
   static async actions(
     page: Page,
+    greeting: string,
+    greeting2: string,
     jsonData: TestData[],
     reportFilename: string,
     idTest: string,
@@ -283,8 +285,21 @@ export class DhaiPlatform {
     try {
       await this.startChat(page);
       await Modul.waitTime(5);
+
+      // Send greetings
+      if (greeting && greeting.trim() !== '') {
+        console.log(`📤 Sending greeting 1: "${greeting}"`);
+        await this.sendMessage(page, greeting);
+        await Modul.waitTime(5);
+      }
+
+      if (greeting2 && greeting2.trim() !== '') {
+        console.log(`📤 Sending greeting 2: "${greeting2}"`);
+        await this.sendMessage(page, greeting2);
+        await Modul.waitTime(5);
+      }
     } catch (error) {
-      console.error('Gagal memulai obrolan DHAI:', error);
+      console.error('Gagal memulai obrolan atau mengirim sapaan di DHAI:', error);
       return;
     }
 

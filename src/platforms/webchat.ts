@@ -226,6 +226,7 @@ export class WebchatPlatform {
   static async prechatForm(
     page: Page,
     greeting: string,
+    greeting2: string,
     name: string,
     email: string,
     phone: string
@@ -306,11 +307,26 @@ export class WebchatPlatform {
         await page.locator('#input-message').fill(greeting);
         await page.keyboard.press('Enter');
         await Modul.waitTime(2);
-        log.info('✅ Greeting sent via direct input');
+        log.info('✅ Greeting 1 sent via direct input');
         // Wait for bot response after greeting
         await this.waitReply(page, greeting, 30000);
       } catch (error) {
-        log.error('Error sending greeting', error);
+        log.error('Error sending greeting 1', error);
+      }
+    }
+
+    // Send second greeting if provided
+    if (greeting2 && greeting2.trim() !== '') {
+      log.info(`🔄 Sending second greeting: "${greeting2}"`);
+      try {
+        await page.locator('#input-message').fill(greeting2);
+        await page.keyboard.press('Enter');
+        await Modul.waitTime(2);
+        log.info('✅ Greeting 2 sent');
+        // Wait for bot response after second greeting
+        await this.waitReply(page, greeting2, 30000);
+      } catch (error) {
+        log.error('Error sending second greeting', error);
       }
     }
   }

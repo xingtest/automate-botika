@@ -28,6 +28,10 @@ on:
         description: 'Greeting message'
         required: false
         default: ''
+      GREETING_2:
+        description: 'Second greeting message (optional)'
+        required: false
+        default: ''
       WEBCHAT_URL:
         description: 'WebChat URL'
         required: false
@@ -90,10 +94,11 @@ jobs:
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: telegram
+      SELECTED_PLATFORM: webchat
       DEFAULT_FILENAME: testing.xlsx
-      DEFAULT_TESTER_NAME: Cik test telegram
+      DEFAULT_TESTER_NAME: Cik test webchat
       DEFAULT_GREETING: Haloo
+      DEFAULT_GREETING_2: ""
 
       # -----------------------------
       # TARGET URL / ID / USERNAME
@@ -182,6 +187,14 @@ jobs:
             GREET="${DEFAULT_GREETING}"
           fi
 
+          # Set GREETING_2
+          INPUT_GREETING_2="${{ github.event.inputs.GREETING_2 }}"
+          if [ -n "$INPUT_GREETING_2" ] && [ "$INPUT_GREETING_2" != "" ]; then
+            GREET_2="$INPUT_GREETING_2"
+          else
+            GREET_2="${DEFAULT_GREETING_2}"
+          fi
+
           echo "📋 Using: PLATFORM=$PLATFORM, FILENAME=$FILENAME"
 
           # buat file .env baru
@@ -191,6 +204,7 @@ jobs:
           echo "FILENAME=${FILENAME}" >> .env
           echo "TESTER_NAME=${TESTER}" >> .env
           echo "GREETING=\"${GREET}\"" >> .env
+          echo "GREETING_2=\"${GREET_2}\"" >> .env
           echo "RUN_NAME=\"${{ github.event.inputs.RUN_NAME }}\"" >> .env
           echo "API_KEY_GEMINI=${API_KEY_GEMINI}" >> .env
           echo "BACKEND_URL=\"${{ github.event.inputs.BACKEND_URL }}\"" >> .env

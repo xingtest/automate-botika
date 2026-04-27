@@ -1,0 +1,93 @@
+{
+  "id_test": "d4b21eaa",
+  "tester_name": "Cik luna",
+  "ai_evaluation": "Groq (llama-3.3-70b-versatile) + V3",
+  "url": "https://chat.botika.online/v3/mk6YoYD",
+  "page_name": "fadills.botika - WizardBotika | Webchat",
+  "browser_name": "Chrome (Headless)",
+  "date_test": "Senin, 27 April 2026",
+  "start_time_test": "09.45.31",
+  "total_title": 5,
+  "total_question": 5,
+  "success": 4,
+  "failed": 1,
+  "end_time_test": "09:47:20",
+  "duration": "1m 49s",
+  "summary": {
+    "totalTests": 5,
+    "passed": 4,
+    "failed": 1,
+    "passRate": 80,
+    "failRate": 20,
+    "averageScore": 0.64,
+    "totalDuration": "1m 49s"
+  },
+  "results": [
+    {
+      "no": 1,
+      "title": "omnibotika",
+      "question": "Apa itu Omnibotika V2?",
+      "response_kb": "Omnibotika V2 adalah sebuah dashboard layanan pelanggan yang dirancang untuk mengumpulkan semua pesan dari berbagai saluran komunikasi seperti WhatsApp, Facebook Messenger, Instagram, LINE, Telegram, Shopee, Lazada, dan lain-lain ke dalam satu tampilan. Dengan Omnibotika V2, tim Customer Service (CS) tidak perlu membuka banyak aplikasi berbeda. Semua pesan pelanggan bisa dibaca, dijawab, dan dipantau langsung dari satu dashboard.",
+      "response_llm": "Omnibotika V2 adalah dashboard layanan pelanggan yang mengumpulkan semua pesan dari berbagai channel ke satu tampilan saja.  \n\nDengan Omnibotika V2, semua chat dari:\n- WhatsApp  \n- Facebook Messenger  \n- Instagram  \n- LINE",
+      "status": "pass",
+      "duration": "00:00:20",
+      "image_capture": "d4b21eaa_pertanyaan_Apa_itu_Omnibotika_V2_.png",
+      "skor": 0.7,
+      "explanation": "✓ Jawaban chatbot secara umum benar dan relevan, namun tidak sepenuhnya lengkap karena hanya menyebutkan beberapa contoh channel komunikasi dan tidak menyebutkan kelebihan utama yaitu kemampuan tim Customer Service (CS) untuk membaca, menjawab, dan memantau pesan pelanggan dari satu dashboard. LANGKAH 1: Jawaban chatbot mengandung fakta yang benar tentang Omnibotika V2 sebagai dashboard layanan pelanggan. LANGKAH 2: Jawaban chatbot relevan dengan pertanyaan user tentang apa itu Omnibotika V2. LANGKAH 3: Tidak ada informasi yang mengarang atau hallucinated, namun ada informasi yang kurang lengkap.",
+      "score": 0.7
+    },
+    {
+      "no": 2,
+      "title": "fungsi home",
+      "question": "Apa fungsi menu Home di Omnibotika V2?",
+      "response_kb": "Menu Home di Omnibotika V2 berfungsi sebagai halaman utama yang menampilkan ringkasan aktivitas layanan hari ini. Di sini Anda bisa melihat jumlah tiket berdasarkan status (New, Open, Hold, Solved, dll), SLA (Service Level Agreement), agen yang sedang online, tingkat kepuasan pelanggan (CSAT), serta channel komunikasi yang paling aktif digunakan pelanggan hari ini. Menu ini cocok untuk supervisor yang ingin memantau kondisi tim secara sekilas.",
+      "response_llm": "Menu Home di Omnibotika V2 adalah halaman utama untuk melihat ringkasan aktivitas layanan hari ini.  \n\nDi Home, Anda bisa melihat secara cepat:\n- Jumlah tiket per status (New, Open, Hold,",
+      "status": "pass",
+      "duration": "00:00:18",
+      "image_capture": "d4b21eaa_pertanyaan_Apa_fungsi_menu_Home_di_Omnibo.png",
+      "skor": 0.9,
+      "explanation": "Status: ✓ - Langkah 1: ANALISA KEBENARAN FAKTUAL, jawaban chatbot sesuai dengan referensi kebenaran. Langkah 2: ANALISA RELEVANSI, jawaban chatbot langsung menjawab pertanyaan user. Langkah 3: CEK HALUSINASI, tidak ada info mengarang. Namun, jawaban chatbot tidak menyebutkan beberapa informasi tambahan yang disebutkan dalam referensi kebenaran, seperti SLA, agen online, CSAT, dan channel komunikasi.",
+      "score": 0.9
+    },
+    {
+      "no": 3,
+      "title": "ticke received",
+      "question": "Apa itu Total Tickets Received di Omnibotika V2?",
+      "response_kb": "Total Tickets Received di Omnibotika V2 adalah jumlah tiket yang diterima sistem dalam rentang waktu tertentu. Angka ini memberikan gambaran beban kerja tim Customer Service dan bisa digunakan untuk menganalisis tren pertanyaan atau keluhan pelanggan dari waktu ke waktu.",
+      "response_llm": "Total Tickets Received di Omnibotika V2 adalah jumlah semua tiket yang diterima sistem dalam rentang waktu tertentu.  \n\nAngka ini dipakai untuk melihat seberapa besar beban kerja",
+      "status": "pass",
+      "duration": "00:00:16",
+      "image_capture": "d4b21eaa_pertanyaan_Apa_itu_Total_Tickets_Received.png",
+      "skor": 0.8,
+      "explanation": "✓ Jawaban chatbot memiliki kebenaran faktual yang akurat tentang Total Tickets Received di Omnibotika V2, yaitu jumlah tiket yang diterima sistem dalam rentang waktu tertentu. ✗ Namun, jawaban tersebut tidak sepenuhnya relevan karena tidak menyebutkan tentang analisis tren pertanyaan atau keluhan pelanggan seperti yang disebutkan dalam referensi kebenaran. ✗ Tidak ada informasi mengarang (halusinasi), tetapi jawaban bisa diperluas untuk mencakup semua aspek yang relevan.",
+      "score": 0.8
+    },
+    {
+      "no": 4,
+      "title": "fungsi wallboard",
+      "question": "Apa fungsi Wallboard di Omnibotika V2?",
+      "response_kb": "Wallboard di Omnibotika V2 adalah tampilan visual berbentuk dashboard besar yang menampilkan data layanan pelanggan secara real-time, seperti jumlah tiket baru, status tiket, SLA, agen online, dan kepuasan pelanggan (CSAT). Biasanya fitur ini digunakan supervisor atau manajer untuk memantau performa tim secara langsung.",
+      "response_llm": "Wallboard di Omnibotika V2 adalah tampilan visual berbentuk dashboard besar yang menampilkan data layanan pelanggan secara real-time, seperti:\n\n- Jumlah tiket baru  \n- Status tiket (misalnya New, Open,",
+      "status": "pass",
+      "duration": "00:00:14",
+      "image_capture": "d4b21eaa_pertanyaan_Apa_fungsi_Wallboard_di_Omnibo.png",
+      "skor": 0.8,
+      "explanation": "✓ Jawaban chatbot memiliki kebenaran faktual yang tinggi karena sesuai dengan referensi kebenaran. ✗ Namun, jawaban chatbot tidak lengkap karena tidak menyebutkan semua informasi yang ada di referensi kebenaran, seperti SLA, agen online, dan kepuasan pelanggan (CSAT). ⚠ Relevansinya bagus karena langsung menjawab pertanyaan user, tetapi ada kemungkinan halusinasi karena informasi yang tidak lengkap.",
+      "score": 0.8
+    },
+    {
+      "no": 5,
+      "title": "Unkown",
+      "question": "aku mau daftar asuransi",
+      "response_kb": "Mohon maaf, Luna tidak bisa menjawab pertanyaan Anda.",
+      "response_llm": "Untuk penanganan lebih lanjut, apakah Anda bersedia dihubungkan dengan petugas kami?\nYa\nTidak",
+      "status": "failed",
+      "duration": "00:00:07",
+      "image_capture": "d4b21eaa_pertanyaan_aku_mau_daftar_asuransi.png",
+      "skor": 0,
+      "explanation": "✗ Jawaban chatbot tidak mengandung kebenaran faktual yang sesuai dengan referensi kebenaran. Pada Langkah 1, analisis kebenaran faktual menunjukkan bahwa jawaban chatbot tidak memuat informasi yang sesuai dengan referensi kebenaran. Pada Langkah 2, relevansi jawaban dengan pertanyaan user tidak langsung karena jawaban tidak memberikan informasi tentang proses pendaftaran asuransi. Pada Langkah 3, tidak ditemukan info mengarang, tetapi jawaban tidak memberikan penjelasan yang jelas tentang proses pendaftaran asuransi. Oleh karena itu, skor akhir adalah 0.00 karena jawaban chatbot tidak memenuhi kriteria kebenaran faktual dan relevansi.",
+      "score": 0
+    }
+  ],
+  "timestamp": "2026-04-27T02:47:20.943Z"
+}

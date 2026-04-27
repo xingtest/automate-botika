@@ -475,6 +475,7 @@ export class InstagramPlatform {
   async actions(
     targetUsername: string,
     greeting: string,
+    greeting2: string,
     jsonData: TestData[],
     reportFilename: string,
     idTest: string,
@@ -490,6 +491,12 @@ export class InstagramPlatform {
     const greetingTimestamp = Date.now();
     await this.sendMessage(targetUsername, greeting);
     await Modul.waitTime(10);
+
+    if (greeting2 && greeting2.trim() !== '') {
+      Modul.showLoading(`Mengirim sapaan kedua ke @${targetUsername}...`);
+      await this.sendMessage(targetUsername, greeting2);
+      await Modul.waitTime(10);
+    }
     console.log();
 
     const title = `当 Membaca pertanyaan dan mengirim ke @${targetUsername}`;

@@ -378,6 +378,7 @@ export class FacebookPlatform {
   async actions(
     targetFanpageId: string,
     greeting: string,
+    greeting2: string,
     jsonData: TestData[],
     reportFilename: string,
     idTest: string,
@@ -390,6 +391,19 @@ export class FacebookPlatform {
     const start = Modul.startTime();
     
     await this.navigateToChatbot(targetFanpageId);
+
+    // Send greetings
+    if (greeting && greeting.trim() !== '') {
+      console.log(`📤 Sending greeting 1: "${greeting}"`);
+      await this.sendMessage(greeting);
+      await Modul.waitTime(5);
+    }
+
+    if (greeting2 && greeting2.trim() !== '') {
+      console.log(`📤 Sending greeting 2: "${greeting2}"`);
+      await this.sendMessage(greeting2);
+      await Modul.waitTime(5);
+    }
 
     const title = '当 Membaca pertanyaan dan mengirim ke Facebook';
     Modul.showLoading(title);

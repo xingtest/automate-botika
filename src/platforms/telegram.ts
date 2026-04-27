@@ -315,6 +315,7 @@ export class TelegramPlatform {
   async actions(
     targetBotUsername: string,
     greeting: string,
+    greeting2: string,
     jsonData: TestData[],
     reportFilename: string,
     idTest: string,
@@ -333,6 +334,12 @@ export class TelegramPlatform {
     Modul.showLoading(`Mengirim sapaan awal ke ${targetBotUsername}...`);
     await this.sendMessage(targetBotUsername, greeting);
     await Modul.waitTime(5);
+
+    if (greeting2 && greeting2.trim() !== '') {
+      Modul.showLoading(`Mengirim sapaan kedua ke ${targetBotUsername}...`);
+      await this.sendMessage(targetBotUsername, greeting2);
+      await Modul.waitTime(5);
+    }
     console.log();
 
     const title = `当 Membaca pertanyaan dan mengirim ke ${targetBotUsername}`;
