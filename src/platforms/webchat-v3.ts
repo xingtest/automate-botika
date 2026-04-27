@@ -117,24 +117,47 @@ export class WebchatV3Platform {
     }
   }
 
-  static async waitReply(page: Page, question: string, timeout: number = 30000): Promise<void> {
-    console.log(`⏳ Waiting for bot reply in V3 to: "${question}"`);
+  static async waitReply(page: Page, question: string, timeout: number = 40000): Promise<void> {
+    console.log(`⏳ Waiting for bot reply in V3 to: "${question}" (with stabilization)`);
     const startTime = Date.now();
-    
-    // Initial wait
+    let lastTextLength = 0;
+    let stableStartTime = 0;
+    const requiredStabilityMs = 3500; // Harus stabil selama 3.5 detik
+
+    // Tunggu awal agar bot mulai memproses
     await page.waitForTimeout(2000);
 
-    // Loop until we see at least one new message from bot
     while (Date.now() - startTime < timeout) {
       const result = await this.captureResponses(page, question);
-      if (result.success) {
-        // Wait a bit more for potential multiple bubbles
-        await page.waitForTimeout(2000);
-        return;
+      const currentText = result.responses.join('\n');
+      
+      if (result.success && currentText.length > 0) {
+        if (currentText.length > lastTextLength) {
+          // Teks bertambah, bot masih mengetik atau bubble baru muncul
+          if (lastTextLength > 0) {
+            log.debug(`[V3] Response still growing: ${lastTextLength} -> ${currentText.length}`);
+          }
+          lastTextLength = currentText.length;
+          stableStartTime = Date.now();
+        } else {
+          // Panjang teks sama, cek sudah berapa lama stabil
+          const elapsedStable = Date.now() - stableStartTime;
+          if (elapsedStable >= requiredStabilityMs) {
+            console.log(`✅ Response stabilized after ${elapsedStable}ms`);
+            return;
+          }
+        }
       }
+      
+      // Cek lebih sering agar responsif (setiap 1 detik)
       await page.waitForTimeout(1000);
     }
-    console.log(`⚠️ Timeout waiting for reply to: "${question}"`);
+    
+    if (lastTextLength > 0) {
+      console.log(`⚠️ Stability timeout reached, but we have some response (${lastTextLength} chars)`);
+    } else {
+      console.log(`⚠️ Timeout: No reply found for: "${question}"`);
+    }
   }
 
   static async getReplyChat(page: Page, question: string): Promise<string[]> {
