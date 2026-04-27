@@ -354,7 +354,16 @@ async function main(): Promise<void> {
  */
 async function pushToDatabase(summaryPath: string): Promise<number | null> {
   try {
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    let backendUrl = process.env.BACKEND_URL;
+
+    // Skip if BACKEND_URL is not set, or if it's localhost but running in CI
+    if (!backendUrl || (backendUrl.includes('localhost') && process.env.GITHUB_ACTIONS)) {
+      if (backendUrl && process.env.GITHUB_ACTIONS) {
+        log.info('Skipping database sync: localhost backend is not accessible in GitHub Actions');
+      }
+      return null;
+    }
+
     const apiUrl = `${backendUrl}/api/test-runs`;
 
     if (!fs.existsSync(summaryPath)) {

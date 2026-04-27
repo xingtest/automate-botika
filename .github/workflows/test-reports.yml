@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Manual Test Run' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing CIk Senin' }}
 
 on:
   push:
