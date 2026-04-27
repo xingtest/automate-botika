@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 Umum Indo' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 Groq Umum Indo' }}
 
 on:
   push:
@@ -83,7 +83,7 @@ on:
       AI_PROVIDER:
         description: 'AI Provider for evaluation (gemini/groq)'
         required: false
-        default: 'gemini'
+        default: 'groq'
       GROQ_API_KEY:
         description: 'Groq API Key (if using Groq)'
         required: false
@@ -217,7 +217,7 @@ jobs:
 
           # AI Provider setup
           AI_P="${{ github.event.inputs.AI_PROVIDER }}"
-          [ -z "$AI_P" ] && AI_P="gemini"
+          [ -z "$AI_P" ] && AI_P="groq"
           echo "AI_PROVIDER=$AI_P" >> .env
           echo "ENABLE_GEMINI_EVALUATION=true" >> .env
           echo "ENABLE_GROQ_EVALUATION=true" >> .env
