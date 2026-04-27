@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 Cerebras' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 Cerebras update' }}
 
 on:
   push:
@@ -80,6 +80,10 @@ on:
         description: 'User ID for data isolation'
         required: false
         default: ''
+      GEMINI_API_KEY:
+        description: 'Gemini API Key (if different from secrets)'
+        required: false
+        default: ''
       AI_PROVIDER:
         description: 'AI Provider for evaluation (gemini/groq/cerebras)'
         required: false
@@ -103,6 +107,10 @@ jobs:
     # =====================================================
     env:
       SELECTED_PLATFORM: webchat
+      DEFAULT_AI_PROVIDER: cerebras
+      GEMINI_MODEL: gemini-1.5-flash-latest
+      GROQ_MODEL: llama-3.3-70b-versatile
+      CEREBRAS_MODEL: llama-3.3-70b
       DEFAULT_FILENAME: testing.xlsx
       DEFAULT_TESTER_NAME: Cik test webchat
       DEFAULT_GREETING: Haloo
@@ -216,25 +224,30 @@ jobs:
           echo "GREETING=\"${GREET}\"" >> .env
           echo "GREETING_2=\"${GREET_2}\"" >> .env
           echo "RUN_NAME=\"${{ github.event.inputs.RUN_NAME }}\"" >> .env
-          echo "API_KEY_GEMINI=${API_KEY_GEMINI}" >> .env
+          GEMINI_K="${{ github.event.inputs.GEMINI_API_KEY }}"
+          [ -z "$GEMINI_K" ] && GEMINI_K="${API_KEY_GEMINI}"
+          echo "API_KEY_GEMINI=${GEMINI_K}" >> .env
           echo "BACKEND_URL=\"${{ github.event.inputs.BACKEND_URL }}\"" >> .env
           echo "USER_ID=\"${{ github.event.inputs.USER_ID }}\"" >> .env
 
           # AI Provider setup
           AI_P="${{ github.event.inputs.AI_PROVIDER }}"
-          [ -z "$AI_P" ] && AI_P="groq"
+          [ -z "$AI_P" ] && AI_P="${DEFAULT_AI_PROVIDER}"
           echo "AI_PROVIDER=$AI_P" >> .env
           echo "ENABLE_GEMINI_EVALUATION=true" >> .env
           echo "ENABLE_GROQ_EVALUATION=true" >> .env
+          echo "ENABLE_CEREBRAS_EVALUATION=true" >> .env
+          echo "GEMINI_MODEL=${GEMINI_MODEL}" >> .env
           
           GROQ_K="${{ github.event.inputs.GROQ_API_KEY }}"
           [ -z "$GROQ_K" ] && GROQ_K="${GROQ_API_KEY}"
           echo "GROQ_API_KEY=$GROQ_K" >> .env
-          echo "GROQ_MODEL=llama-3.3-70b-versatile" >> .env
+          echo "GROQ_MODEL=${GROQ_MODEL}" >> .env
 
           CEREBRAS_K="${{ github.event.inputs.CEREBRAS_API_KEY }}"
           [ -z "$CEREBRAS_K" ] && CEREBRAS_K="${CEREBRAS_API_KEY}"
           echo "CEREBRAS_API_KEY=$CEREBRAS_K" >> .env
+          echo "CEREBRAS_MODEL=${CEREBRAS_MODEL}" >> .env
 
           # =====================================================
           # PLATFORM-SPECIFIC TARGET CONFIG (inputs override env)
