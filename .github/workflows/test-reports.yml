@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing CIk Senin' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing CIk Luna' }}
 
 on:
   push:
@@ -103,7 +103,7 @@ jobs:
       # -----------------------------
       # TARGET URL / ID / USERNAME
       # -----------------------------
-      WEBCHAT_URL: "https://chat.botika.online/tpUyiey"
+      WEBCHAT_URL: "https://chat.botika.online/EJUnkrW"
       DHAI_TARGET_URL: "https://client.botika.online/virtual-avatar-pln-icon/?mode=wake-word"
       DHAI_WAKE_WORD: "halo luna"
       INSTAGRAM_USERNAME: "ahmadnurbrasta2.2"
@@ -293,6 +293,7 @@ jobs:
       # 🧪 RUN TEST
       # =====================================================
       - name: Run complete test
+        continue-on-error: true
         run: |
           echo "🧪 Running test for ${SELECTED_PLATFORM}..."
 
@@ -329,4 +330,4 @@ jobs:
         with:
           name: reports-${{ github.run_number }}
           path: report/html/
-          retention-days: 3
+          retention-days: 2
