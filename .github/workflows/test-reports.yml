@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 gemini' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 cerebras new' }}
 
 on:
   push:
@@ -107,10 +107,10 @@ jobs:
     # =====================================================
     env:
       SELECTED_PLATFORM: webchat
-      DEFAULT_AI_PROVIDER: gemini
+      DEFAULT_AI_PROVIDER: cerebras
       GEMINI_MODEL: Gemini 3.1 Flash Lite
       GROQ_MODEL: llama-3.3-70b-versatile
-      CEREBRAS_MODEL: llama-3.3-70b
+      CEREBRAS_MODEL: qwen-3-235b-a22b-instruct-2507
       DEFAULT_FILENAME: testing.xlsx
       DEFAULT_TESTER_NAME: Cik test webchat
       DEFAULT_GREETING: Haloo
