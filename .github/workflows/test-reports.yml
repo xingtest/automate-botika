@@ -106,11 +106,11 @@ jobs:
     # pilihan: webchat | webchat-v3 | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: webchat-v3
+      SELECTED_PLATFORM: webchat
       DEFAULT_AI_PROVIDER: multi
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
-      GROQ_MODEL: llama-3.3-70b-versatile
-      CEREBRAS_MODEL: qwen-3-235b-a22b-instruct-2507
+      GROQ_MODEL: llama-4-scout-17b-16e-instruct
+      CEREBRAS_MODEL: llama3.1-8b
       DEFAULT_FILENAME: testing.xlsx
       DEFAULT_TESTER_NAME: Cik test webchat
       DEFAULT_GREETING: Haloo
