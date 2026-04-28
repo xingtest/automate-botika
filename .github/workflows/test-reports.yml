@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 multi' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna testapi' }}
 
 on:
   push:
@@ -109,7 +109,7 @@ jobs:
       SELECTED_PLATFORM: webchat
       DEFAULT_AI_PROVIDER: multi
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
-      GROQ_MODEL: llama-4-scout-17b-16e-instruct
+      GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama3.1-8b
       DEFAULT_FILENAME: testing.xlsx
       DEFAULT_TESTER_NAME: Cik test webchat
