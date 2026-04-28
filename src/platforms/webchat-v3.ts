@@ -98,7 +98,7 @@ export class WebchatV3Platform {
     try {
       const inputSelector = 'textarea.v-field__input, textarea[placeholder="Message"]';
       const input = page.locator(inputSelector).first();
-      await input.waitFor({ state: 'visible', timeout: 10000 });
+      await input.waitFor({ state: 'visible', timeout: 60000 });
       await input.fill(question);
       await Modul.waitTime(1);
       
