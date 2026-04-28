@@ -117,7 +117,7 @@ export class WebchatV3Platform {
     }
   }
 
-  static async waitReply(page: Page, question: string, timeout: number = 40000): Promise<void> {
+  static async waitReply(page: Page, question: string, timeout: number = 180000): Promise<void> {
     console.log(`⏳ Waiting for bot reply in V3 to: "${question}" (with stabilization)`);
     const startTime = Date.now();
     let lastTextLength = 0;

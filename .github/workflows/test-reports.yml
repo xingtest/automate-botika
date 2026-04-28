@@ -106,7 +106,7 @@ jobs:
     # pilihan: webchat | webchat-v3 | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: webchat
+      SELECTED_PLATFORM: webchat-v3
       DEFAULT_AI_PROVIDER: multi
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
