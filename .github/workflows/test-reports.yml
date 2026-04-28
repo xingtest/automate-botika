@@ -106,9 +106,9 @@ jobs:
     # pilihan: webchat | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: webchat
+      SELECTED_PLATFORM: webchat-v3
       DEFAULT_AI_PROVIDER: gemini
-      GEMINI_MODEL: Gemini 3.1 Flash-Lite
+      GEMINI_MODEL: gemini-3.1-flash-lite
       GROQ_MODEL: llama-3.3-70b-versatile
       CEREBRAS_MODEL: qwen-3-235b-a22b-instruct-2507
       DEFAULT_FILENAME: testing.xlsx
