@@ -283,22 +283,71 @@ export class CerebrasEvaluator extends BaseEvaluator implements AIEvaluator {
 }
 
 // ============================================
-// 7. FACTORY
+// 7. MULTI-PROVIDER IMPLEMENTATION (Rotation + Failover)
+// ============================================
+export class MultiProviderEvaluator implements AIEvaluator {
+  private providers = ['gemini', 'groq', 'cerebras'];
+  
+  constructor(private startIndex: number) {}
+
+  async evaluateResponse(q: string, exp: string, act: string, t: string): Promise<EvaluationResult> {
+    let lastResult: EvaluationResult | null = null;
+
+    for (let i = 0; i < this.providers.length; i++) {
+      const providerName = this.providers[(this.startIndex + i) % this.providers.length];
+      const evaluator = EvaluatorFactory.createSpecificEvaluator(providerName, true);
+      
+      console.log(`📡 [Attempt ${i + 1}/${this.providers.length}] Mode Multi: Menggunakan ${providerName}`);
+      const result = await evaluator.evaluateResponse(q, exp, act, t);
+      
+      if (result.success) {
+        return result;
+      }
+      
+      lastResult = result;
+      console.warn(`⚠️ ${providerName} gagal: ${result.explanation.split('[Fallback')[0]}`);
+      if (i < this.providers.length - 1) {
+        console.log(`🔄 Mencoba provider berikutnya...`);
+      }
+    }
+
+    console.error(`❌ Semua provider (${this.providers.join(', ')}) gagal mengevaluasi.`);
+    return lastResult!;
+  }
+}
+
+// ============================================
+// 8. FACTORY
 // ============================================
 export class EvaluatorFactory {
+  private static rotationIndex = 0;
+
   static getEvaluator(): AIEvaluator {
     const provider = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
-    console.log(`📡 AI_PROVIDER environment variable: "${process.env.AI_PROVIDER}"`);
-    console.log(`📡 Using AI Provider: ${provider}`);
     
+    if (provider === 'multi') {
+      const currentIndex = this.rotationIndex;
+      this.rotationIndex++;
+      return new MultiProviderEvaluator(currentIndex);
+    }
+    
+    console.log(`📡 Using AI Provider: ${provider}`);
+    return this.createSpecificEvaluator(provider);
+  }
+
+  /**
+   * Helper untuk membuat instance evaluator tertentu
+   * @param silent Jika true, tidak akan log "Initializing..." (untuk failover)
+   */
+  static createSpecificEvaluator(provider: string, silent: boolean = false): AIEvaluator {
     if (provider === 'groq') {
-      console.log(`🚀 Initializing Groq evaluator with model: ${process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'}`);
+      if (!silent) console.log(`🚀 Initializing Groq evaluator with model: ${process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'}`);
       return new GroqEvaluator();
     } else if (provider === 'cerebras') {
-      console.log(`🚀 Initializing Cerebras evaluator with model: ${process.env.CEREBRAS_MODEL || 'llama-3.3-70b'}`);
+      if (!silent) console.log(`🚀 Initializing Cerebras evaluator with model: ${process.env.CEREBRAS_MODEL || 'llama-3.3-70b'}`);
       return new CerebrasEvaluator();
     } else {
-      console.log(`🚀 Initializing Gemini evaluator with model: ${process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest'}`);
+      if (!silent) console.log(`🚀 Initializing Gemini evaluator with model: ${process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest'}`);
       return new GeminiEvaluator();
     }
   }

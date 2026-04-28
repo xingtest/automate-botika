@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 gemini new' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna V3 multi' }}
 
 on:
   push:
@@ -103,11 +103,11 @@ jobs:
 
     # =====================================================
     # 🔥 GANTI PLATFORM DI SINI SAJA (untuk push/PR)
-    # pilihan: webchat | dhai | instagram | facebook | telegram
+    # pilihan: webchat | webchat-v3 | dhai | instagram | facebook | telegram
     # =====================================================
     env:
       SELECTED_PLATFORM: webchat-v3
-      DEFAULT_AI_PROVIDER: gemini
+      DEFAULT_AI_PROVIDER: multi
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.3-70b-versatile
       CEREBRAS_MODEL: qwen-3-235b-a22b-instruct-2507
