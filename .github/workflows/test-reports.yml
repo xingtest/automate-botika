@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna webchat v2' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna webchat v3 30 04 2026' }}
 
 on:
   push:
@@ -112,7 +112,7 @@ jobs:
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama3.1-8b
       DEFAULT_FILENAME: testing.xlsx
-      DEFAULT_TESTER_NAME: Cik test webchat
+      DEFAULT_TESTER_NAME: Cik test webchat v3
       DEFAULT_GREETING: Haloo
       DEFAULT_GREETING_2: Indonesia
 
