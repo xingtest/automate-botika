@@ -30,6 +30,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/schedules', require('./routes/schedules'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/judge', require('./routes/judge'));
+app.use('/api/workflows', require('./routes/workflows'));
 
 // Serve static dashboard files
 app.use(express.static(path.join(__dirname, '..')));

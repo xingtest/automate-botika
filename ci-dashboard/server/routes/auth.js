@@ -104,7 +104,7 @@ router.get('/me', async (req, res) => {
 
         const decoded = jwt.verify(token, JWT_SECRET);
         const [users] = await pool.query(
-            'SELECT id, username, email, created_at FROM users WHERE id = ?',
+            'SELECT id, username, email, created_at, gemini_api_key, groq_api_key, cerebras_api_key, openai_api_key, custom_api_url, custom_api_key FROM users WHERE id = ?',
             [decoded.id]
         );
 
@@ -115,6 +115,37 @@ router.get('/me', async (req, res) => {
         res.json(users[0]);
     } catch (err) {
         res.status(401).json({ error: 'Invalid or expired token.' });
+    }
+});
+
+// Update user settings (API Keys)
+router.post('/settings', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided.' });
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const { gemini_api_key, groq_api_key, cerebras_api_key, openai_api_key, custom_api_url, custom_api_key } = req.body;
+
+        await pool.query(
+            `UPDATE users SET 
+                gemini_api_key = ?, 
+                groq_api_key = ?, 
+                cerebras_api_key = ?, 
+                openai_api_key = ?, 
+                custom_api_url = ?, 
+                custom_api_key = ?,
+                updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?`,
+            [gemini_api_key, groq_api_key, cerebras_api_key, openai_api_key, custom_api_url, custom_api_key, decoded.id]
+        );
+
+        res.json({ message: 'Settings updated successfully!' });
+    } catch (err) {
+        console.error('Settings update error:', err);
+        res.status(500).json({ error: 'Server error during settings update.' });
     }
 });
 

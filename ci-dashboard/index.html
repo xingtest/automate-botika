@@ -40,23 +40,31 @@
                 <a class="nav-link" data-page="run-tests" href="#run-tests">
                     <i class="fas fa-play-circle"></i><span>Run Tests</span>
                 </a>
+                <a class="nav-link" data-page="workflow-builder" href="#workflow-builder">
+                    <i class="fas fa-project-diagram"></i><span>Workflow Builder</span>
+                </a>
                 <a class="nav-link" data-page="history" href="#history">
                     <i class="fas fa-clock-rotate-left"></i><span>Run History</span>
                     <span class="nav-badge" id="historyBadge">0</span>
+                </a>
+
+                <div class="nav-section-label">AI Judge</div>
+                <a class="nav-link" data-page="judge-presets" href="#judge-presets">
+                    <i class="fas fa-layer-group"></i><span>Evaluation Presets</span>
+                </a>
+                <a class="nav-link" data-page="judge" href="#judge">
+                    <i class="fas fa-play"></i><span>Run Evaluation</span>
+                </a>
+                <a class="nav-link" data-page="judge-reports" href="#judge-reports">
+                    <i class="fas fa-square-poll-vertical"></i><span>Judge Reports</span>
                 </a>
 
                 <div class="nav-section-label">Data</div>
                 <a class="nav-link" data-page="reports" href="#reports">
                     <i class="fas fa-chart-bar"></i><span>Reports</span>
                 </a>
-                <a class="nav-link" data-page="judge" href="#judge">
-                    <i class="fas fa-gavel"></i><span>LLM as Judge</span>
-                </a>
-                <a class="nav-link" data-page="judge-reports" href="#judge-reports">
-                    <i class="fas fa-square-poll-vertical"></i><span>Judge Reports</span>
-                </a>
                 <a class="nav-link" data-page="presets" href="#presets">
-                    <i class="fas fa-bookmark"></i><span>Presets</span>
+                    <i class="fas fa-bookmark"></i><span>Test Presets</span>
                 </a>
                 <a class="nav-link" data-page="activity" href="#activity">
                     <i class="fas fa-stream"></i><span>Activity Feed</span>
@@ -542,7 +550,70 @@
                     </div>
                 </div>
 
-                <!-- ==================== LLM AS JUDGE ==================== -->
+                <!-- ==================== JUDGE PRESETS ==================== -->
+                <div class="page-section" id="page-judge-presets">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--sp-6);">
+                        <div style="display:flex; align-items:center; gap:var(--sp-4);">
+                            <div style="width:48px;height:48px;border-radius:var(--radius);background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:white;font-size:1.3rem;box-shadow:0 4px 12px rgba(99,102,241,0.3);">
+                                <i class="fas fa-layer-group"></i>
+                            </div>
+                            <div>
+                                <h3 style="font-size:1.15rem;font-weight:800;margin:0;">Evaluation Presets</h3>
+                                <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Manage and customize AI judge prompts</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="presets-section">
+                        <div class="presets-header">
+                            <div class="presets-header-left">
+                                <h4><i class="fas fa-layer-group" style="color:var(--accent);"></i> Evaluation Presets <span class="presets-badge" id="presetsBadge">0</span></h4>
+                            </div>
+                            <div class="presets-actions">
+                                <button onclick="EvalPresetManager.openSaveConfigModal()" title="Save Configuration"><i class="fas fa-save"></i> Save Config</button>
+                                <button onclick="EvalPresetManager.selectAll()" title="Select All"><i class="fas fa-check-double"></i> Select All</button>
+                                <button onclick="EvalPresetManager.clearAll()" title="Clear All"><i class="fas fa-times"></i> Clear</button>
+                            </div>
+                        </div>
+
+                        <!-- Filter Tabs -->
+                        <div class="preset-filters" id="presetFilters">
+                            <div class="preset-filter-tab active" data-filter="all" onclick="EvalPresetManager.filterBy('all')">All</div>
+                            <div class="preset-filter-tab" data-filter="output" onclick="EvalPresetManager.filterBy('output')"><i class="fas fa-circle" style="font-size:6px;color:#6366f1;"></i> Output</div>
+                            <div class="preset-filter-tab" data-filter="rag" onclick="EvalPresetManager.filterBy('rag')"><i class="fas fa-circle" style="font-size:6px;color:#06b6d4;"></i> RAG</div>
+                            <div class="preset-filter-tab" data-filter="safety" onclick="EvalPresetManager.filterBy('safety')"><i class="fas fa-circle" style="font-size:6px;color:#f59e0b;"></i> Safety</div>
+                            <div class="preset-filter-tab" data-filter="style" onclick="EvalPresetManager.filterBy('style')"><i class="fas fa-circle" style="font-size:6px;color:#ec4899;"></i> Style</div>
+                            <div class="preset-filter-tab" data-filter="quality" onclick="EvalPresetManager.filterBy('quality')"><i class="fas fa-circle" style="font-size:6px;color:#22c55e;"></i> Quality</div>
+                            <div class="preset-filter-tab" data-filter="moderation" onclick="EvalPresetManager.filterBy('moderation')"><i class="fas fa-circle" style="font-size:6px;color:#ef4444;"></i> Moderation</div>
+                        </div>
+
+                        <!-- Preset Cards Grid -->
+                        <div class="preset-grid" id="judgePresetGrid">
+                            <!-- Cards will be rendered by EvalPresetManager.renderGrid() -->
+                        </div>
+
+                        <!-- Selected Presets Chips -->
+                        <div class="selected-presets-bar" id="selectedPresetsBar">
+                            <span class="selected-presets-empty">No presets selected — click cards above to add evaluation criteria</span>
+                        </div>
+
+                        <!-- Saved Configurations -->
+                        <div class="saved-configs-section">
+                            <div class="saved-configs-header">
+                                <span class="saved-configs-title"><i class="fas fa-folder" style="color:var(--accent);margin-right:6px;"></i>Saved Configurations</span>
+                            </div>
+                            <div class="saved-configs-list" id="savedConfigsList">
+                                <div class="saved-configs-empty"><i class="fas fa-folder-open"></i><span>No saved configurations yet</span></div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top:var(--sp-6); text-align:right;">
+                            <button class="btn btn-primary" onclick="Router.navigate('judge')">Next: Run Evaluation <i class="fas fa-arrow-right ml-2"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== RUN EVALUATION ==================== -->
                 <div class="page-section" id="page-judge">
                     <!-- Header -->
                     <div
@@ -550,46 +621,42 @@
                         <div style="display:flex; align-items:center; gap:var(--sp-4);">
                             <div
                                 style="width:48px;height:48px;border-radius:var(--radius);background:linear-gradient(135deg,var(--accent),#a855f7);display:flex;align-items:center;justify-content:center;color:white;font-size:1.3rem;box-shadow:0 4px 12px rgba(99,102,241,0.3);">
-                                <i class="fas fa-gavel"></i>
+                                <i class="fas fa-play"></i>
                             </div>
                             <div>
-                                <h3 style="font-size:1.15rem;font-weight:800;margin:0;letter-spacing:-0.01em;">LLM as
-                                    Judge</h3>
-                                <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Evaluate chatbot responses
-                                    using AI-powered analysis</p>
+                                <h3 style="font-size:1.15rem;font-weight:800;margin:0;letter-spacing:-0.01em;">Run Evaluation</h3>
+                                <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Evaluate chatbot responses using AI-powered analysis</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Steps Guide -->
                     <div style="display:flex; gap:var(--sp-4); margin-bottom:var(--sp-6); flex-wrap:wrap;">
-                        <div
-                            style="flex:1; min-width:160px; display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-4); background:var(--bg-secondary); border-radius:var(--radius); border:1px solid var(--border-color);">
+                        <div onclick="Router.navigate('judge-presets')"
+                            style="flex:1; min-width:160px; display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-4); background:var(--bg-secondary); border-radius:var(--radius); border:1px solid var(--border-color); cursor:pointer;">
                             <div
                                 style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;">
                                 1</div>
-                            <div style="font-size:0.78rem;color:var(--text-secondary);"><strong>Upload</strong> your
-                                dataset</div>
+                            <div style="font-size:0.78rem;color:var(--text-secondary);"><strong>Configure</strong> presets</div>
                         </div>
                         <div
-                            style="flex:1; min-width:160px; display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-4); background:var(--bg-secondary); border-radius:var(--radius); border:1px solid var(--border-color);">
+                            style="flex:1; min-width:160px; display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-4); background:var(--bg-secondary); border-radius:var(--radius); border:1px solid var(--accent); background:rgba(99,102,241,0.05);">
                             <div
                                 style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;">
                                 2</div>
-                            <div style="font-size:0.78rem;color:var(--text-secondary);"><strong>Run</strong> AI
-                                evaluation</div>
+                            <div style="font-size:0.78rem;color:var(--text-secondary);"><strong>Upload & Run</strong> evaluation</div>
                         </div>
-                        <div
-                            style="flex:1; min-width:160px; display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-4); background:var(--bg-secondary); border-radius:var(--radius); border:1px solid var(--border-color);">
+                        <div onclick="Router.navigate('judge-reports')"
+                            style="flex:1; min-width:160px; display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-4); background:var(--bg-secondary); border-radius:var(--radius); border:1px solid var(--border-color); cursor:pointer;">
                             <div
                                 style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;">
                                 3</div>
-                            <div style="font-size:0.78rem;color:var(--text-secondary);"><strong>Review</strong> detailed
-                                reports</div>
+                            <div style="font-size:0.78rem;color:var(--text-secondary);"><strong>Review</strong> reports</div>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
                         <!-- LEFT: Upload Card -->
                         <div class="md:col-span-1">
                             <div class="glass-card">
@@ -789,6 +856,89 @@
                 </div>
 
 
+                <!-- ==================== WORKFLOW BUILDER ==================== -->
+                <div class="page-section" id="page-workflow-builder">
+                    <div class="workflow-builder-container">
+                        <!-- Toolbar -->
+                        <div class="workflow-toolbar">
+                            <div class="toolbar-left">
+                                <button class="btn btn-primary btn-sm" id="wfNewBtn" title="New Workflow"><i class="fas fa-file"></i> New</button>
+                                <button class="btn btn-secondary btn-sm" id="wfSaveBtn" title="Save Workflow (Ctrl+S)"><i class="fas fa-save"></i> Save</button>
+                                <button class="btn btn-secondary btn-sm" id="wfLoadBtn" title="Load Workflow"><i class="fas fa-folder-open"></i> Load</button>
+                                <div class="toolbar-divider"></div>
+                                <button class="btn btn-success btn-sm" id="wfRunBtn" title="Run Workflow (Ctrl+R)"><i class="fas fa-play"></i> Run</button>
+                                <button class="btn btn-secondary btn-sm" id="wfStopBtn" title="Stop Execution" disabled><i class="fas fa-stop"></i> Stop</button>
+                                <button class="btn btn-secondary btn-sm" id="wfDebugBtn" title="Debug Mode"><i class="fas fa-bug"></i> Debug</button>
+                                <div class="toolbar-divider"></div>
+                                <button class="btn btn-secondary btn-sm" id="wfTemplatesBtn" title="Templates"><i class="fas fa-layer-group"></i> Templates</button>
+                                <button class="btn btn-secondary btn-sm" id="wfValidateBtn" title="Validate Workflow"><i class="fas fa-check-circle"></i> Validate</button>
+                            </div>
+                            <div class="toolbar-right">
+                                <span class="workflow-name" id="wfCurrentName">Untitled Workflow</span>
+                                <button class="btn btn-secondary btn-sm" id="wfExportBtn" title="Export"><i class="fas fa-download"></i></button>
+                                <button class="btn btn-secondary btn-sm" id="wfImportBtn" title="Import"><i class="fas fa-upload"></i></button>
+                                <button class="btn btn-secondary btn-sm" id="wfShareBtn" title="Share"><i class="fas fa-share-alt"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Main Layout -->
+                        <div class="workflow-layout">
+                            <!-- Node Library (Left Panel) -->
+                            <div class="workflow-panel workflow-panel-left" id="wfNodeLibrary">
+                                <div class="panel-header">
+                                    <h4><i class="fas fa-th"></i> Node Library</h4>
+                                    <button class="panel-toggle" onclick="WorkflowUI.togglePanel('left')"><i class="fas fa-chevron-left"></i></button>
+                                </div>
+                                <div class="panel-content">
+                                    <input type="text" class="form-control form-control-sm mb-3" id="wfNodeSearch" placeholder="🔍 Search nodes..." />
+                                    <div class="node-library-content" id="wfNodeLibraryContent">
+                                        <!-- Node categories will be rendered here -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Canvas (Center) -->
+                            <div class="workflow-canvas-container">
+                                <div class="canvas-controls">
+                                    <button class="canvas-control-btn" id="wfZoomIn" title="Zoom In"><i class="fas fa-plus"></i></button>
+                                    <span class="canvas-zoom-level" id="wfZoomLevel">100%</span>
+                                    <button class="canvas-control-btn" id="wfZoomOut" title="Zoom Out"><i class="fas fa-minus"></i></button>
+                                    <button class="canvas-control-btn" id="wfZoomFit" title="Fit to Screen"><i class="fas fa-expand"></i></button>
+                                </div>
+                                <canvas id="wfCanvas" class="workflow-canvas"></canvas>
+                                <div class="canvas-minimap" id="wfMinimap"></div>
+                            </div>
+
+                            <!-- Config Panel (Right) -->
+                            <div class="workflow-panel workflow-panel-right hidden" id="wfConfigPanel">
+                                <div class="panel-header">
+                                    <h4><i class="fas fa-cog"></i> Node Configuration</h4>
+                                    <button class="panel-close" onclick="WorkflowUI.closeConfigPanel()"><i class="fas fa-times"></i></button>
+                                </div>
+                                <div class="panel-content" id="wfConfigContent">
+                                    <p class="text-muted text-center">Select a node to configure</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Execution Monitor (Bottom Panel) -->
+                        <div class="workflow-execution-panel hidden" id="wfExecutionPanel">
+                            <div class="execution-panel-header">
+                                <h4><i class="fas fa-terminal"></i> Execution Logs</h4>
+                                <div class="execution-panel-actions">
+                                    <span class="execution-status" id="wfExecutionStatus">Ready</span>
+                                    <button class="btn-icon" onclick="WorkflowUI.clearExecutionLogs()" title="Clear"><i class="fas fa-trash"></i></button>
+                                    <button class="btn-icon" onclick="WorkflowUI.toggleExecutionPanel()" title="Collapse"><i class="fas fa-chevron-down"></i></button>
+                                </div>
+                            </div>
+                            <div class="execution-panel-content" id="wfExecutionLogs">
+                                <!-- Execution logs will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
                 <!-- ==================== SETTINGS ==================== -->
                 <div class="page-section" id="page-settings">
                     <div class="flex items-center justify-between mb-6">
@@ -830,45 +980,158 @@
                         <div class="settings-back-btn" onclick="SettingsUI.showGrid()">
                             <i class="fas fa-arrow-left"></i> Back to Settings
                         </div>
+                        
+                        <!-- Provider Tabs -->
+                        <div class="settings-tabs">
+                            <div class="settings-tab active" data-provider="gemini" onclick="JudgeManager.switchProvider('gemini')">
+                                <i class="fas fa-gem"></i> Gemini
+                            </div>
+                            <div class="settings-tab" data-provider="groq" onclick="JudgeManager.switchProvider('groq')">
+                                <i class="fas fa-bolt"></i> Groq
+                            </div>
+                            <div class="settings-tab" data-provider="cerebras" onclick="JudgeManager.switchProvider('cerebras')">
+                                <i class="fas fa-brain"></i> Cerebras
+                            </div>
+                            <div class="settings-tab" data-provider="openai" onclick="JudgeManager.switchProvider('openai')">
+                                <i class="fas fa-atom"></i> OpenAI
+                            </div>
+                            <div class="settings-tab" data-provider="custom" onclick="JudgeManager.switchProvider('custom')">
+                                <i class="fas fa-plug"></i> Custom
+                            </div>
+                        </div>
+
                         <div class="glass-card mb-6">
-                            <div class="card-title"><i class="fas fa-robot"></i> LLM Evaluation (Gemini)</div>
-                            <div class="form-group mb-4">
-                                <label class="form-label"><i class="fas fa-key"></i> Gemini API Key</label>
-                                <div class="password-input-wrapper" style="position: relative;">
-                                    <input id="settingGeminiKey" class="form-control" type="password"
-                                        placeholder="Enter your Gemini API key" />
-                                    <button type="button" class="toggle-password"
-                                        onclick="const p = document.getElementById('settingGeminiKey'); p.type = p.type === 'password' ? 'text' : 'password';"
-                                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted);">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
+                            <!-- Gemini Section -->
+                            <div id="section-gemini" class="provider-section">
+                                <div class="card-title"><i class="fas fa-robot"></i> Gemini Configuration</div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-key"></i> Gemini API Key</label>
+                                    <div class="password-input-wrapper" style="position: relative;">
+                                        <input id="settingGeminiKey" class="form-control" type="password" placeholder="Enter your Gemini API key" />
+                                        <button type="button" class="toggle-password" onclick="const p = document.getElementById('settingGeminiKey'); p.type = p.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted);">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-muted mt-2">Get yours at <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-accent">Google AI Studio</a>.</p>
                                 </div>
-                                <p class="text-xs text-muted mt-2">Used for LLM as Judge evaluations. Get yours at <a
-                                        href="https://aistudio.google.com/app/apikey" target="_blank"
-                                        class="text-accent">Google AI Studio</a>.</p>
-                            </div>
-                            <div class="form-group mb-4">
-                                <label class="form-label"><i class="fas fa-microchip"></i> Gemini Model</label>
-                                <div class="select-wrapper">
-                                    <select id="settingGeminiModel" class="form-control">
-                                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recommended - Good Quota)
-                                        </option>
-                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Latest - High Performance)
-                                        </option>
-                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Better reasoning - Low Quota)
-                                        </option>
-                                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast - Limited Quota)
-                                        </option>
-                                    </select>
-                                    <i class="fas fa-chevron-down select-arrow"></i>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-microchip"></i> Gemini Model</label>
+                                    <div class="select-wrapper">
+                                        <select id="settingGeminiModel" class="form-control">
+                                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recommended)</option>
+                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                        </select>
+                                        <i class="fas fa-chevron-down select-arrow"></i>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="form-group mb-4">
-                                <label class="form-label"><i class="fas fa-scroll"></i> Evaluation Prompt
-                                    Template</label>
-                                <textarea id="settingJudgePrompt" class="form-control" rows="14"
-                                    style="font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.78rem; line-height: 1.6; resize: vertical;"
-                                    placeholder="Enter your custom evaluation prompt...">Anda adalah QA Engineer Senior dan Linguist Specialist. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot dengan metodologi "Chain of Thought".
+
+                            <!-- Groq Section -->
+                            <div id="section-groq" class="provider-section hidden">
+                                <div class="card-title"><i class="fas fa-bolt"></i> Groq Configuration</div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-key"></i> Groq API Key</label>
+                                    <div class="password-input-wrapper" style="position: relative;">
+                                        <input id="settingGroqKey" class="form-control" type="password" placeholder="gsk_..." />
+                                        <button type="button" class="toggle-password" onclick="const p = document.getElementById('settingGroqKey'); p.type = p.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted);">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-muted mt-2">Get yours at <a href="https://console.groq.com/keys" target="_blank" class="text-accent">Groq Console</a>.</p>
+                                </div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-microchip"></i> Groq Model</label>
+                                    <div class="select-wrapper">
+                                        <select id="settingGroqModel" class="form-control">
+                                            <option value="llama-3.1-70b-versatile">Llama 3.1 70B (Versatile)</option>
+                                            <option value="llama-3.1-8b-instant">Llama 3.1 8B (Instant)</option>
+                                            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                                        </select>
+                                        <i class="fas fa-chevron-down select-arrow"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Cerebras Section -->
+                            <div id="section-cerebras" class="provider-section hidden">
+                                <div class="card-title"><i class="fas fa-brain"></i> Cerebras Configuration</div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-key"></i> Cerebras API Key</label>
+                                    <div class="password-input-wrapper" style="position: relative;">
+                                        <input id="settingCerebrasKey" class="form-control" type="password" placeholder="csk_..." />
+                                        <button type="button" class="toggle-password" onclick="const p = document.getElementById('settingCerebrasKey'); p.type = p.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted);">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-muted mt-2">Fastest inference at <a href="https://cloud.cerebras.ai/" target="_blank" class="text-accent">Cerebras Cloud</a>.</p>
+                                </div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-microchip"></i> Cerebras Model</label>
+                                    <div class="select-wrapper">
+                                        <select id="settingCerebrasModel" class="form-control">
+                                            <option value="llama3.1-70b">Llama 3.1 70B</option>
+                                            <option value="llama3.1-8b">Llama 3.1 8B</option>
+                                        </select>
+                                        <i class="fas fa-chevron-down select-arrow"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- OpenAI Section -->
+                            <div id="section-openai" class="provider-section hidden">
+                                <div class="card-title"><i class="fas fa-atom"></i> OpenAI Configuration</div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-key"></i> OpenAI API Key</label>
+                                    <div class="password-input-wrapper" style="position: relative;">
+                                        <input id="settingOpenAIKey" class="form-control" type="password" placeholder="sk-..." />
+                                        <button type="button" class="toggle-password" onclick="const p = document.getElementById('settingOpenAIKey'); p.type = p.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted);">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-muted mt-2">Manage keys at <a href="https://platform.openai.com/api-keys" target="_blank" class="text-accent">OpenAI Platform</a>.</p>
+                                </div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-microchip"></i> OpenAI Model</label>
+                                    <div class="select-wrapper">
+                                        <select id="settingOpenAIModel" class="form-control">
+                                            <option value="gpt-4o">GPT-4o (Latest)</option>
+                                            <option value="gpt-4o-mini">GPT-4o mini</option>
+                                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                        </select>
+                                        <i class="fas fa-chevron-down select-arrow"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Custom Section -->
+                            <div id="section-custom" class="provider-section hidden">
+                                <div class="card-title"><i class="fas fa-plug"></i> Custom API Configuration</div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-globe"></i> API Base URL</label>
+                                    <input id="settingCustomUrl" class="form-control" type="url" placeholder="https://your-proxy.com/v1" />
+                                    <p class="text-xs text-muted mt-2">Base URL for OpenAI-compatible API.</p>
+                                </div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-key"></i> Custom API Key</label>
+                                    <div class="password-input-wrapper" style="position: relative;">
+                                        <input id="settingCustomKey" class="form-control" type="password" placeholder="Enter custom API key" />
+                                        <button type="button" class="toggle-password" onclick="const p = document.getElementById('settingCustomKey'); p.type = p.type === 'password' ? 'text' : 'password';" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted);">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label"><i class="fas fa-microchip"></i> Model Name</label>
+                                    <input id="settingCustomModel" class="form-control" type="text" placeholder="e.g. meta-llama/Llama-3-70b" />
+                                </div>
+                            </div>
+
+                            <!-- Shared Prompt Template Section -->
+                            <div class="form-group mb-4" style="border-top:1px solid var(--border-color); padding-top:var(--sp-4);">
+                                <label class="form-label"><i class="fas fa-scroll"></i> Evaluation Prompt Template</label>
+                                <textarea id="settingJudgePrompt" class="form-control" rows="14" style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; line-height: 1.6; resize: vertical;" placeholder="Enter your custom evaluation prompt...">Anda adalah QA Engineer Senior dan Linguist Specialist. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot dengan metodologi "Chain of Thought".
 
 KONTEKS PENGUJIAN:
 - Topik: {title}
@@ -902,22 +1165,17 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
   "score": [angka desimal 0.00 - 1.00],
   "explanation": "[Status: ✓/⚠/✗] + Detail analisa. Maksimal 50 kata."
 }</textarea>
-                                <div
-                                    style="display:flex; justify-content:space-between; align-items:center; margin-top:var(--sp-2);">
-                                    <p class="text-xs text-muted">Variables: <code>{title}</code>,
-                                        <code>{question}</code>, <code>{expected}</code>, <code>{actual}</code>
-                                    </p>
-                                    <button type="button" class="btn btn-ghost btn-xs" id="resetJudgePromptBtn"
-                                        style="font-size:0.7rem;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:var(--sp-2);">
+                                    <p class="text-xs text-muted">Variables: <code>{title}</code>, <code>{question}</code>, <code>{expected}</code>, <code>{actual}</code></p>
+                                    <button type="button" class="btn btn-ghost btn-xs" id="resetJudgePromptBtn" style="font-size:0.7rem;">
                                         <i class="fas fa-undo"></i> Reset Default
                                     </button>
                                 </div>
                             </div>
+
                             <div class="btn-group" style="margin-top:var(--sp-5);">
-                                <button class="btn btn-primary btn-sm" id="saveJudgeSettingsBtn"><i
-                                        class="fas fa-save"></i> Save Settings</button>
-                                <button class="btn btn-secondary btn-sm" id="testJudgeSettingsBtn"><i
-                                        class="fas fa-vial"></i> Test Connection</button>
+                                <button class="btn btn-primary btn-sm" id="saveJudgeSettingsBtn"><i class="fas fa-save"></i> Save All Settings</button>
+                                <button class="btn btn-secondary btn-sm" id="testJudgeSettingsBtn"><i class="fas fa-vial"></i> Test Current Provider</button>
                             </div>
                         </div>
                     </div>
@@ -1058,6 +1316,89 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
     </div>
 
 
+
+    <!-- Edit Evaluation Preset Prompt Modal -->
+    <div class="modal-overlay" id="editPresetModal">
+        <div class="modal-content" style="max-width:760px;">
+            <div class="modal-header">
+                <h3 style="display:flex;align-items:center;gap:8px;">
+                    <i id="editPresetModalIcon" class="fas fa-pen" style="font-size:0.9rem;"></i>
+                    <span>Edit Prompt: </span>
+                    <strong id="editPresetModalTitle" style="color:var(--accent);">Preset</strong>
+                    <span id="editPresetModalCategory" class="preset-card-category" style="margin-left:4px;vertical-align:middle;font-size:0.55rem;"></span>
+                </h3>
+                <button class="modal-close" onclick="closeModal('editPresetModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <!-- Preset Info Banner -->
+                <div id="editPresetDescBanner" style="background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--sp-3);margin-bottom:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);">
+                    <div id="editPresetBannerIcon" style="width:36px;height:36px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.9rem;flex-shrink:0;"><i class="fas fa-pen"></i></div>
+                    <div>
+                        <div id="editPresetBannerDesc" style="font-size:0.78rem;color:var(--text-secondary);line-height:1.4;"></div>
+                    </div>
+                </div>
+
+                <!-- Prompt Editor -->
+                <div class="form-group mb-3">
+                    <label class="form-label" style="font-weight:600;font-size:0.82rem;display:flex;align-items:center;gap:6px;">
+                        <i class="fas fa-code" style="color:var(--accent);"></i> Evaluation Prompt Template
+                    </label>
+                    <textarea id="editPresetPromptArea" class="form-control edit-prompt-textarea"
+                        rows="18" spellcheck="false"
+                        oninput="EvalPresetManager.updateCharCount()"></textarea>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--sp-2);">
+                        <span style="font-size:0.68rem;color:var(--text-muted);">Edit di atas akan mengoverride default prompt saat evaluasi dijalankan.</span>
+                        <span id="editPresetCharCount" style="font-size:0.68rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">0 chars</span>
+                    </div>
+                </div>
+
+                <!-- Variables Reference -->
+                <details style="margin-top:var(--sp-2);">
+                    <summary style="font-size:0.75rem;color:var(--accent);cursor:pointer;font-weight:600;user-select:none;">
+                        <i class="fas fa-info-circle"></i> Variable Placeholders (klik untuk expand)
+                    </summary>
+                    <div style="background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:var(--sp-3);margin-top:var(--sp-2);font-size:0.72rem;line-height:1.8;font-family:'JetBrains Mono',monospace;">
+                        <code style="color:var(--accent);">{title}</code> — Topik/judul evaluasi<br>
+                        <code style="color:var(--accent);">{question}</code> — Pertanyaan dari user<br>
+                        <code style="color:var(--accent);">{expected}</code> — Jawaban referensi (knowledge base)<br>
+                        <code style="color:var(--accent);">{actual}</code> — Jawaban chatbot yang dievaluasi<br>
+                        <span style="color:var(--text-muted);font-family:inherit;font-size:0.7rem;">ℹ️ Variabel di atas akan diganti otomatis saat evaluasi berjalan.</span>
+                    </div>
+                </details>
+            </div>
+            <div class="modal-footer" style="justify-content:space-between;">
+                <button class="btn btn-ghost btn-sm" id="editPresetResetBtn" onclick="EvalPresetManager.resetPresetPrompt()" style="color:var(--warning);">
+                    <i class="fas fa-undo"></i> Reset to Default
+                </button>
+                <div style="display:flex;gap:var(--sp-2);">
+                    <button class="btn btn-secondary" onclick="closeModal('editPresetModal')">Cancel</button>
+                    <button class="btn btn-primary" onclick="EvalPresetManager.saveEditedPreset()"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Eval Configuration Modal -->
+    <div class="modal-overlay" id="saveEvalConfigModal">
+        <div class="modal-content" style="max-width:450px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-bookmark"></i> Save Configuration</h3>
+                <button class="modal-close" onclick="closeModal('saveEvalConfigModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group mb-4">
+                    <label class="form-label"><i class="fas fa-tag"></i> Configuration Name</label>
+                    <input id="evalConfigNameInput" class="form-control" type="text"
+                        placeholder="e.g. SARA + Factuality Check" />
+                    <p class="text-xs text-muted mt-2">Save your current preset selection for future use. If a name already exists, it will be updated.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('saveEvalConfigModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="EvalPresetManager.saveConfig()"><i class="fas fa-save"></i> Save</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Save Preset -->
     <div class="modal-overlay" id="savePresetModal">

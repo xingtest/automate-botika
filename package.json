@@ -17,7 +17,9 @@
     "report": "npm run build && node dist/report-cli.js --open",
     "report:index": "python create_test_index.py && start report/html/index.html",
     "server": "node ci-dashboard/server/server.js",
-    "server:dev": "node --watch ci-dashboard/server/server.js"
+    "server:dev": "node --watch ci-dashboard/server/server.js",
+    "db:setup": "node ci-dashboard/server/setup-db.js",
+    "db:fix": "node ci-dashboard/server/fix-tables.js"
   },
   "author": "okinr.testcase",
   "license": "ISC",
@@ -37,7 +39,7 @@
     "fuzzball": "^2.1.2",
     "input": "^1.0.1",
     "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.17.3",
+    "pg": "^8.20.0",
     "playwright": "^1.40.0",
     "telegram": "^2.26.22",
     "uuid": "^9.0.1",

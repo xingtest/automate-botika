@@ -7,59 +7,91 @@ const ejs = require('ejs');
 const path = require('path');
 // Node 18+ has built-in fetch, no need for node-fetch
 
-// Helper to evaluate with Gemini
-async function evaluateWithGemini(apiKey, payload, modelName = 'gemini-1.5-flash') {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
+// Generic LLM Evaluator
+async function evaluateWithLLM(settings, payload) {
+    const provider = settings.provider || 'gemini';
+    const model = settings[`${provider}_model`] || (provider === 'gemini' ? 'gemini-1.5-flash' : '');
+    const apiKey = settings[`${provider}_api_key`];
+    const baseUrl = settings.custom_api_url;
+
     try {
-        const response = await fetch(`${url}?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: payload }] }],
-                generationConfig: { temperature: 0.1, topK: 1, topP: 1 }
-            }),
-            signal: AbortSignal.timeout(30000) // 30 second timeout
-        });
+        if (provider === 'gemini') {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: payload }] }],
+                    generationConfig: { temperature: 0.1 }
+                }),
+                signal: AbortSignal.timeout(30000)
+            });
 
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error?.message || 'Gemini API Error');
-        }
-
-        const data = await response.json();
-
-        if (!data.candidates || data.candidates.length === 0) {
-            console.error('Gemini API Blocked/Empty Response:', data);
-            throw new Error('Blocked or empty response from Gemini');
-        }
-
-        const text = data.candidates[0].content?.parts?.[0]?.text;
-        if (!text) {
-            throw new Error('Empty text in Gemini response');
-        }
-
-        // Match JSON in the response
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            try {
-                return JSON.parse(jsonMatch[0]);
-            } catch (e) {
-                console.error('JSON Parse Error from Gemini text:', text);
-                throw new Error('Invalid JSON format in Gemini response');
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || 'Gemini API Error');
             }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!text) throw new Error('Empty response from Gemini');
+            return parseJsonFromResponse(text);
+        } else {
+            // OpenAI-compatible providers (Groq, Cerebras, OpenAI, Custom)
+            let url = '';
+            if (provider === 'groq') url = 'https://api.groq.com/openai/v1/chat/completions';
+            else if (provider === 'cerebras') url = 'https://api.cerebras.ai/v1/chat/completions';
+            else if (provider === 'openai') url = 'https://api.openai.com/v1/chat/completions';
+            else if (provider === 'custom') url = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: model || (provider === 'groq' ? 'llama-3.1-70b-versatile' : provider === 'cerebras' ? 'llama3.1-70b' : 'gpt-4o'),
+                    messages: [{ role: 'user', content: payload }],
+                    temperature: 0.1
+                }),
+                signal: AbortSignal.timeout(30000)
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || `${provider} API Error`);
+            }
+
+            const data = await response.json();
+            const text = data.choices?.[0]?.message?.content;
+            if (!text) throw new Error(`Empty response from ${provider}`);
+            return parseJsonFromResponse(text);
         }
-        throw new Error('No JSON found in Gemini response');
     } catch (error) {
-        console.error('Gemini Eval Error:', error.message);
+        console.error(`[EVAL ERROR] ${provider}:`, error.message);
         return { score: 0, explanation: `Error: ${error.message}` };
     }
+}
+
+function parseJsonFromResponse(text) {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        try {
+            return JSON.parse(jsonMatch[0]);
+        } catch (e) {
+            console.error('JSON Parse Error:', text);
+            throw new Error('Invalid JSON format in LLM response');
+        }
+    }
+    throw new Error('No JSON found in LLM response');
 }
 
 // POST /api/judge/init
 router.post('/init', authenticateToken, async (req, res) => {
     try {
-        const { title, tester_name, total_question } = req.body;
-        console.log(`[JUDGE] Init: ${title} (${total_question} rows)`);
+        const { title, tester_name, total_question, provider } = req.body;
+        console.log(`[JUDGE] Init: ${title} (${total_question} rows) via ${provider || 'gemini'}`);
         const [result] = await pool.query(
             `INSERT INTO test_runs (user_id, test_id, run_title, platform, tester_name, filename, ai_evaluation, date_test, start_time_test, duration, total_title, total_question, success, failed, avg_score)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)`,
@@ -70,7 +102,7 @@ router.post('/init', authenticateToken, async (req, res) => {
                 'llm_judge',
                 tester_name || req.user.username,
                 'uploaded_file',
-                'gemini',
+                provider || 'gemini',
                 new Date().toISOString().split('T')[0],
                 new Date().toTimeString().split(' ')[0],
                 'N/A',
@@ -87,10 +119,10 @@ router.post('/init', authenticateToken, async (req, res) => {
 // POST /api/judge/step
 router.post('/step', authenticateToken, async (req, res) => {
     try {
-        const { runId, row, gemini_api_key, gemini_model, custom_prompt } = req.body;
+        const { runId, row, custom_prompt, presets, ...settings } = req.body;
         const startTime = Date.now();
-        console.log(`[JUDGE] Step: RunId ${runId}, Row No ${row.no || '?'}`);
-        const apiKey = gemini_api_key || process.env.API_KEY_GEMINI;
+        const activePresets = Array.isArray(presets) ? presets : [];
+        console.log(`[JUDGE] Step: RunId ${runId}, Row ${row.no || '?'} [${settings.provider || 'gemini'}] Presets: ${activePresets.length ? activePresets.join(', ') : 'none'}`);
 
         let prompt;
         if (custom_prompt && custom_prompt.trim()) {
@@ -124,26 +156,19 @@ LANGKAH 2: ANALISA RELEVANSI & KONTEKS
 
 ATURAN SCORING:
 - 1.00 (Sempurna): Faktual 100% benar, lengkap, relevan, bahasa bagus.
-- 0.70 - 0.99 (Pass): Faktual benar, mungkin ada kekurangan minor di gaya bahasa atau kelengkapan detail non-krusial.
-- 0.40 - 0.69 (Fail - Minor): Ada info yang kurang tepat tapi tidak fatal, atau bahasa sangat kaku/berulang.
-- 0.00 - 0.39 (Fail - Major): Halusinasi (mengarang fakta), salah total, atau tidak nyambung.
-
-FORMAT EXPLANATION YANG DIHARAPKAN:
-Gunakan format bullet point dengan detail JELAS per langkah:
-
-• Langkah 1 (Faktual): [Sebutkan fakta apa yang benar/salah/kurang]
-• Langkah 2 (Relevansi): [Apakah menjawab pertanyaan atau tidak]
-• Simpulan: [Kesimpulan final]
+- 0.70 - 0.99 (Pass): Faktual benar, mungkin ada kekurangan minor.
+- 0.40 - 0.69 (Fail - Minor): Ada info kurang tepat tapi tidak fatal.
+- 0.00 - 0.39 (Fail - Major): Halusinasi, salah total, atau tidak nyambung.
 
 OUTPUT FINAL:
 Berikan output HANYA dalam format JSON valid tanpa markdown block:
 {
   "score": [angka desimal 0.00 - 1.00],
-  "explanation": "[Status: ✓/⚠/✗] + Detail analisa menggunakan format bullet point di atas. Maksimal 50 kata."
+  "explanation": "[Status: ✓/⚠/✗] + Detail analisa. Maksimal 50 kata."
 }`;
         }
 
-        const evalResult = await evaluateWithGemini(apiKey, prompt, gemini_model || 'gemini-1.5-flash');
+        const evalResult = await evaluateWithLLM(settings, prompt);
         const score = parseFloat(evalResult.score) || 0;
         const status = score >= 0.7 ? 'pass' : 'failed';
         const durationSeconds = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -197,20 +222,20 @@ router.post('/finalize', authenticateToken, async (req, res) => {
 // POST /api/judge/test-connection
 router.post('/test-connection', authenticateToken, async (req, res) => {
     try {
-        const { gemini_api_key, gemini_model } = req.body;
-        const apiKey = gemini_api_key || process.env.API_KEY_GEMINI;
-        const model = gemini_model || 'gemini-1.5-flash';
+        const settings = req.body;
+        const provider = settings.provider || 'gemini';
+        const apiKey = settings[`${provider}_api_key`];
 
         if (!apiKey) return res.status(400).json({ error: 'API Key missing' });
 
         const testPrompt = 'Return this exact JSON: {"score": 1.0, "explanation": "Connection test successful"}';
-        const result = await evaluateWithGemini(apiKey, testPrompt, model);
+        const result = await evaluateWithLLM(settings, testPrompt);
 
         if (result.explanation?.includes('Error:')) {
             return res.status(400).json({ success: false, error: result.explanation.replace('Error: ', '') });
         }
 
-        res.json({ success: true, message: 'Connection successful' });
+        res.json({ success: true, message: 'Connection successful', model: settings[`${provider}_model`] || 'default' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
