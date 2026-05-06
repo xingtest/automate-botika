@@ -9,7 +9,7 @@ async function runMigration() {
     const migrationPath = path.join(__dirname, 'migrations', '001_add_workflow_tables.sql');
     const sql = fs.readFileSync(migrationPath, 'utf8');
     
-    await db.query(sql);
+    await db.pool.queryOriginal(sql);
     
     console.log('✅ Migration completed successfully!');
     console.log('   - workflows table created');

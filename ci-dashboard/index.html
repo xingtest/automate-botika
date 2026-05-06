@@ -10,6 +10,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="style.css" />
+    <!-- Workflow Builder Styles -->
+    <link rel="stylesheet" href="workflow-builder/workflow-canvas.css" />
+    <link rel="stylesheet" href="workflow-builder/node-library.css" />
+    <link rel="stylesheet" href="workflow-builder/node-config-panel.css" />
+    <link rel="stylesheet" href="workflow-builder/workflow-builder.css" />
 </head>
 
 <body>
@@ -884,36 +889,68 @@
                         <!-- Main Layout -->
                         <div class="workflow-layout">
                             <!-- Node Library (Left Panel) -->
-                            <div class="workflow-panel workflow-panel-left" id="wfNodeLibrary">
-                                <div class="panel-header">
-                                    <h4><i class="fas fa-th"></i> Node Library</h4>
-                                    <button class="panel-toggle" onclick="WorkflowUI.togglePanel('left')"><i class="fas fa-chevron-left"></i></button>
-                                </div>
-                                <div class="panel-content">
-                                    <input type="text" class="form-control form-control-sm mb-3" id="wfNodeSearch" placeholder="🔍 Search nodes..." />
-                                    <div class="node-library-content" id="wfNodeLibraryContent">
-                                        <!-- Node categories will be rendered here -->
+                            <div class="node-library-panel">
+                                <div class="node-library-header">
+                                    <div class="node-library-title">
+                                        <i class="fas fa-th"></i>
+                                        <span>Node Library</span>
                                     </div>
+                                    <div class="node-library-search">
+                                        <i class="fas fa-search"></i>
+                                        <input type="text" id="nodeLibrarySearch" placeholder="Search nodes..." />
+                                    </div>
+                                    <div class="node-category-filter">
+                                        <button class="node-category-btn active" data-category="all">All</button>
+                                        <button class="node-category-btn" data-category="Triggers">Triggers</button>
+                                        <button class="node-category-btn" data-category="Actions">Actions</button>
+                                        <button class="node-category-btn" data-category="Control">Control</button>
+                                        <button class="node-category-btn" data-category="Transform">Transform</button>
+                                    </div>
+                                </div>
+                                <div class="node-library-list" id="nodeLibraryList">
+                                    <!-- Node cards will be rendered here -->
                                 </div>
                             </div>
 
                             <!-- Canvas (Center) -->
                             <div class="workflow-canvas-container">
-                                <div class="canvas-controls">
-                                    <button class="canvas-control-btn" id="wfZoomIn" title="Zoom In"><i class="fas fa-plus"></i></button>
-                                    <span class="canvas-zoom-level" id="wfZoomLevel">100%</span>
-                                    <button class="canvas-control-btn" id="wfZoomOut" title="Zoom Out"><i class="fas fa-minus"></i></button>
-                                    <button class="canvas-control-btn" id="wfZoomFit" title="Fit to Screen"><i class="fas fa-expand"></i></button>
+                                <div id="workflowCanvasContainer">
+                                    <!-- Canvas will be initialized here -->
+                                    <div class="canvas-empty-state">
+                                        <i class="fas fa-project-diagram"></i>
+                                        <h3>Start Building Your Workflow</h3>
+                                        <p>Drag nodes from the library to the canvas</p>
+                                    </div>
                                 </div>
-                                <canvas id="wfCanvas" class="workflow-canvas"></canvas>
-                                <div class="canvas-minimap" id="wfMinimap"></div>
+                                
+                                <!-- Zoom Controls -->
+                                <div class="workflow-zoom-controls">
+                                    <button class="zoom-btn" id="wfZoomIn" title="Zoom In">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                    <div class="zoom-level" id="wfZoomLevel">100%</div>
+                                    <button class="zoom-btn" id="wfZoomOut" title="Zoom Out">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <button class="zoom-btn" id="wfZoomFit" title="Fit to Screen">
+                                        <i class="fas fa-expand"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Canvas Info -->
+                                <div class="canvas-info">
+                                    <span><i class="fas fa-cube"></i> <span id="canvasNodeCount">0</span> nodes</span>
+                                    <span><i class="fas fa-link"></i> <span id="canvasConnectionCount">0</span> connections</span>
+                                </div>
                             </div>
 
                             <!-- Config Panel (Right) -->
                             <div class="workflow-panel workflow-panel-right hidden" id="wfConfigPanel">
                                 <div class="panel-header">
                                     <h4><i class="fas fa-cog"></i> Node Configuration</h4>
-                                    <button class="panel-close" onclick="WorkflowUI.closeConfigPanel()"><i class="fas fa-times"></i></button>
+                                    <button class="panel-close" onclick="document.getElementById('wfConfigPanel').classList.add('hidden')">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                 </div>
                                 <div class="panel-content" id="wfConfigContent">
                                     <p class="text-muted text-center">Select a node to configure</p>
@@ -927,8 +964,12 @@
                                 <h4><i class="fas fa-terminal"></i> Execution Logs</h4>
                                 <div class="execution-panel-actions">
                                     <span class="execution-status" id="wfExecutionStatus">Ready</span>
-                                    <button class="btn-icon" onclick="WorkflowUI.clearExecutionLogs()" title="Clear"><i class="fas fa-trash"></i></button>
-                                    <button class="btn-icon" onclick="WorkflowUI.toggleExecutionPanel()" title="Collapse"><i class="fas fa-chevron-down"></i></button>
+                                    <button class="btn-icon" onclick="document.getElementById('wfExecutionLogs').innerHTML = ''" title="Clear">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <button class="btn-icon" onclick="document.getElementById('wfExecutionPanel').classList.toggle('hidden')" title="Collapse">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
                                 </div>
                             </div>
                             <div class="execution-panel-content" id="wfExecutionLogs">
@@ -1573,6 +1614,15 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="script.js"></script>
+    <!-- Workflow Builder Scripts -->
+    <script src="workflow-builder/workflow-canvas.js"></script>
+    <script src="workflow-builder/node-library.js"></script>
+    <script src="workflow-builder/node-config-panel.js"></script>
+    <script src="workflow-builder/workflow-manager.js"></script>
+    <script src="workflow-builder/workflow-validator.js"></script>
+    <script src="workflow-builder/execution-monitor.js"></script>
+    <script src="workflow-builder/workflow-templates.js"></script>
+    <script src="workflow-builder/workflow-builder.js"></script>
 
 </body>
 

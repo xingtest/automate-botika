@@ -264,8 +264,8 @@ const ThemeManager = {
 
 // ===== ROUTER =====
 const Router = {
-    pages: ['dashboard', 'run-tests', 'history', 'reports', 'judge-presets', 'judge', 'judge-reports', 'presets', 'activity', 'scheduler', 'settings'],
-    titles: { dashboard: 'Dashboard', 'run-tests': 'Run Tests', history: 'Run History', reports: 'Reports', 'judge-presets': 'Evaluation Presets', judge: 'Run Evaluation', 'judge-reports': 'Judge Reports', presets: 'Test Presets', activity: 'Activity Feed', scheduler: 'Scheduler', settings: 'Settings' },
+    pages: ['dashboard', 'run-tests', 'history', 'reports', 'workflow-builder', 'judge-presets', 'judge', 'judge-reports', 'presets', 'activity', 'scheduler', 'settings'],
+    titles: { dashboard: 'Dashboard', 'run-tests': 'Run Tests', history: 'Run History', reports: 'Reports', 'workflow-builder': 'Workflow Builder', 'judge-presets': 'Evaluation Presets', judge: 'Run Evaluation', 'judge-reports': 'Judge Reports', presets: 'Test Presets', activity: 'Activity Feed', scheduler: 'Scheduler', settings: 'Settings' },
     init() { window.addEventListener('hashchange', () => this.handleRoute()); this.handleRoute(); },
     handleRoute() { const h = window.location.hash.slice(1) || 'dashboard'; this.show(this.pages.includes(h) ? h : 'dashboard'); },
     navigate(p) { window.location.hash = p; },
@@ -754,6 +754,7 @@ const CmdPalette = {
         { name: 'Presets', icon: 'fa-bookmark', action: () => { Router.navigate('presets'); CmdPalette.close(); }, hint: '5' },
         { name: 'Activity Feed', icon: 'fa-stream', action: () => { Router.navigate('activity'); CmdPalette.close(); }, hint: '6' },
         { name: 'Scheduler', icon: 'fa-calendar-alt', action: () => { Router.navigate('scheduler'); CmdPalette.close(); }, hint: '7' },
+        { name: 'Workflow Builder', icon: 'fa-project-diagram', action: () => { Router.navigate('workflow-builder'); CmdPalette.close(); }, hint: 'W' },
         { name: 'Settings', icon: 'fa-gear', action: () => { Router.navigate('settings'); CmdPalette.close(); }, hint: '8' },
         { name: 'Toggle Theme', icon: 'fa-adjust', action: () => { ThemeManager.toggle(); CmdPalette.close(); } },
         { name: 'Trigger Workflow', icon: 'fa-rocket', action: () => { CmdPalette.close(); triggerWorkflow(); } },

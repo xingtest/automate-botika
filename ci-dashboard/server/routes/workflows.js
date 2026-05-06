@@ -2,6 +2,21 @@ const express = require('express');
 const router = express.Router();
 const workflowController = require('../controllers/workflow.controller');
 
+// Node types
+router.get('/node-types', workflowController.listNodeTypes);
+router.get('/node-types/:type', workflowController.getNodeTypeSchema);
+
+// Templates
+router.get('/templates', workflowController.listTemplates);
+router.get('/templates/:id', workflowController.getTemplate);
+router.post('/templates', workflowController.createTemplate);
+
+// Executions (General)
+router.get('/executions', workflowController.listExecutions);
+
+// Validation
+router.post('/validate', workflowController.validateWorkflow);
+
 // Workflow CRUD
 router.post('/', workflowController.createWorkflow);
 router.get('/', workflowController.listWorkflows);
@@ -11,28 +26,15 @@ router.put('/:id', workflowController.updateWorkflow);
 router.delete('/:id', workflowController.deleteWorkflow);
 router.post('/:id/duplicate', workflowController.duplicateWorkflow);
 
-// Version history
-router.get('/:id/versions', workflowController.getVersionHistory);
-router.post('/:id/revert/:version', workflowController.revertToVersion);
-
-// Execution
+// Workflow-specific Executions
 router.post('/:id/execute', workflowController.executeWorkflow);
-router.get('/executions', workflowController.listExecutions);
 router.get('/executions/:executionId', workflowController.getExecutionDetails);
 router.post('/executions/:executionId/cancel', workflowController.cancelExecution);
 router.get('/executions/:executionId/logs', workflowController.getExecutionLogs);
 
-// Validation
-router.post('/validate', workflowController.validateWorkflow);
-
-// Node types
-router.get('/node-types', workflowController.listNodeTypes);
-router.get('/node-types/:type', workflowController.getNodeTypeSchema);
-
-// Templates
-router.get('/templates', workflowController.listTemplates);
-router.get('/templates/:id', workflowController.getTemplate);
-router.post('/templates', workflowController.createTemplate);
+// Version history
+router.get('/:id/versions', workflowController.getVersionHistory);
+router.post('/:id/revert/:version', workflowController.revertToVersion);
 
 // Sharing and permissions
 router.post('/:id/share', workflowController.shareWorkflow);

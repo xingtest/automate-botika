@@ -3,7 +3,7 @@
  * Orchestrates workflow execution with topological sorting and parallel execution
  */
 
-const db = require('../db');
+const { pool: db } = require('../db');
 const ExecutionContext = require('./execution-context');
 const nodeRegistry = require('./node-registry');
 
@@ -36,7 +36,7 @@ class ExecutionEngine {
       this.activeExecutions.set(executionId, context);
       
       // Update status to running
-      await db.query(
+      await db.queryOriginal(
         `UPDATE workflow_executions 
          SET status = 'running', start_time = CURRENT_TIMESTAMP 
          WHERE execution_id = $1`,
@@ -114,7 +114,7 @@ class ExecutionEngine {
       
       // Mark execution as completed
       const totalDuration = context.getDuration();
-      await db.query(
+      await db.queryOriginal(
         `UPDATE workflow_executions 
          SET status = 'completed', end_time = CURRENT_TIMESTAMP, duration_ms = $1 
          WHERE execution_id = $2`,
@@ -122,10 +122,10 @@ class ExecutionEngine {
       );
       
       // Log activity
-      await db.query(
+      await db.queryOriginal(
         `INSERT INTO activity_logs (user_id, title, description, type)
          VALUES ($1, $2, $3, 'workflow')`,
-        [userId, 'Workflow Completed', `Workflow execution ${executionId} completed successfully`, 'workflow']
+        [userId, 'Workflow Completed', `Workflow execution ${executionId} completed successfully`]
       );
       
       return {
@@ -141,7 +141,7 @@ class ExecutionEngine {
       const duration = context ? context.getDuration() : 0;
       
       // Mark execution as failed
-      await db.query(
+      await db.queryOriginal(
         `UPDATE workflow_executions 
          SET status = 'failed', end_time = CURRENT_TIMESTAMP, duration_ms = $1, error_message = $2 
          WHERE execution_id = $3`,
@@ -149,10 +149,10 @@ class ExecutionEngine {
       );
       
       // Log activity
-      await db.query(
+      await db.queryOriginal(
         `INSERT INTO activity_logs (user_id, title, description, type)
          VALUES ($1, $2, $3, 'error')`,
-        [userId, 'Workflow Failed', `Workflow execution ${executionId} failed: ${error.message}`, 'error']
+        [userId, 'Workflow Failed', `Workflow execution ${executionId} failed: ${error.message}`]
       );
       
       throw error;
@@ -276,7 +276,7 @@ class ExecutionEngine {
    */
   async logNodeExecution(executionId, node, status, outputData, inputData, errorMessage, duration = 0) {
     try {
-      await db.query(
+      await db.queryOriginal(
         `INSERT INTO node_executions 
          (execution_id, node_id, node_type, status, input_data, output_data, error_message, start_time, end_time, duration_ms)
          VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $8)`,
@@ -304,7 +304,7 @@ class ExecutionEngine {
     const context = this.activeExecutions.get(executionId);
     if (context) {
       // Mark as cancelled
-      await db.query(
+      await db.queryOriginal(
         `UPDATE workflow_executions 
          SET status = 'cancelled', end_time = CURRENT_TIMESTAMP 
          WHERE execution_id = $1`,

@@ -1,0 +1,325 @@
+/**
+ * Workflow Canvas Styles
+ * n8n-style visual workflow builder
+ */
+
+/* Canvas Container */
+#workflowCanvasContainer {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 200px);
+  background: var(--bg-body);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  cursor: grab;
+}
+
+#workflowCanvasContainer:active {
+  cursor: grabbing;
+}
+
+/* Workflow Node */
+.workflow-node {
+  position: absolute;
+  width: 200px;
+  background: var(--glass-bg);
+  border: 2px solid var(--glass-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  cursor: move;
+  transition: all var(--transition-fast);
+  transform-origin: top left;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.workflow-node:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent);
+}
+
+.workflow-node.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-lg);
+}
+
+/* Node Status */
+.workflow-node.status-pending {
+  border-color: var(--text-muted);
+}
+
+.workflow-node.status-running {
+  border-color: var(--running);
+  animation: pulse 1.5s infinite;
+}
+
+.workflow-node.status-success {
+  border-color: var(--success);
+}
+
+.workflow-node.status-failed {
+  border-color: var(--error);
+}
+
+.workflow-node.status-skipped {
+  border-color: var(--warning);
+  opacity: 0.7;
+}
+
+/* Node Header */
+.node-header {
+  padding: var(--sp-4);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.5rem;
+  height: 60px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+}
+
+/* Node Body */
+.node-body {
+  padding: var(--sp-4);
+  position: relative;
+}
+
+.node-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  word-break: break-word;
+}
+
+.node-status {
+  position: absolute;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Node Ports */
+.node-ports {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.node-port {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 2px solid var(--accent);
+  pointer-events: all;
+  cursor: crosshair;
+  transition: all var(--transition-fast);
+  z-index: 20;
+}
+
+.node-port:hover {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.node-port.input {
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.node-port.output {
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Workflow Connection */
+.workflow-connection {
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.workflow-connection:hover {
+  stroke-width: 3;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.workflow-connection.selected {
+  stroke-width: 3;
+  stroke-dasharray: 5, 5;
+  animation: dash 0.5s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+.workflow-connection-preview {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Minimap */
+.workflow-minimap {
+  position: absolute;
+  bottom: var(--sp-4);
+  right: var(--sp-4);
+  width: 200px;
+  height: 150px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-md);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.minimap-viewport {
+  position: absolute;
+  border: 2px solid var(--accent);
+  background: rgba(99, 102, 241, 0.1);
+  cursor: move;
+}
+
+/* Zoom Controls */
+.workflow-zoom-controls {
+  position: absolute;
+  bottom: var(--sp-4);
+  left: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  z-index: 100;
+}
+
+.zoom-btn {
+  width: 36px;
+  height: 36px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: all var(--transition-fast);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.zoom-btn:hover {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.zoom-level {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Canvas Info */
+.canvas-info {
+  position: absolute;
+  top: var(--sp-4);
+  left: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-md);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 100;
+}
+
+.canvas-info span {
+  margin-right: var(--sp-3);
+}
+
+/* Empty State */
+.canvas-empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.canvas-empty-state i {
+  font-size: 4rem;
+  opacity: 0.1;
+  margin-bottom: var(--sp-4);
+}
+
+.canvas-empty-state h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: var(--sp-2);
+}
+
+.canvas-empty-state p {
+  font-size: 0.85rem;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .workflow-node {
+  background: rgba(30, 41, 59, 0.9);
+}
+
+[data-theme="dark"] .node-port {
+  background: var(--bg-sidebar);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .workflow-node {
+    width: 160px;
+  }
+  
+  .node-header {
+    height: 50px;
+    font-size: 1.2rem;
+  }
+  
+  .workflow-minimap {
+    width: 150px;
+    height: 100px;
+  }
+}

@@ -1,5 +1,5 @@
 const BaseNode = require('./base-node');
-const db = require('../../db');
+const { pool: db } = require('../../db');
 
 class GenerateReportNode extends BaseNode {
   constructor() {
@@ -50,7 +50,7 @@ class GenerateReportNode extends BaseNode {
     const filePath = `/reports/${filename}`;
     
     // Store artifact in database
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `INSERT INTO artifacts (run_id, artifact_type, filename, file_path, file_size, description)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,

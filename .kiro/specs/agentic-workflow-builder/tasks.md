@@ -205,8 +205,8 @@ The implementation follows a bottom-up approach: database schema → backend API
 - [ ] 10. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Create frontend workflow canvas component
-  - [ ] 11.1 Create workflow-canvas.js module
+- [x] 11. Create frontend workflow canvas component
+  - [x] 11.1 Create workflow-canvas.js module
     - Implement zoomable and pannable canvas using HTML5 Canvas or SVG
     - Support zoom levels 25% - 200%
     - Implement grid-based drawing area
@@ -214,14 +214,14 @@ The implementation follows a bottom-up approach: database schema → backend API
     - Display minimap when workflow has > 10 nodes
     - _Requirements: 1.1, 1.4, 1.5, 1.6, 1.7, 1.8_
 
-  - [ ] 11.2 Implement drag-and-drop node creation
+  - [x] 11.2 Implement drag-and-drop node creation
     - Handle drag from node library
     - Display ghost preview during drag
     - Create node instance on drop
     - Position node at drop location
     - _Requirements: 1.2, 1.3_
 
-  - [ ] 11.3 Implement node rendering and interaction
+  - [x] 11.3 Implement node rendering and interaction
     - Render nodes with icons, labels, and ports
     - Support node selection (click)
     - Support node movement (drag)
@@ -230,7 +230,7 @@ The implementation follows a bottom-up approach: database schema → backend API
     - Highlight nodes with invalid configurations
     - _Requirements: 3.10, 5.6, 5.7, 5.8, 11.6_
 
-  - [ ] 11.4 Implement connection creation and rendering
+  - [x] 11.4 Implement connection creation and rendering
     - Handle drag from output port
     - Display connection line following cursor
     - Validate connection target (prevent cycles, type compatibility)
@@ -241,15 +241,15 @@ The implementation follows a bottom-up approach: database schema → backend API
     - Limit input connections to one per port
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10_
 
-  - [ ] 11.5 Implement real-time execution visualization
+  - [x] 11.5 Implement real-time execution visualization
     - Display node status during execution (running, success, failed)
     - Show pulsing animation on running nodes
     - Display execution duration on nodes
     - Highlight data flow path on connection hover
     - _Requirements: 5.6, 5.7, 5.8, 5.10, 9.5_
 
-- [ ] 12. Create frontend node library component
-  - [ ] 12.1 Create node-library.js module
+- [x] 12. Create frontend node library component
+  - [x] 12.1 Create node-library.js module
     - Display node library in collapsible left panel
     - Organize nodes by category (Triggers, Actions, Control, Transform, Notifications)
     - Display node cards with icon, name, description
@@ -258,7 +258,7 @@ The implementation follows a bottom-up approach: database schema → backend API
     - _Requirements: 2.1, 2.11, 2.12, 10.5_
 
 - [ ] 13. Create frontend node configuration component
-  - [ ] 13.1 Create node-config-panel.js module
+  - [x] 13.1 Create node-config-panel.js module
     - Display configuration panel in right panel (slides in on node selection)
     - Generate dynamic forms based on node type schema
     - Support input types: text, number, select, multiselect, boolean, json, expression, file
@@ -266,7 +266,7 @@ The implementation follows a bottom-up approach: database schema → backend API
     - Auto-save changes when panel closes
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.9, 10.6_
 
-  - [ ] 13.2 Implement platform-specific configuration forms
+  - [x] 13.2 Implement platform-specific configuration forms
     - Create configuration form for Run Test node (platform, test_data_file, tester_name, greeting, URLs)
     - Create configuration form for AI Evaluate node (ai_provider, scoring_threshold, custom_prompt)
     - Create configuration form for Condition node with expression builder
@@ -275,7 +275,7 @@ The implementation follows a bottom-up approach: database schema → backend API
     - Create configuration form for Send Notification node (title, message, type, recipients)
     - _Requirements: 3.5, 3.6, 3.7, 14.1, 15.1, 16.1, 17.1, 18.1, 19.1_
 
-  - [ ] 13.3 Implement expression builder for Condition nodes
+  - [x] 13.3 Implement expression builder for Condition nodes
     - Provide autocomplete for available variables from upstream nodes
     - Validate expression syntax in real-time
     - Display syntax errors

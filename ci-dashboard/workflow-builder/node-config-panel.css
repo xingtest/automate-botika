@@ -1,0 +1,302 @@
+/**
+ * Node Configuration Panel Styles
+ * Dynamic form for node configuration
+ */
+
+/* Node Config Form */
+.node-config-form {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Node Config Header */
+.node-config-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--bg-input);
+  border-radius: var(--r-md);
+  margin-bottom: var(--sp-4);
+}
+
+.node-config-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.node-config-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.node-config-info h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.node-config-info p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Node Config Fields */
+.node-config-fields {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: var(--sp-2);
+}
+
+.node-config-fields .form-group {
+  margin-bottom: var(--sp-4);
+}
+
+.node-config-fields .form-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-2);
+}
+
+.node-config-fields .text-error {
+  color: var(--error);
+  margin-left: 2px;
+}
+
+.node-config-fields .form-control {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.node-config-fields .form-control:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.node-config-fields .form-control.is-valid {
+  border-color: var(--success);
+}
+
+.node-config-fields .form-control.is-invalid {
+  border-color: var(--error);
+}
+
+.node-config-fields .form-hint {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: var(--sp-1);
+}
+
+/* Code Editor */
+.code-editor {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--border-color);
+  border-radius: 24px;
+  transition: all var(--transition-fast);
+}
+
+.toggle-slider:before {
+  content: '';
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--accent);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+/* Expression Builder */
+.expression-builder {
+  position: relative;
+}
+
+.expression-help {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-input);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-color);
+}
+
+.expression-help small {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 0.7rem;
+}
+
+.expression-help i {
+  color: var(--accent);
+}
+
+/* Node Config Actions */
+.node-config-actions {
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.node-config-actions .btn {
+  justify-content: center;
+}
+
+/* Select Multiple */
+select[multiple].form-control {
+  min-height: 120px;
+}
+
+select[multiple].form-control option {
+  padding: var(--sp-2);
+  border-radius: var(--r-sm);
+  margin-bottom: 2px;
+}
+
+select[multiple].form-control option:checked {
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+/* File Input */
+input[type="file"].form-control {
+  padding: var(--sp-2);
+  cursor: pointer;
+}
+
+input[type="file"].form-control::file-selector-button {
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-right: var(--sp-2);
+  transition: all var(--transition-fast);
+}
+
+input[type="file"].form-control::file-selector-button:hover {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Scrollbar */
+.node-config-fields::-webkit-scrollbar {
+  width: 6px;
+}
+
+.node-config-fields::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.node-config-fields::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.node-config-fields::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Validation States */
+.form-control.is-valid {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2322c55e' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right calc(0.375em + 0.1875rem) center;
+  background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+  padding-right: calc(1.5em + 0.75rem);
+}
+
+.form-control.is-invalid {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23ef4444'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23ef4444' stroke='none'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right calc(0.375em + 0.1875rem) center;
+  background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+  padding-right: calc(1.5em + 0.75rem);
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .toggle-slider:before {
+  background: var(--bg-sidebar);
+}
+
+[data-theme="dark"] input[type="file"].form-control::file-selector-button {
+  background: var(--bg-sidebar);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .node-config-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .node-config-icon {
+    width: 56px;
+    height: 56px;
+    font-size: 1.8rem;
+  }
+}

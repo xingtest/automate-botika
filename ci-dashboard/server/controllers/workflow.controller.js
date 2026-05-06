@@ -1,11 +1,11 @@
-const db = require('../db');
+const { pool: db } = require('../db');
 const { v4: uuidv4 } = require('uuid');
 const workflowValidator = require('../services/workflow-validator');
 const executionEngine = require('../services/execution-engine');
 
 // Helper function to check workflow ownership or permissions
 async function checkWorkflowAccess(workflowId, userId, requiredPermission = 'view') {
-  const workflowResult = await db.query(
+  const workflowResult = await db.queryOriginal(
     'SELECT user_id FROM workflows WHERE id = $1',
     [workflowId]
   );
@@ -22,7 +22,7 @@ async function checkWorkflowAccess(workflowId, userId, requiredPermission = 'vie
   }
   
   // Check permissions
-  const permResult = await db.query(
+  const permResult = await db.queryOriginal(
     'SELECT permission FROM workflow_permissions WHERE workflow_id = $1 AND user_id = $2',
     [workflowId, userId]
   );
@@ -48,13 +48,11 @@ exports.createWorkflow = async (req, res) => {
       return res.status(400).json({ error: 'Name and definition are required' });
     }
     
-    // Validate workflow definition
+    // Validate workflow definition (warnings only for saving)
     const validation = workflowValidator.validate(definition);
-    if (!validation.valid) {
-      return res.status(400).json({ error: 'Invalid workflow definition', details: validation.errors });
-    }
+    // We allow saving even if invalid, but you won't be able to run it
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `INSERT INTO workflows (user_id, name, description, definition, canvas_state, is_template, version)
        VALUES ($1, $2, $3, $4, $5, $6, 1)
        RETURNING id, name, version, created_at`,
@@ -64,17 +62,17 @@ exports.createWorkflow = async (req, res) => {
     const workflow = result.rows[0];
     
     // Create initial version
-    await db.query(
+    await db.queryOriginal(
       `INSERT INTO workflow_versions (workflow_id, version, definition, created_by, change_description)
        VALUES ($1, 1, $2, $3, 'Initial version')`,
       [workflow.id, JSON.stringify(definition), userId]
     );
     
     // Log activity
-    await db.query(
+    await db.queryOriginal(
       `INSERT INTO activity_logs (user_id, title, description, type)
        VALUES ($1, $2, $3, 'workflow')`,
-      [userId, 'Workflow Created', `Created workflow: ${name}`, 'workflow']
+      [userId, 'Workflow Created', `Created workflow: ${name}`]
     );
     
     res.status(201).json(workflow);
@@ -112,7 +110,7 @@ exports.listWorkflows = async (req, res) => {
     
     query += ` ORDER BY ${sort_by} ${sort_order}`;
     
-    const result = await db.query(query, params);
+    const result = await db.queryOriginal(query, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error listing workflows:', error);
@@ -125,7 +123,7 @@ exports.listSharedWorkflows = async (req, res) => {
   try {
     const userId = req.user?.id || 1;
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `SELECT w.id, w.name, w.description, w.version, w.thumbnail_path, 
               w.created_at, w.updated_at, wp.permission,
               u.username as owner_username,
@@ -156,7 +154,7 @@ exports.getWorkflow = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `SELECT w.*, u.username as owner_username
        FROM workflows w
        JOIN users u ON w.user_id = u.id
@@ -187,16 +185,13 @@ exports.updateWorkflow = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     
-    // Validate if definition is provided
+    // Validate if definition is provided (warnings only for saving)
     if (definition) {
       const validation = workflowValidator.validate(definition);
-      if (!validation.valid) {
-        return res.status(400).json({ error: 'Invalid workflow definition', details: validation.errors });
-      }
     }
     
     // Get current version
-    const currentResult = await db.query('SELECT version, definition FROM workflows WHERE id = $1', [id]);
+    const currentResult = await db.queryOriginal('SELECT version, definition FROM workflows WHERE id = $1', [id]);
     const currentVersion = currentResult.rows[0].version;
     const newVersion = currentVersion + 1;
     
@@ -227,14 +222,14 @@ exports.updateWorkflow = async (req, res) => {
     updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
     updateValues.push(id);
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `UPDATE workflows SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
       updateValues
     );
     
     // Create version snapshot if definition changed
     if (definition) {
-      await db.query(
+      await db.queryOriginal(
         `INSERT INTO workflow_versions (workflow_id, version, definition, created_by, change_description)
          VALUES ($1, $2, $3, $4, 'Updated workflow')`,
         [id, newVersion, JSON.stringify(definition), userId]
@@ -242,10 +237,10 @@ exports.updateWorkflow = async (req, res) => {
     }
     
     // Log activity
-    await db.query(
+    await db.queryOriginal(
       `INSERT INTO activity_logs (user_id, title, description, type)
        VALUES ($1, $2, $3, 'workflow')`,
-      [userId, 'Workflow Updated', `Updated workflow: ${name || id}`, 'workflow']
+      [userId, 'Workflow Updated', `Updated workflow: ${name || id}`]
     );
     
     res.json(result.rows[0]);
@@ -266,13 +261,13 @@ exports.deleteWorkflow = async (req, res) => {
       return res.status(403).json({ error: 'Only owner can delete workflow' });
     }
     
-    await db.query('DELETE FROM workflows WHERE id = $1', [id]);
+    await db.queryOriginal('DELETE FROM workflows WHERE id = $1', [id]);
     
     // Log activity
-    await db.query(
+    await db.queryOriginal(
       `INSERT INTO activity_logs (user_id, title, description, type)
        VALUES ($1, $2, $3, 'workflow')`,
-      [userId, 'Workflow Deleted', `Deleted workflow ID: ${id}`, 'workflow']
+      [userId, 'Workflow Deleted', `Deleted workflow ID: ${id}`]
     );
     
     res.json({ message: 'Workflow deleted successfully' });
@@ -294,7 +289,7 @@ exports.duplicateWorkflow = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     
-    const sourceResult = await db.query('SELECT * FROM workflows WHERE id = $1', [id]);
+    const sourceResult = await db.queryOriginal('SELECT * FROM workflows WHERE id = $1', [id]);
     if (sourceResult.rows.length === 0) {
       return res.status(404).json({ error: 'Workflow not found' });
     }
@@ -302,7 +297,7 @@ exports.duplicateWorkflow = async (req, res) => {
     const source = sourceResult.rows[0];
     const newName = name || `${source.name} (Copy)`;
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `INSERT INTO workflows (user_id, name, description, definition, canvas_state, version)
        VALUES ($1, $2, $3, $4, $5, 1)
        RETURNING id, name, version, created_at`,
@@ -312,7 +307,7 @@ exports.duplicateWorkflow = async (req, res) => {
     const newWorkflow = result.rows[0];
     
     // Create initial version
-    await db.query(
+    await db.queryOriginal(
       `INSERT INTO workflow_versions (workflow_id, version, definition, created_by, change_description)
        VALUES ($1, 1, $2, $3, 'Duplicated from workflow ${id}')`,
       [newWorkflow.id, source.definition, userId]
@@ -336,7 +331,7 @@ exports.getVersionHistory = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `SELECT wv.*, u.username as created_by_username
        FROM workflow_versions wv
        LEFT JOIN users u ON wv.created_by = u.id
@@ -364,7 +359,7 @@ exports.revertToVersion = async (req, res) => {
     }
     
     // Get the version to revert to
-    const versionResult = await db.query(
+    const versionResult = await db.queryOriginal(
       'SELECT definition FROM workflow_versions WHERE workflow_id = $1 AND version = $2',
       [id, version]
     );
@@ -376,17 +371,17 @@ exports.revertToVersion = async (req, res) => {
     const definition = versionResult.rows[0].definition;
     
     // Get current version
-    const currentResult = await db.query('SELECT version FROM workflows WHERE id = $1', [id]);
+    const currentResult = await db.queryOriginal('SELECT version FROM workflows WHERE id = $1', [id]);
     const newVersion = currentResult.rows[0].version + 1;
     
     // Update workflow
-    await db.query(
+    await db.queryOriginal(
       `UPDATE workflows SET definition = $1, version = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
       [definition, newVersion, id]
     );
     
     // Create new version entry
-    await db.query(
+    await db.queryOriginal(
       `INSERT INTO workflow_versions (workflow_id, version, definition, created_by, change_description)
        VALUES ($1, $2, $3, $4, $5)`,
       [id, newVersion, definition, userId, `Reverted to version ${version}`]
@@ -412,7 +407,7 @@ exports.executeWorkflow = async (req, res) => {
     }
     
     // Get workflow
-    const workflowResult = await db.query('SELECT * FROM workflows WHERE id = $1', [id]);
+    const workflowResult = await db.queryOriginal('SELECT * FROM workflows WHERE id = $1', [id]);
     if (workflowResult.rows.length === 0) {
       return res.status(404).json({ error: 'Workflow not found' });
     }
@@ -427,7 +422,7 @@ exports.executeWorkflow = async (req, res) => {
     
     // Create execution record
     const executionId = uuidv4();
-    await db.query(
+    await db.queryOriginal(
       `INSERT INTO workflow_executions (execution_id, workflow_id, user_id, status, trigger_data, start_time)
        VALUES ($1, $2, $3, 'pending', $4, CURRENT_TIMESTAMP)`,
       [executionId, id, userId, JSON.stringify(trigger_data || {})]
@@ -479,7 +474,7 @@ exports.listExecutions = async (req, res) => {
     params.push(limit);
     query += ` ORDER BY we.created_at DESC LIMIT $${params.length}`;
     
-    const result = await db.query(query, params);
+    const result = await db.queryOriginal(query, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error listing executions:', error);
@@ -493,7 +488,7 @@ exports.getExecutionDetails = async (req, res) => {
     const userId = req.user?.id || 1;
     const { executionId } = req.params;
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `SELECT we.*, w.name as workflow_name, w.definition
        FROM workflow_executions we
        JOIN workflows w ON we.workflow_id = w.id
@@ -518,7 +513,7 @@ exports.cancelExecution = async (req, res) => {
     const userId = req.user?.id || 1;
     const { executionId } = req.params;
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `UPDATE workflow_executions 
        SET status = 'cancelled', end_time = CURRENT_TIMESTAMP
        WHERE execution_id = $1 AND user_id = $2 AND status IN ('pending', 'running')
@@ -544,7 +539,7 @@ exports.getExecutionLogs = async (req, res) => {
     const { executionId } = req.params;
     
     // Verify access
-    const execResult = await db.query(
+    const execResult = await db.queryOriginal(
       'SELECT user_id FROM workflow_executions WHERE execution_id = $1',
       [executionId]
     );
@@ -553,7 +548,7 @@ exports.getExecutionLogs = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `SELECT * FROM node_executions 
        WHERE execution_id = $1 
        ORDER BY created_at ASC`,
@@ -617,7 +612,7 @@ exports.getNodeTypeSchema = async (req, res) => {
 // List templates
 exports.listTemplates = async (req, res) => {
   try {
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `SELECT id, name, description, thumbnail_path, created_at,
               (SELECT COUNT(*) FROM jsonb_array_elements(definition->'nodes')) as node_count
        FROM workflows
@@ -637,7 +632,7 @@ exports.getTemplate = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       'SELECT * FROM workflows WHERE id = $1 AND is_template = true',
       [id]
     );
@@ -664,7 +659,7 @@ exports.createTemplate = async (req, res) => {
       return res.status(403).json({ error: 'Only owner can create template' });
     }
     
-    await db.query(
+    await db.queryOriginal(
       'UPDATE workflows SET is_template = true, is_public = true WHERE id = $1',
       [workflow_id]
     );
@@ -688,7 +683,7 @@ exports.shareWorkflow = async (req, res) => {
       return res.status(403).json({ error: 'Only owner can share workflow' });
     }
     
-    await db.query(
+    await db.queryOriginal(
       'UPDATE workflows SET is_public = $1 WHERE id = $2',
       [is_public || false, id]
     );
@@ -713,7 +708,7 @@ exports.getPermissions = async (req, res) => {
       return res.status(403).json({ error: 'Only owner can view permissions' });
     }
     
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `SELECT wp.*, u.username, u.email
        FROM workflow_permissions wp
        JOIN users u ON wp.user_id = u.id
@@ -744,7 +739,7 @@ exports.grantPermission = async (req, res) => {
       return res.status(400).json({ error: 'Invalid permission type' });
     }
     
-    await db.query(
+    await db.queryOriginal(
       `INSERT INTO workflow_permissions (workflow_id, user_id, permission, granted_by)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (workflow_id, user_id, permission) DO NOTHING`,
@@ -769,7 +764,7 @@ exports.revokePermission = async (req, res) => {
       return res.status(403).json({ error: 'Only owner can revoke permissions' });
     }
     
-    await db.query(
+    await db.queryOriginal(
       'DELETE FROM workflow_permissions WHERE workflow_id = $1 AND user_id = $2',
       [id, targetUserId]
     );

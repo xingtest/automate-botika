@@ -4,7 +4,7 @@
  */
 
 const BaseNode = require('./base-node');
-const db = require('../../db');
+const { pool: db } = require('../../db');
 
 class SendNotificationNode extends BaseNode {
   constructor() {
@@ -107,7 +107,7 @@ class SendNotificationNode extends BaseNode {
     const notifications = [];
     for (const targetUserId of targetUserIds) {
       try {
-        const result = await db.query(
+        const result = await db.queryOriginal(
           `INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
            VALUES ($1, $2, $3, $4, false, CURRENT_TIMESTAMP)
            RETURNING id, user_id, title, message, type, is_read, created_at`,
@@ -205,7 +205,7 @@ class SendNotificationNode extends BaseNode {
     
     try {
       const placeholders = usernames.map((_, i) => `$${i + 1}`).join(',');
-      const result = await db.query(
+      const result = await db.queryOriginal(
         `SELECT id FROM users WHERE username IN (${placeholders})`,
         usernames
       );
