@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna webchat v3 06 05 2026' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna webchat v3 07 05 2026' }}
 
 on:
   push:
