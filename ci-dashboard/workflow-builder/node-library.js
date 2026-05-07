@@ -84,7 +84,32 @@ const NodeLibrary = {
           }
         ]
       },
-
+      {
+        displayName: 'Read Excel / CSV',
+        name: 'read-excel',
+        category: 'Actions',
+        description: 'Load data from Excel or CSV file',
+        icon: 'fa-file-excel',
+        color: '#1d6f42',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'File Path',
+            name: 'filePath',
+            type: 'string',
+            default: 'test-data/dummy-test.csv',
+            description: 'Path to the Excel/CSV file'
+          },
+          {
+            displayName: 'Sheet Name',
+            name: 'sheetName',
+            type: 'string',
+            default: 'Sheet1',
+            displayOptions: { show: { fileType: ['excel'] } }
+          }
+        ]
+      },
       // --- TEST AUTOMATION ---
       {
         displayName: 'Run Test',

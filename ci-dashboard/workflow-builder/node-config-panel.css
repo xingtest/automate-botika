@@ -12,8 +12,11 @@
 }
 
 .node-config-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--border-color);
-  padding: var(--sp-4);
   background: var(--bg-sidebar);
 }
 
@@ -25,8 +28,8 @@
 
 .node-config-tabs button {
   flex: 1;
-  padding: var(--sp-2) var(--sp-4);
-  font-size: 0.75rem;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--text-muted);
   border: none;
@@ -48,33 +51,46 @@
 }
 
 .node-config-icon {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--r-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   flex-shrink: 0;
 }
 
 .node-config-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
 }
 
 .node-config-info h4 {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 2px;
+  line-height: 1.3;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .node-config-info p {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.3;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Node Config Fields */
@@ -134,6 +150,68 @@
   font-size: 0.7rem;
   color: var(--text-muted);
   margin-top: var(--sp-1);
+}
+
+/* Config Field Header — baris label + expression button */
+.config-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: 6px;
+  min-height: 20px;
+}
+
+.config-field-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+  line-height: 1.2;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Expression Toggle Button */
+.expression-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.expression-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Tooltip Icon refinements */
+.tooltip-icon {
+  width: 14px;
+  height: 14px;
+  font-size: 8px;
+  flex-shrink: 0;
+}
+
+/* Required Marker refinements */
+.required-marker {
+  font-size: 0.75rem;
+  line-height: 1;
 }
 
 /* Code Editor */

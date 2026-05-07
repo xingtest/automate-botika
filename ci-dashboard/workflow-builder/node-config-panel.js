@@ -57,13 +57,13 @@ const NodeConfigPanel = {
     content.innerHTML = `
       <div class="node-config-container h-full flex flex-col">
         <!-- Header -->
-        <div class="node-config-header p-4 border-b flex items-center gap-4 bg-gray-50">
-          <div class="node-config-icon w-10 h-10 rounded flex items-center justify-center text-white text-xl" style="background: ${nodeType.color}">
+        <div class="node-config-header">
+          <div class="node-config-icon" style="background: ${nodeType.color}">
             <i class="fas ${nodeType.icon}"></i>
           </div>
-          <div>
-            <h4 class="font-bold text-sm">${this.currentNode.label || nodeType.displayName}</h4>
-            <p class="text-xs text-muted">${nodeType.description}</p>
+          <div class="node-config-info">
+            <h4>${this.currentNode.label || nodeType.displayName}</h4>
+            <p>${nodeType.description}</p>
           </div>
         </div>
 
@@ -96,9 +96,11 @@ const NodeConfigPanel = {
     
     // Node Label (Global Field)
     html += `
-      <div class="form-group">
-        <label class="form-label text-[10px] uppercase font-bold text-gray-400">Node Name</label>
-        <input type="text" id="nodeLabelInput" class="form-control" value="${this.currentNode.label || ''}" placeholder="${nodeType.displayName}">
+      <div class="form-group mb-4">
+        <div class="config-field-header">
+          <label class="config-field-label">Node Name</label>
+        </div>
+        <input type="text" id="nodeLabelInput" class="form-control text-sm" value="${this.currentNode.label || ''}" placeholder="${nodeType.displayName}">
       </div>
       <div class="border-b my-4"></div>
     `;
@@ -111,13 +113,13 @@ const NodeConfigPanel = {
 
       html += `
         <div class="form-group mb-4" data-prop-name="${prop.name}">
-          <div class="flex justify-between items-center mb-1">
-            <label class="form-label text-[10px] uppercase font-bold text-gray-400">
+          <div class="config-field-header">
+            <label class="config-field-label">
               ${prop.displayName}
               ${prop.required ? '<span class="required-marker">*</span>' : ''}
               ${prop.description ? this.renderTooltipIcon(prop.description) : ''}
             </label>
-            ${prop.type !== 'boolean' ? '<button class="text-[9px] text-blue-500 hover:underline font-bold">EXPRESSION</button>' : ''}
+            ${prop.type !== 'boolean' ? '<button class="expression-btn" title="Toggle expression">{ }</button>' : ''}
           </div>
           ${this.renderField(prop, config[prop.name])}
         </div>

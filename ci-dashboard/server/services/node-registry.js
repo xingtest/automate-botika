@@ -12,6 +12,8 @@ const WaitNode = require('./nodes/wait-node');
 const TransformDataNode = require('./nodes/transform-data-node');
 const GenerateReportNode = require('./nodes/generate-report-node');
 const SendNotificationNode = require('./nodes/send-notification-node');
+const TelegramNode = require('./nodes/telegram-node');
+const ReadExcelNode = require('./nodes/read-excel-node');
 
 class NodeRegistry {
   constructor() {
@@ -33,6 +35,8 @@ class NodeRegistry {
     this.register('ai-evaluate', AIEvaluateNode);
     this.register('generate-report', GenerateReportNode);
     this.register('send-notification', SendNotificationNode);
+    this.register('telegram', TelegramNode);
+    this.register('read-excel', ReadExcelNode);
     
     // Control flow nodes
     this.register('condition', ConditionNode);

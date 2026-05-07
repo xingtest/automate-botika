@@ -3,7 +3,7 @@
 # .env.local
 # .env.*.local
 # .github
-# ci-dashboard/
+ci-dashboard/
 # Dependencies
 node_modules/
 

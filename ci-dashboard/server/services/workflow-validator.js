@@ -230,15 +230,7 @@ class WorkflowValidator {
             field: 'platform'
           });
         }
-        if (!config.test_data_file) {
-          errors.push({
-            code: 'MISSING_REQUIRED_PARAM',
-            message: `Node ${node.id}: test_data_file is required`,
-            severity: 'error',
-            node: node.id,
-            field: 'test_data_file'
-          });
-        }
+        // test_data_file is optional if it's a manual run or platform handles it
         break;
         
       case 'ai-evaluate':
@@ -254,13 +246,12 @@ class WorkflowValidator {
         break;
         
       case 'condition':
-        if (!config.expression) {
+        if (!config.expression && (!config.value1 || !config.comparison || !config.value2)) {
           errors.push({
             code: 'MISSING_REQUIRED_PARAM',
-            message: `Node ${node.id}: expression is required`,
+            message: `Node ${node.id}: expression or comparison fields are required`,
             severity: 'error',
-            node: node.id,
-            field: 'expression'
+            node: node.id
           });
         }
         break;
@@ -278,22 +269,23 @@ class WorkflowValidator {
         break;
         
       case 'send-notification':
-        if (!config.title) {
+        if (!config.title && !config.message) {
           errors.push({
             code: 'MISSING_REQUIRED_PARAM',
-            message: `Node ${node.id}: title is required`,
+            message: `Node ${node.id}: title and message are required`,
             severity: 'error',
-            node: node.id,
-            field: 'title'
+            node: node.id
           });
         }
-        if (!config.message) {
+        break;
+      
+      case 'telegram':
+        if (!config.chatId || !config.text) {
           errors.push({
             code: 'MISSING_REQUIRED_PARAM',
-            message: `Node ${node.id}: message is required`,
+            message: `Node ${node.id}: chatId and text are required`,
             severity: 'error',
-            node: node.id,
-            field: 'message'
+            node: node.id
           });
         }
         break;
@@ -306,6 +298,18 @@ class WorkflowValidator {
             severity: 'error',
             node: node.id,
             field: 'duration_seconds'
+          });
+        }
+        break;
+        
+      case 'read-excel':
+        if (!config.filePath) {
+          errors.push({
+            code: 'MISSING_REQUIRED_PARAM',
+            message: `Node ${node.id}: filePath is required`,
+            severity: 'error',
+            node: node.id,
+            field: 'filePath'
           });
         }
         break;
@@ -322,6 +326,11 @@ class WorkflowValidator {
   validateExpression(node) {
     const errors = [];
     const expression = node.config?.expression;
+    
+    // Skip if using declarative comparison (value1, comparison, value2)
+    if (!expression && node.config?.comparison) {
+      return errors;
+    }
     
     if (!expression) {
       return errors; // Already caught by validateNodeConfig

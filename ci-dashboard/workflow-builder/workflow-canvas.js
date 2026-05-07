@@ -99,6 +99,35 @@ const WorkflowCanvas = {
     
     // Double click
     container.addEventListener('dblclick', (e) => this.onDoubleClick(e));
+
+    // Drag and drop from library
+    container.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    });
+    
+    container.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const nodeType = e.dataTransfer.getData('text/plain');
+      if (nodeType) {
+        const rect = container.getBoundingClientRect();
+        const x = (e.clientX - rect.left - this.panX) / this.zoom;
+        const y = (e.clientY - rect.top - this.panY) / this.zoom;
+        
+        // Find node data from library (assuming NodeLibrary is globally accessible)
+        if (typeof NodeLibrary !== 'undefined') {
+          const nodeData = NodeLibrary.nodeTypes.find(n => n.name === nodeType);
+          if (nodeData) {
+            this.addNode({
+              ...nodeData,
+              type: nodeData.name,
+              x: x - 100, // Center node on drop point
+              y: y - 50
+            });
+          }
+        }
+      }
+    });
   },
   
   /**
@@ -511,28 +540,48 @@ const WorkflowCanvas = {
    */
   render() {
     if (!this.ctx) return;
-    
+
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    
+
     // Save context
     this.ctx.save();
-    
+
     // Apply transform
     this.ctx.translate(this.panX, this.panY);
     this.ctx.scale(this.zoom, this.zoom);
-    
+
     // Draw grid
     this.drawGrid();
-    
+
     // Restore context
     this.ctx.restore();
-    
-    // Render connections
-    this.renderConnections();
-    
-    // Render nodes
+
+    // Render nodes first so DOM elements exist for connection calculations
     this.renderNodes();
+
+    // Then render connections (needs node elements in DOM for port positions)
+    this.renderConnections();
+
+    // Toggle empty state visibility
+    this.toggleEmptyState();
+  },
+
+  /**
+   * Show/hide empty state based on node count
+   */
+  toggleEmptyState() {
+    const container = document.getElementById('workflowCanvasContainer');
+    if (!container) return;
+
+    const emptyState = container.querySelector('.canvas-empty-state');
+    if (!emptyState) return;
+
+    if (this.nodes && this.nodes.length > 0) {
+      emptyState.classList.add('hidden');
+    } else {
+      emptyState.classList.remove('hidden');
+    }
   },
   
   /**
@@ -584,7 +633,9 @@ const WorkflowCanvas = {
     const el = document.createElement('div');
     el.className = 'workflow-node';
     el.dataset.nodeId = node.id;
-    el.style.position = 'relative';
+    el.style.position = 'absolute';
+    el.style.left = '0';
+    el.style.top = '0';
 
     if (this.selectedNode === node) el.classList.add('selected');
     if (node.status) el.classList.add(`status-${node.status}`);
@@ -593,6 +644,7 @@ const WorkflowCanvas = {
     const x = node.x * this.zoom + this.panX;
     const y = node.y * this.zoom + this.panY;
     el.style.transform = `translate(${x}px, ${y}px) scale(${this.zoom})`;
+    el.style.transformOrigin = 'top left';
 
     // Status badge icon map
     const statusIconMap = {

@@ -32,6 +32,7 @@
   z-index: 10;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  user-select: none;
 }
 
 .workflow-node:hover {
@@ -310,6 +311,10 @@
   font-size: 0.85rem;
 }
 
+.canvas-empty-state.hidden {
+  display: none;
+}
+
 /* Animations */
 @keyframes pulse {
   0%, 100% {
@@ -320,17 +325,15 @@
   }
 }
 
+/* Status Failed — border merah + glow pulse (TIDAK menggunakan transform agar tidak bentrok dengan node positioning) */
 .workflow-node.status-failed {
-  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
   border-color: var(--error);
-  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+  animation: failed-glow 1.2s ease-in-out infinite;
 }
 
-@keyframes shake {
-  10%, 90% { transform: translate3d(-1px, 0, 0); }
-  20%, 80% { transform: translate3d(2px, 0, 0); }
-  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-  40%, 60% { transform: translate3d(4px, 0, 0); }
+@keyframes failed-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
+  50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.6), 0 0 0 3px rgba(239, 68, 68, 0.1); }
 }
 
 /* Dark theme adjustments */
