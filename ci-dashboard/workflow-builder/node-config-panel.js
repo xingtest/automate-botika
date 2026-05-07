@@ -6,9 +6,12 @@
 const NodeConfigPanel = {
   currentNode: null,
   activeTab: 'parameters',
+  initialized: false,
   
   init() {
+    if (this.initialized) return;
     console.log('[NodeConfigPanel] Initializing...');
+    this.initialized = true;
     
     WorkflowCanvas.on('nodeDoubleClicked', (node) => {
       this.showConfig(node);
@@ -312,6 +315,9 @@ const NodeConfigPanel = {
     this.currentNode.settings = settings;
 
     WorkflowCanvas.render();
+    if (typeof WorkflowManager !== 'undefined') {
+      WorkflowManager.markAsModified();
+    }
     Toast.success('Saved', 'Configuration saved successfully');
   },
 

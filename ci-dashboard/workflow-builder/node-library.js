@@ -8,12 +8,15 @@ const NodeLibrary = {
   nodeTypes: [],
   searchQuery: '',
   selectedCategory: 'all',
+  initialized: false,
   
   /**
    * Initialize node library
    */
   async init() {
+    if (this.initialized) return;
     console.log('[NodeLibrary] Initializing...');
+    this.initialized = true;
     await this.loadNodeTypes();
     this.setupEventListeners();
     this.render();
@@ -208,8 +211,18 @@ const NodeLibrary = {
             default: 0.7,
             min: 0,
             max: 1
-          }
-        ]
+          },
+          {
+          key: 'scoring_threshold',
+          displayName: 'Pass Threshold',
+          name: 'scoring_threshold',
+          type: 'number',
+          default: 0.7,
+          min: 0,
+          max: 1,
+          description: 'Nilai minimum (0.0–1.0) agar dianggap lulus'
+        }
+      ]
       },
 
       // --- HTTP & API ---

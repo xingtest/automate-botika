@@ -90,9 +90,10 @@ const ExecutionMonitor = {
             Toast.error('Workflow Failed', execution.error_message || 'The workflow encountered an error');
           }
 
-          // Disable stop button
-          const stopBtn = document.getElementById('wfStopBtn');
-          if (stopBtn) stopBtn.disabled = true;
+          // Update Action Button to Run
+          if (typeof WorkflowBuilder !== 'undefined') {
+            WorkflowBuilder.updateActionButton(false);
+          }
         }
       }
     } catch (error) {

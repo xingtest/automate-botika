@@ -140,17 +140,129 @@ class GenerateReportNode extends BaseNode {
     }
 
     const fileSize = fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
+    const relativePath = path.relative(outputDir, filePath);
 
-    // Store artifact in database
+    let finalRunId = input.run_id;
+    const evaluations = input.evaluations || [];
+    const resultsData = input.results || evaluations;
+    const totalEvaluated = evaluations.length || (input.results ? input.results.length : 0);
+    const runPassedCount = evaluations.filter(i => i.ai_passed).length;
+    const runFailedCount = totalEvaluated - runPassedCount;
+    const avgScore = evaluations.length > 0
+      ? Math.round((evaluations.reduce((sum, item) => sum + (item.ai_score || 0), 0) / evaluations.length) * 100) / 100
+      : 0;
+
+    if (!finalRunId) {
+      try {
+        this.log('info', 'Creating placeholder judge run for workflow report');
+
+        const runTitle = `Workflow Judge Report - ${baseName}`;
+        const testId = `WORKFLOW-${Date.now()}`;
+        const dateTest = new Date().toISOString().split('T')[0];
+        const startTimeTest = input.start_time || new Date().toTimeString().split(' ')[0];
+        const endTimeTest = new Date().toTimeString().split(' ')[0];
+        const durationString = input.duration || `${Math.round((Date.now() - new Date(startTime).getTime()) / 1000)}s`;
+        const userId = context.user_id || null;
+
+        const runResult = await db.queryOriginal(
+          `INSERT INTO test_runs (user_id, test_id, run_title, platform, tester_name, filename, ai_evaluation, date_test, start_time_test, end_time_test, duration, total_title, total_question, success, failed, avg_score)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+           RETURNING id`,
+          [
+            userId,
+            testId,
+            runTitle,
+            'llm_judge',
+            input.tester_name || 'AI Judge (Workflow)',
+            filename,
+            input.provider || 'gemini',
+            dateTest,
+            startTimeTest,
+            endTimeTest,
+            durationString,
+            [...new Set(test_data.map(i => i.title || 'General'))].length,
+            totalEvaluated,
+            runPassedCount,
+            runFailedCount,
+            avgScore
+          ]
+        );
+
+        if (!runResult.rows || !runResult.rows[0]) {
+          throw new Error('Failed to create placeholder judge run - no ID returned');
+        }
+
+        finalRunId = runResult.rows[0].id;
+        this.log('info', `Created judge run with ID: ${finalRunId}`);
+      } catch (e) {
+        this.log('error', `Failed to create judge run: ${e.message}`);
+        throw new Error(`Cannot save judge report without run_id: ${e.message}`);
+      }
+    } else {
+      // If a run_id exists but the run record is missing or incomplete, ensure it exists in test_runs.
+      const existingRun = await db.queryOriginal(
+        'SELECT id FROM test_runs WHERE id = $1',
+        [finalRunId]
+      );
+      if (!existingRun.rows.length) {
+        this.log('info', `Run ID ${finalRunId} not found, creating judge run entry`);
+        const runResult = await db.queryOriginal(
+          `INSERT INTO test_runs (user_id, test_id, run_title, platform, tester_name, filename, ai_evaluation, date_test, start_time_test, end_time_test, duration, total_title, total_question, success, failed, avg_score)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+           RETURNING id`,
+          [
+            context.user_id || null,
+            `WORKFLOW-${Date.now()}`,
+            `Workflow Judge Report - ${baseName}`,
+            'llm_judge',
+            input.tester_name || 'AI Judge (Workflow)',
+            filename,
+            input.provider || 'gemini',
+            new Date().toISOString().split('T')[0],
+            new Date().toTimeString().split(' ')[0],
+            new Date().toTimeString().split(' ')[0],
+            `${Math.round((Date.now() - new Date(startTime).getTime()) / 1000)}s`,
+            [...new Set(test_data.map(i => i.title || 'General'))].length,
+            totalEvaluated,
+            runPassedCount,
+            runFailedCount,
+            avgScore
+          ]
+        );
+        finalRunId = runResult.rows[0].id;
+      }
+    }
+
+    if (resultsData.length > 0) {
+      const rows = resultsData.map((item, index) => [
+        finalRunId,
+        item.no || index + 1,
+        item.title || item.topic || `Item ${index + 1}`,
+        item.question || 'N/A',
+        item.expected_answer || item.expected || 'N/A',
+        item.bot_response || item.response || 'N/A',
+        item.ai_passed ? 'PASS' : 'FAILED',
+        item.duration || '0s',
+        item.ai_score !== undefined ? item.ai_score : (item.score || 0),
+        item.ai_explanation || item.explanation || 'N/A',
+        item.image_capture || null
+      ]);
+      await db.queryOriginal(
+        `INSERT INTO test_results (run_id, no, title, question, response_kb, response_llm, status, duration, skor, explanation, image_path)
+         VALUES ${rows.map((_, idx) => `($${idx * 11 + 1}, $${idx * 11 + 2}, $${idx * 11 + 3}, $${idx * 11 + 4}, $${idx * 11 + 5}, $${idx * 11 + 6}, $${idx * 11 + 7}, $${idx * 11 + 8}, $${idx * 11 + 9}, $${idx * 11 + 10}, $${idx * 11 + 11})`).join(', ')}`,
+        rows.flat()
+      );
+    }
+
     const result = await db.queryOriginal(
       `INSERT INTO artifacts (run_id, artifact_type, filename, file_path, file_size, description)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
       [
-        input.run_id || null,
+        finalRunId,
         format,
         filename,
-        filePath,
+        relativePath,
         fileSize,
         `Workflow generated ${format} report`
       ]

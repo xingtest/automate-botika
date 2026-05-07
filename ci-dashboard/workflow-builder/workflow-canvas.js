@@ -30,11 +30,20 @@ const WorkflowCanvas = {
   gridSize: 20,
   gridColor: 'rgba(100, 116, 139, 0.1)',
   
+  initialized: false,
+  
   /**
    * Initialize the canvas
    */
   init() {
+    if (this.initialized) {
+      console.log('[WorkflowCanvas] Already initialized, skipping...');
+      this.render(); // Ensure fresh render
+      return;
+    }
+    
     console.log('[WorkflowCanvas] Initializing...');
+    this.initialized = true;
     
     // Get canvas container
     const container = document.getElementById('workflowCanvasContainer');

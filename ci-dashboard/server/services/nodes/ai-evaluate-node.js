@@ -17,32 +17,38 @@ class AIEvaluateNode extends BaseNode {
       ],
       config_schema: [
         {
-          key: 'ai_provider',
+          key: 'provider',
           label: 'AI Provider',
           type: 'select',
           required: true,
           options: [
             { label: 'Gemini', value: 'gemini' },
             { label: 'Groq', value: 'groq' },
-            { label: 'Cerebras', value: 'cerebras' },
-            { label: 'OpenAI', value: 'openai' },
-            { label: 'Custom', value: 'custom' }
-          ]
+            { label: 'OpenAI', value: 'openai' }
+          ],
+          default: 'groq'
+        },
+        {
+          key: 'systemPrompt',
+          label: 'System Prompt',
+          type: 'textarea',
+          required: false,
+          description: 'Instruksi detail untuk AI (Persona, kriteria scoring, dll)'
+        },
+        {
+          key: 'temperature',
+          label: 'Temperature',
+          type: 'number',
+          default: 0.7,
+          min: 0,
+          max: 1
         },
         {
           key: 'scoring_threshold',
           label: 'Pass Threshold',
           type: 'number',
           required: true,
-          default: 0.7,
-          description: 'Nilai minimum (0.0–1.0) agar evaluasi dianggap lulus'
-        },
-        {
-          key: 'custom_prompt',
-          label: 'Custom Evaluation Prompt',
-          type: 'text',
-          required: false,
-          description: 'Prompt tambahan untuk memandu AI dalam mengevaluasi respons'
+          default: 0.7
         }
       ]
     });
@@ -52,11 +58,11 @@ class AIEvaluateNode extends BaseNode {
     // Try 'main' (standard for our template) and 'input' (legacy)
     const input = this.getInput(context, 'main') || this.getInput(context, 'input') || this.getInput(context, 'test_result');
 
-    const provider = config.ai_provider;
+    const provider = config.provider || config.ai_provider;
 
     // Validate API key
     const apiKeyMap = {
-      'gemini': process.env.GEMINI_API_KEY,
+      'gemini': process.env.GEMINI_API_KEY || process.env.API_KEY_GEMINI,
       'groq': process.env.GROQ_API_KEY,
       'openai': process.env.OPENAI_API_KEY,
       'cerebras': process.env.CEREBRAS_API_KEY
@@ -74,7 +80,7 @@ class AIEvaluateNode extends BaseNode {
 
     // Evaluate each item using the AI provider
     const evaluations = await Promise.all(results.map(async (item) => {
-      const evaluation = await this.callAIProvider(provider, apiKey, item, config.custom_prompt, threshold);
+      const evaluation = await this.callAIProvider(provider, apiKey, item, config.systemPrompt || config.custom_prompt, threshold, config.temperature);
       return { ...item, ...evaluation, ai_provider: provider };
     }));
 
@@ -102,13 +108,25 @@ class AIEvaluateNode extends BaseNode {
     const response = item.bot_response || item.response || 'N/A';
 
     const prompt = customPrompt ||
-      `Evaluate this chatbot response quality and accuracy.
-      Question: "${question}"
-      Expected Answer: "${expected}"
-      Actual Bot Response: "${response}"
+      `Anda adalah QA Engineer Senior. Tugas Anda mengevaluasi kualitas jawaban Chatbot.
       
-      Rate from 0.0 to 1.0 how well the bot response matches the expected answer in terms of meaning and intent.
-      Return JSON: {"score": 0.85, "explanation": "brief reason"}`;
+      KONTEKS:
+      - Pertanyaan: "${question}"
+      - Referensi: "${expected}"
+      - Jawaban Bot: "${response}"
+      
+      INSTRUKSI:
+      1. Bandingkan kebenaran faktual antara Jawaban Bot dengan Referensi.
+      2. Cek apakah jawaban relevan dengan pertanyaan.
+      3. Berikan skor (0.00 - 1.00):
+         - 1.00: Sempurna
+         - 0.70-0.99: Pass (fakta benar)
+         - < 0.70: Fail
+      
+      OUTPUT (JSON):
+      {"score": 0.85, "explanation": "[✓] Analisa singkat"}`;
+
+    const temp = temperature || 0.3;
 
     let score = 0.5;
     let explanation = 'Evaluation failed';
@@ -144,7 +162,7 @@ class AIEvaluateNode extends BaseNode {
           body: JSON.stringify({
             model: 'llama3-8b-8192',
             messages: [{ role: 'user', content: prompt }],
-            temperature: 0.3,
+            temperature: temp,
             response_format: { type: 'json_object' }
           })
         }).then(r => r.json());
@@ -155,7 +173,7 @@ class AIEvaluateNode extends BaseNode {
           body: JSON.stringify({
             model: 'gpt-3.5-turbo',
             messages: [{ role: 'user', content: prompt }],
-            temperature: 0.3,
+            temperature: temp,
             response_format: { type: 'json_object' }
           })
         }).then(r => r.json());
@@ -165,7 +183,7 @@ class AIEvaluateNode extends BaseNode {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3 }
+            generationConfig: { temperature: temp }
           })
         }).then(r => r.json());
       } else if (provider === 'cerebras') {
@@ -175,7 +193,7 @@ class AIEvaluateNode extends BaseNode {
           body: JSON.stringify({
             model: 'llama3.1-8b',
             messages: [{ role: 'user', content: prompt }],
-            temperature: 0.3
+            temperature: temp
           })
         }).then(r => r.json());
       } else {
@@ -187,25 +205,51 @@ class AIEvaluateNode extends BaseNode {
         };
       }
 
-      const response = await Promise.race([apiPromise, timeoutPromise]);
+      const apiResponse = await Promise.race([apiPromise, timeoutPromise]);
 
       // Parse response based on provider
       let content = '';
       if (provider === 'gemini') {
-        content = response.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        if (apiResponse.error) {
+          throw new Error(`Gemini API Error: ${apiResponse.error.message}`);
+        }
+        content = apiResponse.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
       } else {
-        content = response.choices?.[0]?.message?.content || '{}';
+        if (apiResponse.error) {
+          throw new Error(`${provider} API Error: ${apiResponse.error.message}`);
+        }
+        content = apiResponse.choices?.[0]?.message?.content || '{}';
       }
+
+      this.log('info', `AI Content received (${content.length} chars)`);
 
       // Try to parse JSON from content
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        score = parseFloat(parsed.score) || 0.5;
-        explanation = parsed.explanation || 'No explanation provided';
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          
+          // Match variations of 'score' (score, rating, value)
+          const rawScore = parsed.score !== undefined ? parsed.score : 
+                           (parsed.rating !== undefined ? parsed.rating : 
+                           (parsed.value !== undefined ? parsed.value : null));
+          
+          if (rawScore !== null) {
+            score = parseFloat(rawScore);
+          }
+          
+          // Match variations of 'explanation' (explanation, reason, analysis, message)
+          explanation = parsed.explanation || parsed.reason || parsed.analysis || parsed.message || 'No explanation provided in JSON';
+        } catch (e) {
+          this.log('error', `JSON Parse Error: ${e.message}. Content: ${content}`);
+          explanation = `AI returned invalid JSON: ${content.substring(0, 100)}...`;
+        }
+      } else {
+        this.log('warn', `No JSON found in response: ${content}`);
+        explanation = `AI response was not in JSON format: ${content.substring(0, 100)}...`;
       }
     } catch (err) {
-      this.log('warn', `AI evaluation failed for item, using fallback: ${err.message}`);
+      this.log('error', `AI evaluation failed: ${err.message}`);
       score = 0.5;
       explanation = `Evaluation error: ${err.message}`;
     }

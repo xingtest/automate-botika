@@ -5,12 +5,19 @@
 
 const WorkflowBuilder = {
   autoSaveInterval: null,
+  initialized: false,
   
   /**
    * Initialize workflow builder
    */
   async init() {
+    if (this.initialized) {
+      console.log('[WorkflowBuilder] Already initialized, skipping...');
+      return;
+    }
+    
     console.log('[WorkflowBuilder] Initializing...');
+    this.initialized = true;
     
     // Initialize components
     await this.initializeComponents();
@@ -97,14 +104,13 @@ const WorkflowBuilder = {
       this.showLoadDialog();
     });
     
-    // Run workflow
-    document.getElementById('wfRunBtn')?.addEventListener('click', () => {
-      this.runWorkflow();
-    });
-    
-    // Stop workflow
-    document.getElementById('wfStopBtn')?.addEventListener('click', () => {
-      this.stopWorkflow();
+    // Run/Stop Action Button
+    document.getElementById('wfActionBtn')?.addEventListener('click', () => {
+      if (this.isExecuting()) {
+        this.stopWorkflow();
+      } else {
+        this.runWorkflow();
+      }
     });
     
     // Debug mode
@@ -420,9 +426,8 @@ const WorkflowBuilder = {
           this.monitorExecution(response.execution_id);
         }
 
-        // Enable stop button
-        const stopBtn = document.getElementById('wfStopBtn');
-        if (stopBtn) stopBtn.disabled = false;
+        // Update Action Button to Stop
+        this.updateActionButton(true);
       } else {
         throw new Error(response?.error || 'Failed to start execution');
       }
@@ -450,12 +455,40 @@ const WorkflowBuilder = {
           ExecutionMonitor.stopMonitoring();
         }
         
-        const stopBtn = document.getElementById('wfStopBtn');
-        if (stopBtn) stopBtn.disabled = true;
+        // Update Action Button to Run
+        this.updateActionButton(false);
       }
     } catch (error) {
       console.error('[WorkflowBuilder] Error stopping workflow:', error);
       Toast.error('Stop Failed', 'Failed to cancel execution');
+    }
+  },
+
+  /**
+   * Check if workflow is currently executing
+   */
+  isExecuting() {
+    if (typeof ExecutionMonitor !== 'undefined') {
+      return ExecutionMonitor.isMonitoring;
+    }
+    return false;
+  },
+
+  /**
+   * Update the combined Run/Stop button UI
+   */
+  updateActionButton(isExecuting) {
+    const btn = document.getElementById('wfActionBtn');
+    if (!btn) return;
+
+    if (isExecuting) {
+      btn.innerHTML = '<i class="fas fa-stop"></i> Stop';
+      btn.className = 'btn btn-danger btn-sm';
+      btn.title = 'Stop Execution';
+    } else {
+      btn.innerHTML = '<i class="fas fa-play"></i> Run';
+      btn.className = 'btn btn-success btn-sm';
+      btn.title = 'Run Workflow (Ctrl+R)';
     }
   },
   
@@ -693,10 +726,12 @@ if (document.getElementById('page-workflow-builder')) {
     originalShow.call(this, page);
     
     if (page === 'workflow-builder') {
-      // Initialize workflow builder
-      setTimeout(() => {
-        WorkflowBuilder.init();
-      }, 100);
+      // Initialize workflow builder if not already done
+      if (!WorkflowBuilder.initialized) {
+        setTimeout(() => {
+          WorkflowBuilder.init();
+        }, 100);
+      }
     }
   };
 }
