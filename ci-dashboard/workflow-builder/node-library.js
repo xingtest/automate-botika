@@ -1,6 +1,7 @@
 /**
  * Node Library Component
  * Displays available node types that can be dragged onto the canvas
+ * Refactored to n8n-style declarative architecture
  */
 
 const NodeLibrary = {
@@ -13,153 +14,475 @@ const NodeLibrary = {
    */
   async init() {
     console.log('[NodeLibrary] Initializing...');
-    
-    // Load node types from backend
     await this.loadNodeTypes();
-    
-    // Setup event listeners
     this.setupEventListeners();
-    
-    // Initial render
     this.render();
-    
-    console.log('[NodeLibrary] Initialized successfully');
   },
   
   /**
-   * Load node types from backend
+   * Load node types (using hardcoded defaults for now)
    */
   async loadNodeTypes() {
-    try {
-      const response = await BackendAPI.get('/workflows/node-types');
-      
-      if (response && response.data) {
-        this.nodeTypes = response.data;
-        console.log('[NodeLibrary] Loaded node types:', this.nodeTypes.length);
-      } else {
-        // Fallback to default node types if backend is not available
-        this.nodeTypes = this.getDefaultNodeTypes();
-        console.warn('[NodeLibrary] Using default node types');
-      }
-    } catch (error) {
-      console.error('[NodeLibrary] Error loading node types:', error);
-      this.nodeTypes = this.getDefaultNodeTypes();
-    }
+    // We'll use the deeply enhanced declarative schemas here
+    this.nodeTypes = this.getDeclarativeNodeTypes();
+    console.log('[NodeLibrary] Loaded declarative node types:', this.nodeTypes.length);
   },
   
   /**
-   * Get default node types (fallback)
+   * n8n-style declarative node definitions
    */
-  getDefaultNodeTypes() {
+  getDeclarativeNodeTypes() {
     return [
-      // Triggers
+      // --- TRIGGERS ---
       {
-        type: 'manual-trigger',
+        displayName: 'Manual Trigger',
+        name: 'manual-trigger',
         category: 'Triggers',
-        name: 'Manual Trigger',
         description: 'Start workflow manually',
         icon: 'fa-hand-pointer',
         color: '#f59e0b',
         inputs: [],
-        outputs: [{ id: 'output', label: 'Output', dataType: 'any' }]
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Initial Data',
+            name: 'initialData',
+            type: 'json',
+            default: '{}',
+            description: 'Mock data to inject at start'
+          }
+        ]
       },
       {
-        type: 'schedule-trigger',
+        displayName: 'Schedule Trigger',
+        name: 'schedule-trigger',
         category: 'Triggers',
-        name: 'Schedule Trigger',
         description: 'Start workflow on schedule',
         icon: 'fa-clock',
         color: '#f59e0b',
         inputs: [],
-        outputs: [{ id: 'output', label: 'Output', dataType: 'any' }]
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Mode',
+            name: 'mode',
+            type: 'options',
+            options: [
+              { name: 'Every Minute', value: 'everyMinute' },
+              { name: 'Every Hour', value: 'everyHour' },
+              { name: 'Custom (Cron)', value: 'cron' }
+            ],
+            default: 'everyHour'
+          },
+          {
+            displayName: 'Cron Expression',
+            name: 'cronExpression',
+            type: 'string',
+            displayOptions: { show: { mode: ['cron'] } },
+            default: '0 * * * *',
+            description: 'Standard cron expression'
+          }
+        ]
       },
-      
-      // Actions
+
+      // --- TEST AUTOMATION ---
       {
-        type: 'run-test',
+        displayName: 'Run Test',
+        name: 'run-test',
         category: 'Actions',
-        name: 'Run Test',
         description: 'Execute platform tests',
         icon: 'fa-play-circle',
         color: '#3b82f6',
-        inputs: [{ id: 'input', label: 'Input', dataType: 'any' }],
-        outputs: [{ id: 'output', label: 'Output', dataType: 'object' }]
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Platform',
+            name: 'platform',
+            type: 'options',
+            options: [
+              { name: 'WebChat', value: 'webchat' },
+              { name: 'Telegram', value: 'telegram' },
+              { name: 'Facebook', value: 'facebook' },
+              { name: 'Instagram', value: 'instagram' },
+              { name: 'DHAI', value: 'dhai' }
+            ],
+            default: 'webchat'
+          },
+          {
+            displayName: 'Target URL',
+            name: 'url',
+            type: 'string',
+            default: '',
+            description: 'Override target URL'
+          },
+          {
+            displayName: 'Headless',
+            name: 'headless',
+            type: 'boolean',
+            default: true
+          }
+        ]
       },
+
+      // --- AI & JUDGING ---
       {
-        type: 'ai-evaluate',
+        displayName: 'AI Evaluate',
+        name: 'ai-evaluate',
         category: 'Actions',
-        name: 'AI Evaluate',
         description: 'Evaluate with AI',
         icon: 'fa-brain',
         color: '#8b5cf6',
-        inputs: [{ id: 'input', label: 'Input', dataType: 'object' }],
-        outputs: [{ id: 'output', label: 'Output', dataType: 'object' }]
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Resource',
+            name: 'resource',
+            type: 'options',
+            options: [
+              { name: 'Evaluation', value: 'evaluation' },
+              { name: 'Prompt Builder', value: 'prompt' }
+            ],
+            default: 'evaluation'
+          },
+          {
+            displayName: 'Operation',
+            name: 'operation',
+            type: 'options',
+            displayOptions: { show: { resource: ['evaluation'] } },
+            options: [
+              { name: 'Score Response', value: 'score' },
+              { name: 'Verify Safety', value: 'safety' }
+            ],
+            default: 'score'
+          },
+          {
+            displayName: 'AI Provider',
+            name: 'provider',
+            type: 'options',
+            options: [
+              { name: 'Groq', value: 'groq' },
+              { name: 'Gemini', value: 'gemini' },
+              { name: 'OpenAI', value: 'openai' }
+            ],
+            default: 'groq'
+          },
+          {
+            displayName: 'System Prompt',
+            name: 'systemPrompt',
+            type: 'textarea',
+            displayOptions: { show: { operation: ['score'] } },
+            default: 'You are a helpful AI Judge...',
+            description: 'Define the persona of the judge'
+          },
+          {
+            displayName: 'Temperature',
+            name: 'temperature',
+            type: 'number',
+            default: 0.7,
+            min: 0,
+            max: 1
+          }
+        ]
       },
+
+      // --- HTTP & API ---
       {
-        type: 'generate-report',
+        displayName: 'HTTP Request',
+        name: 'http-request',
         category: 'Actions',
-        name: 'Generate Report',
-        description: 'Create test reports',
-        icon: 'fa-file-alt',
+        description: 'Call external API',
+        icon: 'fa-globe',
         color: '#10b981',
-        inputs: [{ id: 'input', label: 'Input', dataType: 'object' }],
-        outputs: [{ id: 'output', label: 'Output', dataType: 'object' }]
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Method',
+            name: 'method',
+            type: 'options',
+            options: [
+              { name: 'GET', value: 'GET' },
+              { name: 'POST', value: 'POST' },
+              { name: 'PUT', value: 'PUT' },
+              { name: 'DELETE', value: 'DELETE' }
+            ],
+            default: 'GET'
+          },
+          {
+            displayName: 'URL',
+            name: 'url',
+            type: 'string',
+            default: 'https://',
+            required: true
+          },
+          {
+            displayName: 'Headers',
+            name: 'headers',
+            type: 'json',
+            default: '{}'
+          },
+          {
+            displayName: 'Body',
+            name: 'body',
+            type: 'textarea',
+            displayOptions: { show: { method: ['POST', 'PUT'] } },
+            default: ''
+          }
+        ]
       },
+
+      // --- FLOW CONTROL ---
       {
-        type: 'send-notification',
-        category: 'Actions',
-        name: 'Send Notification',
-        description: 'Send notifications',
-        icon: 'fa-bell',
-        color: '#ec4899',
-        inputs: [{ id: 'input', label: 'Input', dataType: 'any' }],
-        outputs: [{ id: 'output', label: 'Output', dataType: 'object' }]
-      },
-      
-      // Control
-      {
-        type: 'condition',
+        displayName: 'IF / Condition',
+        name: 'condition',
         category: 'Control',
-        name: 'Condition',
         description: 'Branch based on condition',
         icon: 'fa-code-branch',
         color: '#f59e0b',
-        inputs: [{ id: 'input', label: 'Input', dataType: 'any' }],
-        outputs: [
-          { id: 'true', label: 'True', dataType: 'any' },
-          { id: 'false', label: 'False', dataType: 'any' }
+        inputs: ['main'],
+        outputs: ['true', 'false'],
+        properties: [
+          {
+            displayName: 'Value 1',
+            name: 'value1',
+            type: 'string',
+            default: '{{ $json.score }}',
+            description: 'Dynamic value to check'
+          },
+          {
+            displayName: 'Comparison',
+            name: 'comparison',
+            type: 'options',
+            options: [
+              { name: 'Equal', value: 'equal' },
+              { name: 'Greater Than', value: 'gt' },
+              { name: 'Less Than', value: 'lt' },
+              { name: 'Contains', value: 'contains' }
+            ],
+            default: 'gt'
+          },
+          {
+            displayName: 'Value 2',
+            name: 'value2',
+            type: 'string',
+            default: '0.7'
+          }
         ]
       },
       {
-        type: 'wait',
+        displayName: 'Wait',
+        name: 'wait',
         category: 'Control',
-        name: 'Wait',
         description: 'Pause execution',
         icon: 'fa-hourglass-half',
         color: '#64748b',
-        inputs: [{ id: 'input', label: 'Input', dataType: 'any' }],
-        outputs: [{ id: 'output', label: 'Output', dataType: 'any' }]
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Duration (ms)',
+            name: 'duration',
+            type: 'number',
+            default: 1000
+          }
+        ]
       },
-      
-      // Transform
+
+      // --- DATA ---
       {
-        type: 'transform-data',
+        displayName: 'Transform',
+        name: 'transform-data',
         category: 'Transform',
-        name: 'Transform Data',
-        description: 'Transform and map data',
+        description: 'Manipulate data with JavaScript',
         icon: 'fa-exchange-alt',
         color: '#06b6d4',
-        inputs: [{ id: 'input', label: 'Input', dataType: 'any' }],
-        outputs: [{ id: 'output', label: 'Output', dataType: 'any' }]
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Code',
+            name: 'jsCode',
+            type: 'textarea',
+            default: '// Custom JS\nreturn items.map(item => {\n  item.processed = true;\n  return item;\n});',
+            description: 'JavaScript code to execute'
+          }
+        ]
+      },
+
+      // --- REPORTING & NOTIFICATIONS ---
+      {
+        displayName: 'Generate Report',
+        name: 'generate-report',
+        category: 'Transform', // Mapping to Transform category in UI for now
+        description: 'Create test reports',
+        icon: 'fa-file-alt',
+        color: '#10b981',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Report Format',
+            name: 'format',
+            type: 'options',
+            options: [
+              { name: 'HTML', value: 'html' },
+              { name: 'Excel', value: 'excel' },
+              { name: 'PDF', value: 'pdf' }
+            ],
+            default: 'html'
+          },
+          {
+            displayName: 'Template',
+            name: 'template',
+            type: 'string',
+            default: 'standard-report'
+          }
+        ]
+      },
+      {
+        displayName: 'Send Notification',
+        name: 'send-notification',
+        category: 'Control',
+        description: 'Send notifications',
+        icon: 'fa-bell',
+        color: '#ec4899',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Channel',
+            name: 'channel',
+            type: 'options',
+            options: [
+              { name: 'Email', value: 'email' },
+              { name: 'Slack', value: 'slack' },
+              { name: 'Telegram', value: 'telegram' },
+              { name: 'Discord', value: 'discord' }
+            ],
+            default: 'email'
+          },
+          {
+            displayName: 'Recipient',
+            name: 'recipient',
+            type: 'string',
+            default: '',
+            description: 'Email address or Channel ID'
+          },
+          {
+            displayName: 'Message',
+            name: 'message',
+            type: 'textarea',
+            default: 'Workflow completed successfully!'
+          }
+        ]
+      },
+      {
+        displayName: 'SQL Database',
+        name: 'sql-database',
+        category: 'Actions',
+        description: 'Execute SQL queries',
+        icon: 'fa-database',
+        color: '#334155',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Operation',
+            name: 'operation',
+            type: 'options',
+            options: [
+              { name: 'Insert', value: 'insert' },
+              { name: 'Select', value: 'select' },
+              { name: 'Update', value: 'update' }
+            ],
+            default: 'select'
+          },
+          {
+            displayName: 'Table',
+            name: 'table',
+            type: 'string',
+            default: 'test_results'
+          },
+          {
+            displayName: 'Query',
+            name: 'query',
+            type: 'textarea',
+            default: 'SELECT * FROM test_results WHERE status = "failed"'
+          }
+        ]
+      },
+      {
+        displayName: 'Set Variable',
+        name: 'set-variable',
+        category: 'Transform',
+        description: 'Define workflow variables',
+        icon: 'fa-tag',
+        color: '#8b5cf6',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Variables',
+            name: 'variables',
+            type: 'json',
+            default: '{\n  "status": "active",\n  "version": "1.0"\n}'
+          }
+        ]
+      },
+      {
+        displayName: 'Slack Notification',
+        name: 'slack',
+        category: 'Control',
+        description: 'Send message to Slack',
+        icon: 'fa-slack',
+        color: '#4a154b',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Webhook URL',
+            name: 'webhookUrl',
+            type: 'string',
+            default: ''
+          },
+          {
+            displayName: 'Text',
+            name: 'text',
+            type: 'textarea',
+            default: 'Automation report ready'
+          }
+        ]
+      },
+      {
+        displayName: 'Telegram',
+        name: 'telegram',
+        category: 'Control',
+        description: 'Send message to Telegram',
+        icon: 'fa-paper-plane',
+        color: '#0088cc',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Chat ID',
+            name: 'chatId',
+            type: 'string',
+            default: ''
+          },
+          {
+            displayName: 'Message',
+            name: 'text',
+            type: 'textarea',
+            default: 'Evaluation finished'
+          }
+        ]
       }
     ];
   },
   
-  /**
-   * Setup event listeners
-   */
   setupEventListeners() {
-    // Search input
     const searchInput = document.getElementById('nodeLibrarySearch');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
@@ -168,7 +491,6 @@ const NodeLibrary = {
       });
     }
     
-    // Category filter
     const categoryBtns = document.querySelectorAll('.node-category-btn');
     categoryBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -180,37 +502,23 @@ const NodeLibrary = {
     });
   },
   
-  /**
-   * Render node library
-   */
   render() {
     const container = document.getElementById('nodeLibraryList');
     if (!container) return;
     
-    // Filter nodes
     const filteredNodes = this.filterNodes();
-    
-    // Group by category
     const grouped = this.groupByCategory(filteredNodes);
     
-    // Render
     container.innerHTML = '';
     
     if (filteredNodes.length === 0) {
-      container.innerHTML = `
-        <div class="node-library-empty">
-          <i class="fas fa-search"></i>
-          <p>No nodes found</p>
-        </div>
-      `;
+      container.innerHTML = `<div class="node-library-empty"><i class="fas fa-search"></i><p>No nodes found</p></div>`;
       return;
     }
     
-    // Render each category
     Object.keys(grouped).forEach(category => {
       const categoryEl = document.createElement('div');
       categoryEl.className = 'node-category';
-      
       categoryEl.innerHTML = `
         <div class="node-category-header">
           <i class="fas ${this.getCategoryIcon(category)}"></i>
@@ -221,184 +529,72 @@ const NodeLibrary = {
           ${grouped[category].map(node => this.renderNodeCard(node)).join('')}
         </div>
       `;
-      
       container.appendChild(categoryEl);
     });
     
-    // Setup drag events
     this.setupDragEvents();
   },
   
-  /**
-   * Filter nodes based on search and category
-   */
   filterNodes() {
     return this.nodeTypes.filter(node => {
-      // Category filter
-      if (this.selectedCategory !== 'all' && node.category !== this.selectedCategory) {
-        return false;
-      }
-      
-      // Search filter
+      if (this.selectedCategory !== 'all' && node.category !== this.selectedCategory) return false;
       if (this.searchQuery) {
         const searchLower = this.searchQuery.toLowerCase();
-        return (
-          node.name.toLowerCase().includes(searchLower) ||
-          node.description.toLowerCase().includes(searchLower) ||
-          node.category.toLowerCase().includes(searchLower)
-        );
+        return node.displayName.toLowerCase().includes(searchLower) || node.description.toLowerCase().includes(searchLower);
       }
-      
       return true;
     });
   },
   
-  /**
-   * Group nodes by category
-   */
   groupByCategory(nodes) {
     const grouped = {};
-    
     nodes.forEach(node => {
-      if (!grouped[node.category]) {
-        grouped[node.category] = [];
-      }
+      if (!grouped[node.category]) grouped[node.category] = [];
       grouped[node.category].push(node);
     });
-    
     return grouped;
   },
   
-  /**
-   * Render node card
-   */
   renderNodeCard(node) {
     return `
-      <div class="node-card" 
-           draggable="true" 
-           data-node-type="${node.type}">
-        <div class="node-card-icon" style="background: ${node.color};">
-          <i class="fas ${node.icon}"></i>
-        </div>
+      <div class="node-card" draggable="true" data-node-type="${node.name}">
+        <div class="node-card-icon" style="background: ${node.color};"><i class="fas ${node.icon}"></i></div>
         <div class="node-card-content">
-          <div class="node-card-name">${node.name}</div>
-          <div class="node-card-description">${node.description}</div>
+          <div class="node-card-name">${node.displayName}</div>
+          <div class="node-card-description text-xs opacity-70">${node.description}</div>
         </div>
       </div>
     `;
   },
   
-  /**
-   * Setup drag events
-   */
   setupDragEvents() {
     const nodeCards = document.querySelectorAll('.node-card');
-    
     nodeCards.forEach(card => {
-      // Drag start
       card.addEventListener('dragstart', (e) => {
-        const nodeType = card.dataset.nodeType;
-        if (nodeType) {
-          e.dataTransfer.setData('text/plain', nodeType);
-          e.dataTransfer.effectAllowed = 'copy';
-          card.classList.add('dragging');
-        }
+        e.dataTransfer.setData('text/plain', card.dataset.nodeType);
+        e.dataTransfer.effectAllowed = 'copy';
+        card.classList.add('dragging');
       });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
       
-      card.addEventListener('dragend', (e) => {
-        card.classList.remove('dragging');
-      });
-      
-      // Click fallback (easier to use)
       card.addEventListener('click', () => {
-        const nodeType = card.dataset.nodeType;
-        const nodeData = this.nodeTypes.find(n => n.type === nodeType);
-        
+        const nodeData = this.nodeTypes.find(n => n.name === card.dataset.nodeType);
         if (nodeData) {
-          // Add to center of canvas or random offset from center
           const centerX = (window.innerWidth / 2 - WorkflowCanvas.panX) / WorkflowCanvas.zoom;
           const centerY = (window.innerHeight / 2 - WorkflowCanvas.panY) / WorkflowCanvas.zoom;
-          
-          const newNode = {
+          WorkflowCanvas.addNode({
             ...nodeData,
-            x: centerX - 100 + (Math.random() * 40 - 20),
-            y: centerY - 50 + (Math.random() * 40 - 20)
-          };
-          
-          WorkflowCanvas.addNode(newNode);
-          Toast.success('Node Added', `${nodeData.name} added to canvas`);
+            type: nodeData.name, // compatibility with canvas
+            x: centerX - 100,
+            y: centerY - 50
+          });
         }
       });
     });
-    
-    // Setup drop zone on canvas
-    const canvas = document.getElementById('workflowCanvasContainer');
-    if (canvas) {
-      canvas.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-      });
-      
-      canvas.addEventListener('drop', (e) => {
-        e.preventDefault();
-        
-        try {
-          const nodeType = e.dataTransfer.getData('text/plain');
-          if (!nodeType) {
-            console.warn('[NodeLibrary] No node type received in drop event');
-            return;
-          }
-          
-          const nodeData = this.nodeTypes.find(n => n.type === nodeType);
-          if (!nodeData) {
-            console.error('[NodeLibrary] Unknown node type dropped:', nodeType);
-            return;
-          }
-          
-          const rect = canvas.getBoundingClientRect();
-          
-          // Calculate drop position in canvas coordinates
-          const x = (e.clientX - rect.left - WorkflowCanvas.panX) / WorkflowCanvas.zoom;
-          const y = (e.clientY - rect.top - WorkflowCanvas.panY) / WorkflowCanvas.zoom;
-          
-          // Create a copy of node data
-          const newNode = {
-            ...nodeData,
-            x: x - 100, // Center node on cursor
-            y: y - 50
-          };
-          
-          WorkflowCanvas.addNode(newNode);
-          
-          Toast.success('Node Added', `${nodeData.name} added to canvas`);
-        } catch (error) {
-          console.error('[NodeLibrary] Error adding node:', error);
-          Toast.error('Error', 'Failed to add node. Please try clicking the node instead.');
-        }
-      });
-    }
   },
   
-  /**
-   * Get category icon
-   */
   getCategoryIcon(category) {
-    const icons = {
-      'Triggers': 'fa-bolt',
-      'Actions': 'fa-play',
-      'Control': 'fa-code-branch',
-      'Transform': 'fa-exchange-alt',
-      'Notifications': 'fa-bell'
-    };
+    const icons = { 'Triggers': 'fa-bolt', 'Actions': 'fa-play', 'Control': 'fa-code-branch' };
     return icons[category] || 'fa-cube';
-  },
-  
-  /**
-   * Get all categories
-   */
-  getCategories() {
-    const categories = new Set();
-    this.nodeTypes.forEach(node => categories.add(node.category));
-    return Array.from(categories).sort();
   }
 };

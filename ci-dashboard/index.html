@@ -958,24 +958,7 @@
                             </div>
                         </div>
 
-                        <!-- Execution Monitor (Bottom Panel) -->
-                        <div class="workflow-execution-panel hidden" id="wfExecutionPanel">
-                            <div class="execution-panel-header">
-                                <h4><i class="fas fa-terminal"></i> Execution Logs</h4>
-                                <div class="execution-panel-actions">
-                                    <span class="execution-status" id="wfExecutionStatus">Ready</span>
-                                    <button class="btn-icon" onclick="document.getElementById('wfExecutionLogs').innerHTML = ''" title="Clear">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    <button class="btn-icon" onclick="document.getElementById('wfExecutionPanel').classList.toggle('hidden')" title="Collapse">
-                                        <i class="fas fa-chevron-down"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="execution-panel-content" id="wfExecutionLogs">
-                                <!-- Execution logs will be rendered here -->
-                            </div>
-                        </div>
+                        <!-- Execution Monitor removed for minimalist UI -->
                     </div>
                 </div>
 
@@ -1615,6 +1598,7 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="script.js"></script>
     <!-- Workflow Builder Scripts -->
+    <script src="workflow-builder/history-manager.js"></script>
     <script src="workflow-builder/workflow-canvas.js"></script>
     <script src="workflow-builder/node-library.js"></script>
     <script src="workflow-builder/node-config-panel.js"></script>

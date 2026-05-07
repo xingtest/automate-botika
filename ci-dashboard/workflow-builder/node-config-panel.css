@@ -3,22 +3,48 @@
  * Dynamic form for node configuration
  */
 
-/* Node Config Form */
-.node-config-form {
+/* Node Config Container */
+.node-config-container {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--bg-card);
 }
 
-/* Node Config Header */
 .node-config-header {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
+  border-bottom: 1px solid var(--border-color);
   padding: var(--sp-4);
-  background: var(--bg-input);
-  border-radius: var(--r-md);
-  margin-bottom: var(--sp-4);
+  background: var(--bg-sidebar);
+}
+
+.node-config-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.node-config-tabs button {
+  flex: 1;
+  padding: var(--sp-2) var(--sp-4);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.node-config-tabs button:hover {
+  color: var(--accent);
+}
+
+.node-config-tabs button.active,
+.node-config-tabs button.selected {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
 }
 
 .node-config-icon {
@@ -188,13 +214,12 @@
   color: var(--accent);
 }
 
-/* Node Config Actions */
-.node-config-actions {
-  padding-top: var(--sp-4);
+/* Node Config Footer */
+.node-config-footer {
+  padding: var(--sp-4);
   border-top: 1px solid var(--border-color);
-  margin-top: var(--sp-4);
+  background: var(--bg-sidebar);
   display: flex;
-  flex-direction: column;
   gap: var(--sp-2);
 }
 
