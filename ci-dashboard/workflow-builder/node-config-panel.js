@@ -71,11 +71,12 @@ const NodeConfigPanel = {
         <div class="node-config-tabs flex border-b bg-white">
           <button onclick="NodeConfigPanel.switchTab('parameters')" class="flex-1 py-2 text-xs font-bold ${this.activeTab === 'parameters' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}">Parameters</button>
           <button onclick="NodeConfigPanel.switchTab('settings')" class="flex-1 py-2 text-xs font-bold ${this.activeTab === 'settings' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}">Settings</button>
+          <button onclick="NodeConfigPanel.switchTab('output')" class="flex-1 py-2 text-xs font-bold ${this.activeTab === 'output' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}">Output</button>
         </div>
 
         <!-- Form Content -->
         <div class="node-config-body flex-1 overflow-y-auto p-4 bg-white">
-          ${this.activeTab === 'parameters' ? this.renderParameters(nodeType) : this.renderSettings()}
+          ${this.activeTab === 'parameters' ? this.renderParameters(nodeType) : this.activeTab === 'settings' ? this.renderSettings() : this.renderOutput()}
         </div>
 
         <!-- Footer Actions -->
@@ -111,11 +112,14 @@ const NodeConfigPanel = {
       html += `
         <div class="form-group mb-4" data-prop-name="${prop.name}">
           <div class="flex justify-between items-center mb-1">
-            <label class="form-label text-[10px] uppercase font-bold text-gray-400">${prop.displayName}</label>
+            <label class="form-label text-[10px] uppercase font-bold text-gray-400">
+              ${prop.displayName}
+              ${prop.required ? '<span class="required-marker">*</span>' : ''}
+              ${prop.description ? this.renderTooltipIcon(prop.description) : ''}
+            </label>
             ${prop.type !== 'boolean' ? '<button class="text-[9px] text-blue-500 hover:underline font-bold">EXPRESSION</button>' : ''}
           </div>
           ${this.renderField(prop, config[prop.name])}
-          ${prop.description ? `<p class="text-[10px] text-gray-400 mt-1">${prop.description}</p>` : ''}
         </div>
       `;
     });
@@ -127,6 +131,7 @@ const NodeConfigPanel = {
   renderField(prop, value) {
     const id = `prop_${prop.name}`;
     const val = value !== undefined ? value : prop.default;
+    const placeholder = prop.placeholder ? `placeholder="${prop.placeholder}"` : '';
 
     switch (prop.type) {
       case 'options':
@@ -143,14 +148,47 @@ const NodeConfigPanel = {
           </div>
         `;
       case 'number':
-        return `<input type="number" id="${id}" class="form-control text-sm" value="${val}" ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''}>`;
+        return `<input type="number" id="${id}" class="form-control text-sm" value="${val}" ${placeholder} ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''}>`;
       case 'textarea':
-        return `<textarea id="${id}" class="form-control text-sm font-mono" rows="4">${val}</textarea>`;
+        return `<textarea id="${id}" class="form-control text-sm font-mono" rows="4" ${placeholder}>${val}</textarea>`;
       case 'json':
-        return `<textarea id="${id}" class="form-control text-sm font-mono" rows="6">${typeof val === 'object' ? JSON.stringify(val, null, 2) : val}</textarea>`;
+        return `<textarea id="${id}" class="form-control text-sm font-mono" rows="6" ${placeholder}>${typeof val === 'object' ? JSON.stringify(val, null, 2) : val}</textarea>`;
       default:
-        return `<input type="text" id="${id}" class="form-control text-sm" value="${val || ''}">`;
+        return `<input type="text" id="${id}" class="form-control text-sm" value="${val || ''}" ${placeholder}>`;
     }
+  },
+
+  renderTooltipIcon(description) {
+    return `<span class="tooltip-icon" data-tooltip="${description}">ⓘ</span>`;
+  },
+
+  renderOutput() {
+    if (!this.currentNode) {
+      return '<div class="p-4 text-center text-muted">Belum ada data output. Jalankan workflow untuk melihat output node ini.</div>';
+    }
+
+    if (this.currentNode.lastError) {
+      return this.renderErrorTab();
+    }
+
+    if (this.currentNode.lastOutput) {
+      return `<pre class="output-preview">${JSON.stringify(this.currentNode.lastOutput, null, 2)}</pre>`;
+    }
+
+    return '<div class="p-4 text-center text-muted">Belum ada data output. Jalankan workflow untuk melihat output node ini.</div>';
+  },
+
+  renderErrorTab() {
+    if (!this.currentNode || !this.currentNode.lastError) {
+      return '<div class="p-4 text-center text-muted">Tidak ada error</div>';
+    }
+
+    return `
+      <div class="error-tab-content">
+        <div class="error-node-name">Error pada node: ${this.currentNode.label || this.currentNode.type}</div>
+        <div class="error-message">${this.currentNode.lastError}</div>
+      </div>
+    `;
   },
 
   renderSettings() {

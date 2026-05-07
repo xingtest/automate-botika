@@ -500,7 +500,34 @@ exports.getExecutionDetails = async (req, res) => {
       return res.status(404).json({ error: 'Execution not found' });
     }
     
-    res.json(result.rows[0]);
+    const execution = result.rows[0];
+    
+    // Query per-node execution results
+    const nodeExecResult = await db.queryOriginal(
+      `SELECT node_id, node_type, status, duration_ms, output_data, error_message
+       FROM node_executions
+       WHERE execution_id = $1
+       ORDER BY created_at ASC`,
+      [executionId]
+    );
+    
+    // Build node_results map
+    const nodeResults = {};
+    nodeExecResult.rows.forEach(row => {
+      nodeResults[row.node_id] = {
+        status: row.status,
+        duration_ms: row.duration_ms,
+        output: row.output_data
+          ? (typeof row.output_data === 'string' ? JSON.parse(row.output_data) : row.output_data)
+          : null,
+        error_message: row.error_message
+      };
+    });
+    
+    res.json({
+      ...execution,
+      node_results: nodeResults
+    });
   } catch (error) {
     console.error('Error getting execution details:', error);
     res.status(500).json({ error: 'Failed to get execution details', message: error.message });

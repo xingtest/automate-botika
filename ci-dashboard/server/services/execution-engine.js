@@ -91,6 +91,7 @@ class ExecutionEngine {
           
           // Store result
           context.setNodeOutput(nodeId, result);
+          context.setNodeDuration(nodeId, duration);
           context.setNodeStatus(nodeId, 'success');
           
           // Log execution
@@ -132,7 +133,36 @@ class ExecutionEngine {
         execution_id: executionId,
         status: 'completed',
         duration_ms: totalDuration,
-        node_results: context.getAllNodeOutputs()
+        node_results: (() => {
+          const allOutputs = context.getAllNodeOutputs();
+          const allDurations = context.getAllNodeDurations();
+          const allStatuses = {};
+          for (const [nodeId, status] of context.node_status.entries()) {
+            allStatuses[nodeId] = status;
+          }
+
+          const nodeResults = {};
+          for (const nodeId of Object.keys(allOutputs)) {
+            nodeResults[nodeId] = {
+              status: allStatuses[nodeId] || 'success',
+              duration_ms: allDurations[nodeId] || null,
+              output: allOutputs[nodeId],
+              error_message: null
+            };
+          }
+          // Also add failed/skipped nodes that have no output
+          for (const [nodeId, status] of context.node_status.entries()) {
+            if (!nodeResults[nodeId]) {
+              nodeResults[nodeId] = {
+                status,
+                duration_ms: allDurations[nodeId] || null,
+                output: null,
+                error_message: null
+              };
+            }
+          }
+          return nodeResults;
+        })()
       };
       
     } catch (error) {

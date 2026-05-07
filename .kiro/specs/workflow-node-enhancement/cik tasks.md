@@ -6,7 +6,7 @@ Implementasi peningkatan CI Dashboard Workflow Builder dalam tiga area utama: (1
 
 ## Tasks
 
-- [ ] 1. Tambah CSS animasi dan status badge pada workflow-canvas.css
+- [x] 1. Tambah CSS animasi dan status badge pada workflow-canvas.css
   - Tambahkan keyframe `node-pulse` dan `spin` untuk animasi `status-running`
   - Tambahkan CSS class `.workflow-node.status-running` dengan border biru dan animasi pulse
   - Tambahkan CSS `.workflow-node.status-running .node-header::after` untuk spinner di header
@@ -15,39 +15,39 @@ Implementasi peningkatan CI Dashboard Workflow Builder dalam tiga area utama: (1
   - Tambahkan CSS `.node-error-tooltip` dengan efek hover opacity untuk tooltip error pada badge failed
   - _Requirements: 1.4, 2.1, 2.2, 2.3, 12.1, 12.2_
 
-- [ ] 2. Update WorkflowCanvas — method baru dan perubahan createNodeElement
-  - [ ] 2.1 Tambah method `formatDuration(ms)` di `workflow-canvas.js`
+- [x] 2. Update WorkflowCanvas — method baru dan perubahan createNodeElement
+  - [x] 2.1 Tambah method `formatDuration(ms)` di `workflow-canvas.js`
     - Return `"Xms"` jika ms < 1000, return `"X.Xs"` jika >= 1000
     - _Requirements: 2.2_
-  - [ ] 2.2 Tambah method `updateNodeStatus(nodeId, status, meta = {})` di `workflow-canvas.js`
+  - [x] 2.2 Tambah method `updateNodeStatus(nodeId, status, meta = {})` di `workflow-canvas.js`
     - Cari node di `this.nodes` berdasarkan `nodeId`
     - Update `node.status`, `node.duration_ms` (dari `meta.duration_ms`), `node.lastOutput` (dari `meta.output`), `node.lastError` (dari `meta.error`)
     - Panggil `this.render()` setelah update
     - _Requirements: 1.1, 1.2, 1.7, 1.8, 2.5, 11.5, 11.6_
-  - [ ] 2.3 Tambah method `resetNodeStatuses()` di `workflow-canvas.js`
+  - [x] 2.3 Tambah method `resetNodeStatuses()` di `workflow-canvas.js`
     - Loop semua node, set `status = null`, `duration_ms = null`, `lastOutput = null`, `lastError = null`
     - Panggil `this.render()` setelah reset
     - _Requirements: 1.6, 2.6_
-  - [ ] 2.4 Update method `createNodeElement(node)` di `workflow-canvas.js`
+  - [x] 2.4 Update method `createNodeElement(node)` di `workflow-canvas.js`
     - Tambahkan status badge `<div class="node-status-badge badge-{status}">` dengan ikon FA sesuai status: success=`fa-check`, failed=`fa-times`, skipped=`fa-minus`, running=`fa-spinner fa-spin`
     - Tambahkan execution time `<div class="node-execution-time">` jika `node.duration_ms` ada, gunakan `formatDuration(node.duration_ms)`
     - Tambahkan error tooltip `<div class="node-error-tooltip">` jika `node.lastError` ada, truncate ke 200 karakter
     - _Requirements: 1.4, 2.1, 2.2, 2.3, 12.1, 12.2_
 
-- [ ] 3. Update ExecutionMonitor — teruskan duration_ms, output, error ke canvas
+- [x] 3. Update ExecutionMonitor — teruskan duration_ms, output, error ke canvas
   - Ubah method `updateNodeStatuses(nodeResults)` di `execution-monitor.js`
   - Untuk setiap `nodeId` dalam `nodeResults`, panggil `WorkflowCanvas.updateNodeStatus(nodeId, result.status, { duration_ms: result.duration_ms, output: result.output, error: result.error_message })`
   - _Requirements: 1.7, 1.8, 2.5, 11.6_
 
-- [ ] 4. Update ExecutionEngine — simpan duration_ms dan output per node, perluas API response
-  - [ ] 4.1 Tambah method `setNodeDuration(nodeId, duration)` di `execution-context.js`
+- [x] 4. Update ExecutionEngine — simpan duration_ms dan output per node, perluas API response
+  - [x] 4.1 Tambah method `setNodeDuration(nodeId, duration)` di `execution-context.js`
     - Simpan ke `Map` baru `this.node_durations`
     - Tambah method `getNodeDuration(nodeId)` dan `getAllNodeDurations()`
     - _Requirements: 2.4_
-  - [ ] 4.2 Update method `execute()` di `execution-engine.js`
+  - [x] 4.2 Update method `execute()` di `execution-engine.js`
     - Setelah `executor.execute()` berhasil, panggil `context.setNodeDuration(nodeId, duration)`
     - _Requirements: 2.4_
-  - [ ] 4.3 Update method `getExecutionDetails` di `workflow.controller.js`
+  - [x] 4.3 Update method `getExecutionDetails` di `workflow.controller.js`
     - Query tabel `node_executions` untuk mendapatkan `status`, `duration_ms`, `output_data`, `error_message` per node
     - Susun sebagai `node_results: { [nodeId]: { status, duration_ms, output, error_message } }` dalam response JSON
     - _Requirements: 2.4, 2.5, 11.1, 12.4_
@@ -62,7 +62,7 @@ Implementasi peningkatan CI Dashboard Workflow Builder dalam tiga area utama: (1
   - Return `{ timestamp, triggered_by: context.user_id, trigger_type: 'manual', trigger_data: triggerData }`
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 7. Implementasi RunTestNode yang nyata
+- [~] 7. Implementasi RunTestNode yang nyata
   - [ ] 7.1 Update validasi config di `run-test-node.js`
     - Tambah validasi awal: lempar `"Configuration error: platform is required"` jika tidak ada, sama untuk `test_data_file` dan `platform_url`
     - Verifikasi file test data dengan `fs.existsSync()`; lempar `"Test data file not found: {path}"` jika tidak ada
@@ -74,7 +74,7 @@ Implementasi peningkatan CI Dashboard Workflow Builder dalam tiga area utama: (1
     - Simpan ke DB via `createTestRun()` yang sudah ada, return `{ ...result, run_id: runId }`
     - _Requirements: 4.1, 4.2, 4.3, 4.6, 4.7_
 
-- [ ] 8. Implementasi AIEvaluateNode yang nyata
+- [~] 8. Implementasi AIEvaluateNode yang nyata
   - [ ] 8.1 Tambah validasi API key di `ai-evaluate-node.js`
     - Map provider ke env var: `gemini`→`GEMINI_API_KEY`, `groq`→`GROQ_API_KEY`, `openai`→`OPENAI_API_KEY`, `cerebras`→`CEREBRAS_API_KEY`
     - Lempar `"API key for {provider} is not configured"` jika env var tidak ada
@@ -90,7 +90,7 @@ Implementasi peningkatan CI Dashboard Workflow Builder dalam tiga area utama: (1
     - Hitung `avg_ai_score`, `pass_count`, `fail_count` dari hasil nyata
     - _Requirements: 5.2, 5.3_
 
-- [ ] 9. Implementasi ConditionNode yang nyata
+- [~] 9. Implementasi ConditionNode yang nyata
   - Update `execute()` di `condition-node.js`
   - Tambah method `resolveTemplate(value, input)`: replace `{{ $json.field }}` dengan nilai dari `input` menggunakan dot-notation path
   - Tambah method `compare(v1, operator, v2)` dengan semua 8 operator: `equal`, `not_equal`, `greater_than`, `less_than`, `greater_than_or_equal`, `less_than_or_equal`, `contains`, `not_contains`
@@ -98,7 +98,7 @@ Implementasi peningkatan CI Dashboard Workflow Builder dalam tiga area utama: (1
   - Wrap evaluasi dalam try-catch; jika error, route ke `false` dan log error
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.8_
 
-- [ ] 10. Implementasi WaitNode yang nyata
+- [~] 10. Implementasi WaitNode yang nyata
   - Update `execute()` di `wait-node.js`
   - Tambah validasi: jika `duration_seconds > 3600`, lempar `"Wait duration cannot exceed 3600 seconds"`
   - Jika `duration_seconds < 0`, log warning dan set ke 0
@@ -106,7 +106,7 @@ Implementasi peningkatan CI Dashboard Workflow Builder dalam tiga area utama: (1
   - Update `config_schema` field `duration_seconds` dengan description "Durasi penundaan dalam detik (0–3600)"
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-- [ ] 11. Implementasi TransformDataNode dengan vm sandbox
+- [~] 11. Implementasi TransformDataNode dengan vm sandbox
   - Ganti implementasi `execute()` di `transform-data-node.js` dengan vm sandbox
   - Require `vm` module; buat `sandbox` dengan `items`, `context`, dan helper: `JSON`, `Math`, `Date`, `Array`, `Object`, `String`, `Number`, `console: { log: () => {} }`
   - Buat `vm.Script` dari `config.jsCode` dan jalankan di `vm.createContext(sandbox)`
@@ -115,7 +115,7 @@ Implementasi peningkatan CI Dashboard Workflow Builder dalam tiga area utama: (1
   - Update `config_schema`: ganti field `expression` dengan `jsCode` bertipe `textarea`, description "Kode JavaScript untuk transformasi data. Gunakan variabel `items` untuk mengakses data input"
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
 
-- [ ] 12. Implementasi GenerateReportNode yang nyata
+- [~] 12. Implementasi GenerateReportNode yang nyata
   - [ ] 12.1 Update validasi input di `generate-report-node.js`
     - Cek `input.run_id` atau `input.results`; lempar `"Invalid input: test results are required to generate a report"` jika tidak ada
     - _Requirements: 9.6_
@@ -128,7 +128,7 @@ Implementasi peningkatan CI Dashboard Workflow Builder dalam tiga area utama: (1
     - Simpan metadata ke tabel `artifacts` via DB query, return `{ artifact_id, filename, file_path, file_size, download_url, format }`
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 13. Implementasi SendNotificationNode multi-channel
+- [~] 13. Implementasi SendNotificationNode multi-channel
   - [ ] 13.1 Tambah method `sendTelegramNotification()` di `send-notification-node.js`
     - Gunakan `TELEGRAM_BOT_TOKEN` dari env var
     - Kirim ke `config.recipient` (Chat ID) via Telegram Bot API `sendMessage`
@@ -150,7 +150,7 @@ Implementasi peningkatan CI Dashboard Workflow Builder dalam tiga area utama: (1
 - [ ] 14. Checkpoint — Verifikasi semua node executor berfungsi
   - Pastikan semua tests pass, tanyakan ke user jika ada pertanyaan.
 
-- [ ] 15. Update NodeConfigPanel — tooltip, required marker, dan tab Output
+- [~] 15. Update NodeConfigPanel — tooltip, required marker, dan tab Output
   - [ ] 15.1 Tambah CSS untuk tooltip dan tab Output di `node-config-panel.css`
     - Tambah style `.tooltip-icon` dengan posisi relative dan cursor help
     - Tambah style `.tooltip-icon::after` untuk tooltip popup (absolute, z-index tinggi, max-width 250px)

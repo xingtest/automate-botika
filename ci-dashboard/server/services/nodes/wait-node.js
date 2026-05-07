@@ -16,24 +16,39 @@ class WaitNode extends BaseNode {
         { id: 'output', name: 'Output', dataType: 'any', required: true }
       ],
       config_schema: [
-        { key: 'duration_seconds', label: 'Duration (seconds)', type: 'number', required: true, default: 5 }
+        {
+          key: 'duration_seconds',
+          label: 'Duration (seconds)',
+          type: 'number',
+          required: true,
+          default: 5,
+          description: 'Durasi penundaan dalam detik (0–3600)'
+        }
       ]
     });
   }
-  
+
   async execute(context, config, node) {
+    const input = this.getInput(context, 'input');
+    let duration = config.duration_seconds ?? 5;
+
+    if (duration > 3600) {
+      throw new Error('Wait duration cannot exceed 3600 seconds');
+    }
+
+    if (duration < 0) {
+      this.log('warn', 'duration_seconds < 0, using 0');
+      duration = 0;
+    }
+
     const startTime = Date.now();
-    const durationMs = (config.duration_seconds || 5) * 1000;
-    
-    this.log('info', `Waiting for ${config.duration_seconds} seconds`);
-    
-    await new Promise(resolve => setTimeout(resolve, durationMs));
-    
-    const actualDuration = Date.now() - startTime;
-    
+    this.log('info', `Waiting for ${duration} seconds`);
+    await new Promise(resolve => setTimeout(resolve, duration * 1000));
+
     return {
-      waited_seconds: config.duration_seconds,
-      actual_duration_ms: actualDuration
+      waited_seconds: duration,
+      actual_duration_ms: Date.now() - startTime,
+      input_passthrough: input
     };
   }
 }

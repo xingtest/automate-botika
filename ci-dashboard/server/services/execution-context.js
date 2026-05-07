@@ -11,6 +11,7 @@ class ExecutionContext {
     this.trigger_data = config.trigger_data || {};
     this.node_outputs = new Map(); // node_id -> output data
     this.node_status = new Map(); // node_id -> status
+    this.node_durations = new Map(); // node_id -> duration_ms
     this.variables = new Map(); // global variables
     this.start_time = new Date();
     this.current_node_id = null;
@@ -123,6 +124,36 @@ class ExecutionContext {
     return this.variables.get(key);
   }
   
+  /**
+   * Set node execution duration
+   * @param {string} nodeId - Node ID
+   * @param {number} duration - Duration in milliseconds
+   */
+  setNodeDuration(nodeId, duration) {
+    this.node_durations.set(nodeId, duration);
+  }
+
+  /**
+   * Get node execution duration
+   * @param {string} nodeId - Node ID
+   * @returns {number|undefined} - Duration in ms
+   */
+  getNodeDuration(nodeId) {
+    return this.node_durations.get(nodeId);
+  }
+
+  /**
+   * Get all node durations as a plain object
+   * @returns {Object} - Map of node_id -> duration_ms
+   */
+  getAllNodeDurations() {
+    const durations = {};
+    for (const [nodeId, duration] of this.node_durations.entries()) {
+      durations[nodeId] = duration;
+    }
+    return durations;
+  }
+
   /**
    * Get execution duration in milliseconds
    * @returns {number} - Duration in ms

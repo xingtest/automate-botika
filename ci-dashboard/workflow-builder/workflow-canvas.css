@@ -393,3 +393,99 @@
 #workflowCanvasGrid {
   opacity: 0.8;
 }
+
+/* ============================================================
+ * Workflow Node Enhancement — Animasi & Status Badge
+ * ============================================================ */
+
+/* Keyframe: node-pulse (border glow berdetak untuk status-running) */
+@keyframes node-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+}
+
+/* Keyframe: spin (untuk spinner dan badge-running) */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Status Running — border biru + animasi pulse */
+.workflow-node.status-running {
+  border-color: var(--accent);
+  animation: node-pulse 1.5s ease-in-out infinite;
+}
+
+/* Spinner di pojok kanan atas node header saat running */
+.workflow-node.status-running .node-header {
+  position: relative;
+}
+
+.workflow-node.status-running .node-header::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Status Badge — lingkaran kecil di pojok kanan bawah node */
+.node-status-badge {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #fff;
+  border: 2px solid var(--bg-card);
+  z-index: 20;
+}
+
+.node-status-badge.badge-success { background: var(--success); }
+.node-status-badge.badge-failed  { background: var(--error); }
+.node-status-badge.badge-skipped { background: var(--text-muted); }
+.node-status-badge.badge-running { background: var(--accent); animation: spin 0.8s linear infinite; }
+
+/* Execution Time — durasi di bawah label node */
+.node-execution-time {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Error Tooltip — muncul saat hover badge-failed */
+.node-error-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: -8px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--error);
+  border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 0.7rem;
+  color: var(--error);
+  max-width: 220px;
+  word-break: break-word;
+  white-space: normal;
+  z-index: 100;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.node-status-badge.badge-failed:hover + .node-error-tooltip,
+.node-status-badge.badge-failed:hover ~ .node-error-tooltip {
+  opacity: 1;
+}

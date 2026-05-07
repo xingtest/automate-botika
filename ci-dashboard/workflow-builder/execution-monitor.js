@@ -136,8 +136,11 @@ const ExecutionMonitor = {
     
     Object.keys(nodeResults).forEach(nodeId => {
       const result = nodeResults[nodeId];
-      // Propagate the status to the canvas
-      WorkflowCanvas.updateNodeStatus(nodeId, result.status);
+      WorkflowCanvas.updateNodeStatus(nodeId, result.status, {
+        duration_ms: result.duration_ms,
+        output: result.output,
+        error: result.error_message
+      });
     });
   },
   

@@ -584,20 +584,39 @@ const WorkflowCanvas = {
     const el = document.createElement('div');
     el.className = 'workflow-node';
     el.dataset.nodeId = node.id;
-    
-    if (this.selectedNode === node) {
-      el.classList.add('selected');
-    }
-    
-    if (node.status) {
-      el.classList.add(`status-${node.status}`);
-    }
-    
+    el.style.position = 'relative';
+
+    if (this.selectedNode === node) el.classList.add('selected');
+    if (node.status) el.classList.add(`status-${node.status}`);
+
     // Position node
     const x = node.x * this.zoom + this.panX;
     const y = node.y * this.zoom + this.panY;
     el.style.transform = `translate(${x}px, ${y}px) scale(${this.zoom})`;
-    
+
+    // Status badge icon map
+    const statusIconMap = {
+      success: 'fa-check',
+      failed: 'fa-times',
+      skipped: 'fa-minus',
+      running: 'fa-spinner fa-spin'
+    };
+
+    const badgeHtml = node.status && statusIconMap[node.status] ? `
+      <div class="node-status-badge badge-${node.status}">
+        <i class="fas ${statusIconMap[node.status]}"></i>
+      </div>
+    ` : '';
+
+    const execTimeHtml = (node.duration_ms !== null && node.duration_ms !== undefined) ? `
+      <div class="node-execution-time">${this.formatDuration(node.duration_ms)}</div>
+    ` : '';
+
+    const errorMsg = node.lastError ? String(node.lastError).substring(0, 200) : '';
+    const errorTooltipHtml = node.lastError ? `
+      <div class="node-error-tooltip">${errorMsg}</div>
+    ` : '';
+
     // Node content
     el.innerHTML = `
       <div class="node-header" style="background: ${node.color || '#6366f1'};">
@@ -605,8 +624,10 @@ const WorkflowCanvas = {
       </div>
       <div class="node-body">
         <div class="node-label">${node.label || node.type}</div>
-        ${node.status ? `<div class="node-status"><i class="fas fa-${this.getStatusIcon(node.status)}"></i></div>` : ''}
+        ${execTimeHtml}
       </div>
+      ${badgeHtml}
+      ${errorTooltipHtml}
       <div class="node-ports">
         ${node.inputs ? node.inputs.map((port, i) => `
           <div class="node-port input" data-port-id="${port.id}" data-port-index="${i}"></div>
@@ -616,7 +637,7 @@ const WorkflowCanvas = {
         `).join('') : ''}
       </div>
     `;
-    
+
     return el;
   },
   
@@ -963,7 +984,10 @@ const WorkflowCanvas = {
       },
       inputs: processPorts(nodeData.inputs, 'Input'),
       outputs: processPorts(nodeData.outputs, 'Output'),
-      status: null
+      status: null,
+      duration_ms: null,
+      lastOutput: null,
+      lastError: null
     };
     
     this.nodes.push(node);
@@ -1128,22 +1152,43 @@ const WorkflowCanvas = {
   },
 
   /**
-   * Update a node's status
+   * Format duration in ms to human-readable string
+   * @param {number} ms - duration in milliseconds
+   * @returns {string}
    */
-  updateNodeStatus(nodeId, status) {
+  formatDuration(ms) {
+    if (!ms && ms !== 0) return '';
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(1)}s`;
+  },
+
+  /**
+   * Update a node's status and optional metadata
+   * @param {string} nodeId
+   * @param {string} status - 'idle'|'running'|'success'|'failed'|'skipped'
+   * @param {Object} meta - { duration_ms?: number, output?: any, error?: string }
+   */
+  updateNodeStatus(nodeId, status, meta = {}) {
     const node = this.nodes.find(n => n.id === nodeId);
-    if (node) {
-      node.status = status;
-      
-      // Update incoming connections status for animation
-      this.connections.forEach(conn => {
-        if (conn.target_node_id === nodeId) {
-          conn.status = status;
-        }
-      });
-      
-      this.render();
-    }
+    if (!node) return;
+    node.status = status;
+    if (meta.duration_ms !== undefined) node.duration_ms = meta.duration_ms;
+    if (meta.output !== undefined) node.lastOutput = meta.output;
+    if (meta.error !== undefined) node.lastError = meta.error;
+    this.render();
+  },
+
+  /**
+   * Reset all node statuses and runtime metadata
+   */
+  resetNodeStatuses() {
+    this.nodes.forEach(node => {
+      node.status = null;
+      node.duration_ms = null;
+      node.lastOutput = null;
+      node.lastError = null;
+    });
+    this.render();
   },
 
   /**

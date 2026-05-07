@@ -3,11 +3,21 @@
  */
 
 const BaseNode = require('./base-node');
+const vm = require('vm');
 
 class TransformDataNode extends BaseNode {
     constructor() {
         super();
         this.type = 'transform-data';
+        this.config_schema = {
+            fields: [
+                {
+                    name: 'jsCode',
+                    type: 'textarea',
+                    description: 'Kode JavaScript untuk transformasi data. Gunakan variabel `items` untuk mengakses data input'
+                }
+            ]
+        };
     }
 
     async execute(context, node) {
@@ -18,113 +28,55 @@ class TransformDataNode extends BaseNode {
             throw new Error('No input data provided');
         }
 
-        const { operation, mapping } = config;
+        const jsCode = config.jsCode || config.expression || 'items';
 
-        console.log(`[TransformDataNode] Applying ${operation} transformation`);
+        console.log(`[TransformDataNode] Executing transform code`);
 
-        let output = input;
+        try {
+            // Create sandbox with safe globals
+            const items = Array.isArray(input) ? input : [input];
+            const sandbox = {
+                items,
+                context: {
+                    execution_id: context.execution_id,
+                    workflow_id: context.workflow_id,
+                    user_id: context.user_id
+                },
+                JSON,
+                Math,
+                Date,
+                Array,
+                Object,
+                String,
+                Number,
+                console: { log: () => {} } // No-op console
+            };
 
-        switch (operation) {
-            case 'map':
-                output = this.applyMap(input, mapping);
-                break;
-            case 'filter':
-                output = this.applyFilter(input, mapping);
-                break;
-            case 'extract':
-                output = this.extractFields(input, mapping);
-                break;
-            default:
-                throw new Error(`Unknown transformation operation: ${operation}`);
-        }
+            // Create VM context and script
+            const vmContext = vm.createContext(sandbox);
+            const script = new vm.Script(`
+                (function() {
+                    ${jsCode}
+                    return items;
+                })()
+            `);
 
-        return output;
-    }
-
-    /**
-     * Apply map transformation
-     */
-    applyMap(input, mapping) {
-        if (!Array.isArray(input)) {
-            input = [input];
-        }
-
-        if (!mapping || typeof mapping !== 'object') {
-            return input;
-        }
-
-        return input.map(item => {
-            const mapped = {};
-            for (const [key, path] of Object.entries(mapping)) {
-                mapped[key] = this.getNestedValue(item, path);
-            }
-            return mapped;
-        });
-    }
-
-    /**
-     * Apply filter transformation
-     */
-    applyFilter(input, mapping) {
-        if (!Array.isArray(input)) {
-            return input;
-        }
-
-        if (!mapping || !mapping.condition) {
-            return input;
-        }
-
-        // Simple filter based on field value
-        const { field, operator = '==', value } = mapping;
-
-        return input.filter(item => {
-            const itemValue = this.getNestedValue(item, field);
-            
-            switch (operator) {
-                case '==':
-                    return itemValue == value;
-                case '!=':
-                    return itemValue != value;
-                case '>':
-                    return itemValue > value;
-                case '<':
-                    return itemValue < value;
-                case '>=':
-                    return itemValue >= value;
-                case '<=':
-                    return itemValue <= value;
-                case 'includes':
-                    return Array.isArray(itemValue) && itemValue.includes(value);
-                default:
-                    return true;
-            }
-        });
-    }
-
-    /**
-     * Extract specific fields
-     */
-    extractFields(input, mapping) {
-        if (!mapping || !mapping.fields) {
-            return input;
-        }
-
-        const fields = mapping.fields;
-
-        if (Array.isArray(input)) {
-            return input.map(item => {
-                const extracted = {};
-                fields.forEach(field => {
-                    extracted[field] = item[field];
-                });
-                return extracted;
+            // Execute with timeout using Promise.race
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Transform code execution timeout (10s)')), 10000);
             });
-        } else {
-            const extracted = {};
-            fields.forEach(field => {
-                extracted[field] = input[field];
+
+            const executionPromise = new Promise((resolve) => {
+                const result = script.runInContext(vmContext, { timeout: 10000 });
+                resolve(result);
             });
-            return extracted;
+
+            const output = await Promise.race([executionPromise, timeoutPromise]);
+
+            return output;
+        } catch (error) {
+            console.error('[TransformDataNode] Transform execution error:', error);
+            throw new Error(`Transform code execution failed: ${error.message}`);
         }
     }
 }

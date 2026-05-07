@@ -303,6 +303,96 @@ input[type="file"].form-control::file-selector-button:hover {
   padding-right: calc(1.5em + 0.75rem);
 }
 
+/* Tooltip Icon */
+.tooltip-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-size: 10px;
+  cursor: help;
+  margin-left: var(--sp-1);
+  flex-shrink: 0;
+}
+
+.tooltip-icon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-md);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 250px;
+  white-space: normal;
+  width: max-content;
+}
+
+.tooltip-icon:hover::after {
+  opacity: 1;
+  visibility: visible;
+  bottom: calc(100% + 8px);
+}
+
+/* Required Marker */
+.required-marker {
+  color: var(--error);
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+/* Output Preview */
+.output-preview {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow: auto;
+  max-height: 400px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Error Tab Content */
+.error-tab-content {
+  border: 1px solid var(--error);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+  background: rgba(239, 68, 68, 0.05);
+  color: var(--error);
+}
+
+.error-tab-content .error-node-name {
+  font-weight: bold;
+  margin-bottom: var(--sp-2);
+}
+
+.error-tab-content .error-message {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Dark theme adjustments */
 [data-theme="dark"] .toggle-slider:before {
   background: var(--bg-sidebar);
