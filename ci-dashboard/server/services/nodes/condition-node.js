@@ -55,12 +55,12 @@ class ConditionNode extends BaseNode {
   }
 
   async execute(context, config, node) {
-    const input = this.getInput(context, 'input');
+    const input = this.getInput(context, 'main') || this.getInput(context, 'input');
 
     let result = false;
     try {
-      const value1 = this.resolveTemplate(config.value1, input);
-      const value2 = this.resolveTemplate(config.value2, input);
+      const value1 = this.resolveTemplate(config.value1, input, context);
+      const value2 = this.resolveTemplate(config.value2, input, context);
       result = this.compare(value1, config.comparison || config.expression, value2);
     } catch (err) {
       this.log('error', 'Condition evaluation failed', { error: err.message });
@@ -74,11 +74,25 @@ class ConditionNode extends BaseNode {
     };
   }
 
-  resolveTemplate(value, input) {
+  resolveTemplate(value, input, context) {
     if (typeof value !== 'string') return value;
-    return value.replace(/\{\{\s*\$json\.([^}]+)\s*\}\}/g, (_, path) => {
-      const resolved = path.split('.').reduce((obj, key) => obj?.[key], input);
-      return resolved !== undefined ? resolved : value;
+    return value.replace(/\{\{\s*([a-zA-Z0-9_$.]+)\s*\}\}/g, (_, path) => {
+      // If starts with $json, use current input
+      if (path.startsWith('$json.')) {
+        const subPath = path.substring(6);
+        return subPath.split('.').reduce((obj, key) => obj?.[key], input);
+      }
+      
+      // Otherwise, check if it's a node reference (e.g., node_ai_eval.avg_ai_score)
+      const parts = path.split('.');
+      const nodeId = parts[0];
+      const nodeOutput = context.getNodeOutput(nodeId);
+      
+      if (nodeOutput) {
+        return parts.slice(1).reduce((obj, key) => obj?.[key], nodeOutput);
+      }
+      
+      return value;
     });
   }
 

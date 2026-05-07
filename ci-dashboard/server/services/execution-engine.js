@@ -79,8 +79,11 @@ class ExecutionEngine {
           const startTime = Date.now();
           
           // Get node executor
+          console.log(`[ExecutionEngine] Executing node: ${node.id} (type: "${node.type}")`);
           const executor = nodeRegistry.getNodeExecutor(node.type);
           if (!executor) {
+            const registeredTypes = Array.from(nodeRegistry.nodeExecutors.keys()).join(', ');
+            console.error(`[ExecutionEngine] NO EXECUTOR for type: "${node.type}". Registered types: [${registeredTypes}]`);
             throw new Error(`No executor found for node type: ${node.type}`);
           }
           

@@ -394,13 +394,13 @@ const WorkflowBuilder = {
         return;
       }
       
-      // Save workflow if modified
-      if (WorkflowManager.isModified) {
+      // Save workflow if modified or if it's a new unsaved workflow (e.g. from template)
+      if (WorkflowManager.isModified || !WorkflowManager.currentWorkflow?.id) {
         await this.saveWorkflow();
       }
       
       if (!WorkflowManager.currentWorkflow?.id) {
-        Toast.error('Error', 'Please save the workflow first');
+        // User probably cancelled the save prompt
         return;
       }
       

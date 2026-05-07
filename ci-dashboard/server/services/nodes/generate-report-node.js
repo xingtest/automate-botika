@@ -52,9 +52,9 @@ class GenerateReportNode extends BaseNode {
     const fs = require('fs');
     const path = require('path');
 
-    const input = this.getInput(context, 'test_result') || this.getInput(context, 'input');
+    const input = this.getInput(context, 'main') || this.getInput(context, 'test_result') || this.getInput(context, 'input');
 
-    if (!input || (!input.run_id && !input.results)) {
+    if (!input || (!input.run_id && !input.results && !input.evaluations)) {
       throw new Error('Invalid input: test results are required to generate a report');
     }
 
@@ -68,18 +68,59 @@ class GenerateReportNode extends BaseNode {
 
     this.log('info', `Generating ${format} report: ${filename}`);
 
+    // Standardize input data for the template
+    const rawResults = input.results || input.evaluations || [];
+    const runId = input.run_id || `WF-${Date.now()}`;
+    const startTime = input.start_time || new Date().toISOString();
+    
+    // Map data to match template/template.ejs expectations
+    const test_data = rawResults.map((item, index) => ({
+      no: index + 1,
+      id: item.id || `T-${index + 1}`,
+      title: item.title || item.topic || 'General',
+      question: item.question || 'N/A',
+      response_kb: item.expected_answer || item.expected || 'N/A',
+      response_llm: item.bot_response || item.response || 'N/A',
+      explanation: item.ai_explanation || item.explanation || 'N/A',
+      status: item.ai_passed ? 'PASS' : 'FAILED',
+      skor: item.ai_score !== undefined ? item.ai_score : (item.score || 0),
+      duration: item.duration || '00:00:01',
+      image_capture: item.image_capture || null
+    }));
+
+    const passedCount = test_data.filter(i => i.status === 'PASS').length;
+    const failedCount = test_data.length - passedCount;
+    const totalDuration = test_data.reduce((acc, curr) => acc + 1, 0); // Placeholder duration logic
+
+    const summary = [{
+      id_test: runId,
+      success: passedCount,
+      failed: failedCount,
+      total_title: [...new Set(test_data.map(i => i.title))].length,
+      total_question: test_data.length,
+      duration: `${totalDuration}s`,
+      tester_name: 'AI Judge (Workflow)',
+      date_test: new Date().toLocaleDateString(),
+      ai_evaluation: 'Enabled',
+      browser_name: 'Headless',
+      url: 'Workflow Execution',
+      start_time_test: startTime,
+      end_time_test: new Date().toISOString()
+    }];
+
     if (format === 'json') {
       fs.writeFileSync(filePath, JSON.stringify(input, null, 2));
     } else if (format === 'html') {
       try {
         const ejs = require('ejs');
-        const templatePath = path.join(__dirname, '../../../../../template/template.ejs');
+        const templatePath = path.resolve(process.cwd(), 'template/template.ejs');
+        this.log('info', `Loading template from: ${templatePath}`);
+        
         if (fs.existsSync(templatePath)) {
           const template = fs.readFileSync(templatePath, 'utf8');
           const html = ejs.render(template, {
-            data: input,
-            results: input.results || [],
-            title: baseName
+            summary,
+            test_data
           });
           fs.writeFileSync(filePath, html);
         } else {

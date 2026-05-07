@@ -58,6 +58,7 @@ class NodeRegistry {
     if (executor.schema) {
       this.nodeTypes.set(type, executor.schema);
     }
+    console.log(`[NodeRegistry] Registered node type: ${type}`);
   }
   
   /**

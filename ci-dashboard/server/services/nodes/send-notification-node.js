@@ -105,7 +105,7 @@ class SendNotificationNode extends BaseNode {
     this.log('info', `Executing Send Notification node: ${node.id}`);
 
     // Get input data for template substitution
-    const inputData = this.getInput(context, 'input') || {};
+    const inputData = this.getInput(context, 'main') || this.getInput(context, 'input') || {};
 
     // Substitute template variables in title and message
     const processedTitle = this.substituteVariables(config.title, inputData, context);
