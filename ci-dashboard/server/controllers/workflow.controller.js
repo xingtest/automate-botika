@@ -575,14 +575,33 @@ exports.getExecutionLogs = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     
-    const result = await db.queryOriginal(
+    const nodeExecs = await db.queryOriginal(
       `SELECT * FROM node_executions 
        WHERE execution_id = $1 
        ORDER BY created_at ASC`,
       [executionId]
     );
+
+    const technicalLogs = await db.queryOriginal(
+      `SELECT * FROM workflow_node_logs 
+       WHERE execution_id = $1 
+       ORDER BY created_at ASC`,
+      [executionId]
+    );
     
-    res.json(result.rows);
+    // Combine logs
+    const combinedLogs = [
+      ...nodeExecs.rows.map(l => ({ ...l, type: 'node_status' })),
+      ...technicalLogs.rows.map(l => ({ 
+        created_at: l.created_at,
+        node_id: l.node_id,
+        level: l.level,
+        message: l.message,
+        type: 'technical'
+      }))
+    ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    res.json(combinedLogs);
   } catch (error) {
     console.error('Error getting execution logs:', error);
     res.status(500).json({ error: 'Failed to get execution logs', message: error.message });

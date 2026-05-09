@@ -10,10 +10,10 @@ class AIEvaluateNode extends BaseNode {
       icon: 'fa-brain',
       color: '#8b5cf6',
       inputs: [
-        { id: 'test_result', name: 'Test Result', dataType: 'object', required: true }
+        { id: 'main', name: 'Test Result', dataType: 'object', required: true }
       ],
       outputs: [
-        { id: 'evaluation', name: 'Evaluation Result', dataType: 'object', required: true }
+        { id: 'main', name: 'Evaluation Result', dataType: 'object', required: true }
       ],
       config_schema: [
         {
@@ -29,17 +29,47 @@ class AIEvaluateNode extends BaseNode {
           default: 'groq'
         },
         {
+          key: 'apiKey',
+          label: 'API Key',
+          type: 'text',
+          required: false,
+          description: 'API Key untuk provider yang dipilih (Opsional, gunakan jika ingin menimpa .env)'
+        },
+        {
+          key: 'model',
+          label: 'AI Model',
+          type: 'text',
+          required: false,
+          description: 'Model AI yang akan digunakan (misal: llama-3.3-70b-versatile). Kosongkan untuk menggunakan default dari .env',
+        },
+        {
           key: 'systemPrompt',
           label: 'System Prompt',
           type: 'textarea',
           required: false,
-          description: 'Instruksi detail untuk AI (Persona, kriteria scoring, dll)'
+          description: 'Instruksi detail untuk AI (Persona, kriteria scoring, dll)',
+          default: `Anda adalah Senior QA Automation Judge. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot dibandingkan dengan jawaban referensi (Expected Answer).
+
+KRITERIA EVALUASI:
+1. Akurasi Faktual (0.0 - 0.4): Apakah informasi inti benar sesuai referensi?
+2. Kelengkapan (0.0 - 0.3): Apakah semua poin penting dalam referensi disebutkan?
+3. Relevansi & Nada (0.0 - 0.3): Apakah jawaban menjawab pertanyaan dengan nada yang tepat?
+
+SCORING:
+- Berikan skor total antara 0.00 hingga 1.00.
+- Pass Threshold default adalah 0.70.
+
+FORMAT OUTPUT (Wajib JSON):
+{
+  "score": 0.95,
+  "explanation": "[✓] Jawaban sangat akurat dan mencakup semua poin referensi. Nada profesional."
+}`
         },
         {
           key: 'temperature',
           label: 'Temperature',
           type: 'number',
-          default: 0.7,
+          default: 0.3,
           min: 0,
           max: 1
         },
@@ -55,17 +85,14 @@ class AIEvaluateNode extends BaseNode {
   }
 
   async execute(context, config, node) {
-    // Try 'main' (standard for our template) and 'input' (legacy)
-    const input = this.getInput(context, 'main') || this.getInput(context, 'input') || this.getInput(context, 'test_result');
-
+    const input = this.getInput(context, 'main');
     const provider = config.provider || config.ai_provider;
 
-    // Validate API key
     const apiKeyMap = {
-      'gemini': process.env.GEMINI_API_KEY || process.env.API_KEY_GEMINI,
-      'groq': process.env.GROQ_API_KEY,
-      'openai': process.env.OPENAI_API_KEY,
-      'cerebras': process.env.CEREBRAS_API_KEY
+      'gemini': config.apiKey || process.env.GEMINI_API_KEY || process.env.API_KEY_GEMINI,
+      'groq': config.apiKey || process.env.GROQ_API_KEY,
+      'openai': config.apiKey || process.env.OPENAI_API_KEY,
+      'cerebras': config.apiKey || process.env.CEREBRAS_API_KEY
     };
 
     const apiKey = apiKeyMap[provider];
@@ -77,12 +104,19 @@ class AIEvaluateNode extends BaseNode {
 
     const results = input?.results || [];
     const threshold = config.scoring_threshold || 0.7;
+    const model = config.model || (provider === 'groq' ? config.model_groq : (provider === 'gemini' ? config.model_gemini : null));
 
-    // Evaluate each item using the AI provider
-    const evaluations = await Promise.all(results.map(async (item) => {
-      const evaluation = await this.callAIProvider(provider, apiKey, item, config.systemPrompt || config.custom_prompt, threshold, config.temperature);
-      return { ...item, ...evaluation, ai_provider: provider };
-    }));
+    const evaluations = [];
+    for (const item of results) {
+      this.logTechnical(context, 'info', `Evaluating item ${evaluations.length + 1}/${results.length}...`);
+      const evaluation = await this.callAIProvider(context, provider, apiKey, item, config.systemPrompt || config.custom_prompt, threshold, config.temperature, model);
+      evaluations.push({ ...item, ...evaluation, ai_provider: provider });
+      
+      const delay = provider === 'groq' ? 2000 : 500;
+      if (results.length > 1) {
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
 
     const avgScore = evaluations.length > 0
       ? Math.round((evaluations.reduce((sum, e) => sum + e.ai_score, 0) / evaluations.length) * 100) / 100
@@ -102,46 +136,45 @@ class AIEvaluateNode extends BaseNode {
     };
   }
 
-  async callAIProvider(provider, apiKey, item, customPrompt, threshold) {
-    const question = item.question || 'N/A';
-    const expected = item.expected_answer || item.expected || 'N/A';
-    const response = item.bot_response || item.response || 'N/A';
+  async callAIProvider(context, provider, apiKey, item, customPrompt, threshold, temperature, model) {
+    const question = item.question || item.test_case || '';
+    const response = item.response_llm || item.actual || '';
+    const expected = item.response_kb || item.expected || '';
+    const title = item.title || 'General Test';
 
-    const prompt = customPrompt ||
-      `Anda adalah QA Engineer Senior. Tugas Anda mengevaluasi kualitas jawaban Chatbot.
-      
-      KONTEKS:
-      - Pertanyaan: "${question}"
-      - Referensi: "${expected}"
-      - Jawaban Bot: "${response}"
-      
-      INSTRUKSI:
-      1. Bandingkan kebenaran faktual antara Jawaban Bot dengan Referensi.
-      2. Cek apakah jawaban relevan dengan pertanyaan.
-      3. Berikan skor (0.00 - 1.00):
-         - 1.00: Sempurna
-         - 0.70-0.99: Pass (fakta benar)
-         - < 0.70: Fail
-      
-      OUTPUT (JSON):
-      {"score": 0.85, "explanation": "[✓] Analisa singkat"}`;
+    let prompt = customPrompt || 'Evaluate the following response based on reference.';
+    
+    const hasPlaceholders = prompt.includes('{actual}') || prompt.includes('{response}') || prompt.includes('{question}');
+    
+    prompt = prompt
+      .replace('{title}', title)
+      .replace('{question}', question)
+      .replace('{expected}', expected)
+      .replace('{actual}', response);
+
+    if (!hasPlaceholders) {
+      prompt += `\n\n--- DATA EVALUASI ---\n`;
+      if (title && title !== 'General Test') prompt += `KONTEKS: ${title}\n`;
+      prompt += `PERTANYAAN USER: ${question}\n`;
+      prompt += `REFERENSI KEBENARAN (EXPECTED): ${expected}\n`;
+      prompt += `JAWABAN CHATBOT (ACTUAL): ${response}\n`;
+    }
+    
+    this.logTechnical(context, 'info', `Sending Prompt to ${provider}:\n${prompt}`);
 
     const temp = temperature || 0.3;
-
     let score = 0.5;
     let explanation = 'Evaluation failed';
 
     try {
       if (!apiKey) {
-        // Use fuzzy matching for mock evaluation if no API key
         let mockScore = 0.5;
         try {
           const fuzz = require('fuzzball');
           mockScore = fuzz.ratio(expected, response) / 100;
         } catch (e) {
-          mockScore = Math.random() * 0.4 + 0.6; // 0.6 - 1.0
+          mockScore = Math.random() * 0.4 + 0.6;
         }
-
         return {
           ai_score: Math.round(mockScore * 100) / 100,
           ai_explanation: `Mock evaluation using fuzzy match (${Math.round(mockScore * 100)}% similarity)`,
@@ -149,108 +182,103 @@ class AIEvaluateNode extends BaseNode {
         };
       }
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`${provider} API timeout after 30s`)), 30000)
-      );
+      let retries = 0;
+      const maxRetries = 3;
+      const timeoutMs = 45000;
 
-      let apiPromise;
+      while (retries <= maxRetries) {
+        let apiPromise;
+        const groqPrompt = provider === 'groq' 
+          ? `${prompt}\n\nIMPORTANT: You MUST return a JSON object with EXACTLY two keys: "score" (number 0-1) and "explanation" (concise string analysis). Do not include the original question or reference in your JSON.`
+          : prompt;
 
-      if (provider === 'groq') {
-        apiPromise = fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'llama3-8b-8192',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: temp,
-            response_format: { type: 'json_object' }
-          })
-        }).then(r => r.json());
-      } else if (provider === 'openai') {
-        apiPromise = fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: temp,
-            response_format: { type: 'json_object' }
-          })
-        }).then(r => r.json());
-      } else if (provider === 'gemini') {
-        apiPromise = fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: temp }
-          })
-        }).then(r => r.json());
-      } else if (provider === 'cerebras') {
-        apiPromise = fetch('https://api.cerebras.ai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'llama3.1-8b',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: temp
-          })
-        }).then(r => r.json());
-      } else {
-        // Unknown provider — return fallback
-        return {
-          ai_score: 0.5,
-          ai_explanation: `Unsupported provider: ${provider}`,
-          ai_passed: 0.5 >= threshold
-        };
-      }
-
-      const apiResponse = await Promise.race([apiPromise, timeoutPromise]);
-
-      // Parse response based on provider
-      let content = '';
-      if (provider === 'gemini') {
-        if (apiResponse.error) {
-          throw new Error(`Gemini API Error: ${apiResponse.error.message}`);
+        if (provider === 'groq') {
+          apiPromise = fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: model || process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+              messages: [{ role: 'user', content: groqPrompt }],
+              temperature: temp,
+              response_format: { type: 'json_object' }
+            })
+          });
+        } else if (provider === 'gemini') {
+          const geminiModel = model || process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+          apiPromise = fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: temp, responseMimeType: 'application/json' }
+            })
+          });
+        } else if (provider === 'openai') {
+          apiPromise = fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: model || 'gpt-4o-mini',
+              messages: [{ role: 'user', content: prompt }],
+              temperature: temp,
+              response_format: { type: 'json_object' }
+            })
+          });
+        } else {
+           throw new Error(`Unsupported provider: ${provider}`);
         }
-        content = apiResponse.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-      } else {
-        if (apiResponse.error) {
-          throw new Error(`${provider} API Error: ${apiResponse.error.message}`);
+
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), timeoutMs));
+        const res = await Promise.race([apiPromise, timeoutPromise]);
+
+        if (res.status === 429) {
+          const retryAfter = parseInt(res.headers.get('retry-after') || '3');
+          this.log('warning', `Rate limit hit for ${provider}. Retrying in ${retryAfter}s...`);
+          await new Promise(r => setTimeout(r, retryAfter * 1000));
+          retries++;
+          continue;
         }
-        content = apiResponse.choices?.[0]?.message?.content || '{}';
-      }
 
-      this.log('info', `AI Content received (${content.length} chars)`);
+        if (!res.ok) {
+          const errorBody = await res.text();
+          throw new Error(`API returned ${res.status}: ${errorBody.substring(0, 200)}`);
+        }
 
-      // Try to parse JSON from content
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[0]);
-          
-          // Match variations of 'score' (score, rating, value)
-          const rawScore = parsed.score !== undefined ? parsed.score : 
-                           (parsed.rating !== undefined ? parsed.rating : 
-                           (parsed.value !== undefined ? parsed.value : null));
-          
-          if (rawScore !== null) {
-            score = parseFloat(rawScore);
+        const data = await res.json();
+        let content = '';
+        if (provider === 'gemini') {
+          content = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        } else {
+          content = data.choices?.[0]?.message?.content || '{}';
+        }
+
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            const rawScore = parsed.score !== undefined ? parsed.score : 
+                             (parsed.rating !== undefined ? parsed.rating : 
+                             (parsed.value !== undefined ? parsed.value : null));
+            
+            if (rawScore !== null) score = parseFloat(rawScore);
+            
+            explanation = parsed.explanation || parsed.reason || parsed.analysis || parsed.message;
+            if (!explanation) {
+              const otherKeys = Object.keys(parsed).filter(k => k !== 'score' && k !== 'rating');
+              explanation = otherKeys.length > 0 
+                ? otherKeys.map(k => `${k}: ${parsed[k]}`).join(' | ') 
+                : 'No explanation provided in JSON';
+            }
+          } catch (e) {
+            explanation = `Invalid JSON from AI: ${content.substring(0, 100)}`;
           }
-          
-          // Match variations of 'explanation' (explanation, reason, analysis, message)
-          explanation = parsed.explanation || parsed.reason || parsed.analysis || parsed.message || 'No explanation provided in JSON';
-        } catch (e) {
-          this.log('error', `JSON Parse Error: ${e.message}. Content: ${content}`);
-          explanation = `AI returned invalid JSON: ${content.substring(0, 100)}...`;
+        } else {
+          explanation = `AI response was not JSON: ${content.substring(0, 100)}`;
         }
-      } else {
-        this.log('warn', `No JSON found in response: ${content}`);
-        explanation = `AI response was not in JSON format: ${content.substring(0, 100)}...`;
+        break;
       }
     } catch (err) {
       this.log('error', `AI evaluation failed: ${err.message}`);
-      score = 0.5;
       explanation = `Evaluation error: ${err.message}`;
     }
 

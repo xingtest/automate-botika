@@ -101,7 +101,7 @@ const NodeLibrary = {
             displayName: 'File Path',
             name: 'filePath',
             type: 'string',
-            default: 'test-data/dummy-test.csv',
+            default: 'test-data/WABIS KB.xlsx',
             description: 'Path to the Excel/CSV file'
           },
           {
@@ -143,6 +143,53 @@ const NodeLibrary = {
             type: 'string',
             default: '',
             description: 'Override target URL'
+          },
+          {
+            displayName: 'Headless',
+            name: 'headless',
+            type: 'boolean',
+            default: true
+          }
+        ]
+      },
+      {
+        displayName: 'Playwright Webchat',
+        name: 'playwright-webchat',
+        category: 'Actions',
+        description: 'Execute Playwright test specifically for Webchat (Classic)',
+        icon: 'fa-globe',
+        color: '#2b6cb0',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Webchat URL',
+            name: 'platform_url',
+            type: 'string',
+            required: true,
+            default: 'https://chat.botika.online/EJUnkrW',
+            placeholder: 'https://example.com/webchat',
+            description: 'URL of the webchat interface'
+          },
+          {
+            displayName: 'Test Data File',
+            name: 'test_data_file',
+            type: 'string',
+            required: false,
+            hidden: true,
+            description: 'Path to CSV/Excel file (Optional if using input)'
+          },
+          {
+            displayName: 'Tester Name',
+            name: 'tester_name',
+            type: 'string',
+            default: 'Playwright Bot'
+          },
+          {
+            displayName: 'Greeting Message',
+            name: 'greeting',
+            type: 'string',
+            default: 'Haloo'
           },
           {
             displayName: 'Headless',
@@ -197,32 +244,184 @@ const NodeLibrary = {
             default: 'groq'
           },
           {
+            displayName: 'API Key',
+            name: 'apiKey',
+            type: 'string',
+            default: '',
+            description: 'Optional: Use a custom API key for this node. If empty, uses global settings.'
+          },
+          {
+            displayName: 'Model (Groq)',
+            name: 'model_groq',
+            type: 'options',
+            displayOptions: { show: { provider: ['groq'] } },
+            options: [
+              { name: 'Llama-3.1-8b-instant', value: 'llama-3.1-8b-instant' },
+              { name: 'Llama3-8b-8192', value: 'llama3-8b-8192' },
+              { name: 'Llama3-70b-8192', value: 'llama3-70b-8192' },
+              { name: 'Mixtral-8x7b-32768', value: 'mixtral-8x7b-32768' }
+            ],
+            default: 'llama-3.1-8b-instant'
+          },
+          {
+            displayName: 'Model (Gemini)',
+            name: 'model_gemini',
+            type: 'options',
+            displayOptions: { show: { provider: ['gemini'] } },
+            options: [
+              { name: 'Gemini 3.1 Flash Lite (Preview)', value: 'gemini-3.1-flash-lite-preview' },
+              { name: 'Gemini 1.5 Flash', value: 'gemini-1.5-flash' },
+              { name: 'Gemini 1.5 Pro', value: 'gemini-1.5-pro' }
+            ],
+            default: 'gemini-3.1-flash-lite-preview'
+          },
+          {
             displayName: 'System Prompt',
             name: 'systemPrompt',
             type: 'textarea',
             displayOptions: { show: { operation: ['score'] } },
-            default: 'You are a helpful AI Judge...',
+            default: `Anda adalah Senior QA Automation Judge. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot dibandingkan dengan jawaban referensi (Expected Answer).
+
+KRITERIA EVALUASI:
+1. Akurasi Faktual (0.0 - 0.4): Apakah informasi inti benar sesuai referensi?
+2. Kelengkapan (0.0 - 0.3): Apakah semua poin penting dalam referensi disebutkan?
+3. Relevansi & Nada (0.0 - 0.3): Apakah jawaban menjawab pertanyaan dengan nada yang tepat?
+
+SCORING:
+- Berikan skor total antara 0.00 hingga 1.00.
+- Pass Threshold default adalah 0.70.
+
+FORMAT OUTPUT (Wajib JSON):
+{
+  "score": 0.95,
+  "explanation": "[✓] Jawaban sangat akurat dan mencakup semua poin referensi. Nada profesional."
+}`,
             description: 'Define the persona of the judge'
           },
           {
             displayName: 'Temperature',
             name: 'temperature',
             type: 'number',
-            default: 0.7,
+            default: 0.3,
             min: 0,
             max: 1
           },
           {
-          key: 'scoring_threshold',
-          displayName: 'Pass Threshold',
-          name: 'scoring_threshold',
-          type: 'number',
-          default: 0.7,
-          min: 0,
-          max: 1,
-          description: 'Nilai minimum (0.0–1.0) agar dianggap lulus'
-        }
-      ]
+            displayName: 'Pass Threshold',
+            name: 'scoring_threshold',
+            type: 'number',
+            default: 0.7,
+            min: 0,
+            max: 1,
+            description: 'Nilai minimum (0.0–1.0) agar dianggap lulus'
+          }
+        ]
+      },
+      {
+        displayName: 'Groq AI',
+        name: 'groq-ai',
+        category: 'AI',
+        description: 'AI Evaluation using Groq models with custom credentials',
+        icon: 'fa-bolt',
+        color: '#f59e0b',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Groq API Key',
+            name: 'apiKey',
+            type: 'string',
+            default: '',
+            description: 'Custom API Key for Groq'
+          },
+          {
+            displayName: 'Model',
+            name: 'model',
+            type: 'options',
+            options: [
+              { name: 'Llama-3.1-8b-instant', value: 'llama-3.1-8b-instant' },
+              { name: 'Llama3-8b-8192', value: 'llama3-8b-8192' },
+              { name: 'Llama3-70b-8192', value: 'llama3-70b-8192' },
+              { name: 'Mixtral-8x7b-32768', value: 'mixtral-8x7b-32768' }
+            ],
+            default: 'llama-3.1-8b-instant'
+          },
+          {
+            displayName: 'System Prompt',
+            name: 'systemPrompt',
+            type: 'textarea',
+            default: `Anda adalah Senior QA Automation Judge. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot...`,
+          },
+          {
+            displayName: 'Temperature',
+            name: 'temperature',
+            type: 'number',
+            default: 0.3,
+            min: 0,
+            max: 1
+          },
+          {
+            displayName: 'Pass Threshold',
+            name: 'scoring_threshold',
+            type: 'number',
+            default: 0.7,
+            min: 0,
+            max: 1
+          }
+        ]
+      },
+      {
+        displayName: 'Gemini AI',
+        name: 'gemini-ai',
+        category: 'AI',
+        description: 'AI Evaluation using Google Gemini models with custom credentials',
+        icon: 'fa-gem',
+        color: '#4285f4',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Gemini API Key',
+            name: 'apiKey',
+            type: 'string',
+            default: '',
+            description: 'Custom API Key for Gemini'
+          },
+          {
+            displayName: 'Model',
+            name: 'model',
+            type: 'options',
+            options: [
+              { name: 'Gemini 3.1 Flash Lite (Preview)', value: 'gemini-3.1-flash-lite-preview' },
+              { name: 'Gemini 1.5 Flash', value: 'gemini-1.5-flash' },
+              { name: 'Gemini 1.5 Pro', value: 'gemini-1.5-pro' },
+              { name: 'Gemini 1.0 Pro', value: 'gemini-1.0-pro' }
+            ],
+            default: 'gemini-3.1-flash-lite-preview'
+          },
+          {
+            displayName: 'System Prompt',
+            name: 'systemPrompt',
+            type: 'textarea',
+            default: `Anda adalah Senior QA Automation Judge. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot...`,
+          },
+          {
+            displayName: 'Temperature',
+            name: 'temperature',
+            type: 'number',
+            default: 0.3,
+            min: 0,
+            max: 1
+          },
+          {
+            displayName: 'Pass Threshold',
+            name: 'scoring_threshold',
+            type: 'number',
+            default: 0.7,
+            min: 0,
+            max: 1
+          }
+        ]
       },
 
       // --- HTTP & API ---

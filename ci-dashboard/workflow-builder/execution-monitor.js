@@ -6,6 +6,7 @@
 const ExecutionMonitor = {
   currentExecutionId: null,
   pollingInterval: null,
+  logsInterval: null,
   isMonitoring: false,
   logs: [],
   
@@ -31,9 +32,10 @@ const ExecutionMonitor = {
     // Update status UI
     this.updateStatusUI('running');
     
-    // Start polling
+    // Start polling — status every 2s, logs every 1s for real-time feel
     this.stopPolling();
     this.pollingInterval = setInterval(() => this.pollStatus(), 2000);
+    this.logsInterval = setInterval(() => this.pollLogs(), 1000);
     
     // Initial poll
     this.pollStatus();
@@ -56,6 +58,10 @@ const ExecutionMonitor = {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
+    }
+    if (this.logsInterval) {
+      clearInterval(this.logsInterval);
+      this.logsInterval = null;
     }
   },
   
@@ -82,7 +88,7 @@ const ExecutionMonitor = {
           this.isMonitoring = false;
           
           // Final log poll
-          this.pollLogs();
+          await this.pollLogs();
           
           if (execution.status === 'completed') {
             Toast.success('Workflow Completed', 'The workflow finished successfully');
@@ -154,14 +160,31 @@ const ExecutionMonitor = {
     
     // Simple diff to avoid re-rendering everything if possible
     // But for now, just clear and re-render the list
-    logContainer.innerHTML = logs.map(log => `
-      <div class="log-entry log-${log.status}">
-        <span class="log-time">[${new Date(log.created_at).toLocaleTimeString()}]</span>
-        <span class="log-node">Node: ${log.node_id} (${log.node_type})</span>
-        <span class="log-message">${log.error_message || 'Executed successfully'}</span>
-        ${log.duration_ms ? `<span class="log-duration">${log.duration_ms}ms</span>` : ''}
-      </div>
-    `).join('');
+    logContainer.innerHTML = logs.map(log => {
+      const time = new Date(log.created_at).toLocaleTimeString();
+      const nodeId = log.node_id || 'system';
+      
+      if (log.type === 'technical') {
+        return `
+          <div class="log-entry log-technical log-${log.level || 'info'}">
+            <span class="log-time">[${time}]</span>
+            <span class="log-node">[DEBUG]</span>
+            <span class="log-message">${BackendAPI.esc(log.message)}</span>
+          </div>
+        `;
+      } else {
+        const status = log.status || 'info';
+        const msg = log.error_message || (status === 'success' ? 'Executed successfully' : (status === 'running' ? 'Started execution' : status));
+        return `
+          <div class="log-entry log-${status}">
+            <span class="log-time">[${time}]</span>
+            <span class="log-node">Node: ${nodeId} (${log.node_type || 'node'})</span>
+            <span class="log-message">${BackendAPI.esc(msg)}</span>
+            ${log.duration_ms ? `<span class="log-duration">${log.duration_ms}ms</span>` : ''}
+          </div>
+        `;
+      }
+    }).join('');
     
     // Auto-scroll to bottom
     logContainer.scrollTop = logContainer.scrollHeight;

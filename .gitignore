@@ -10,7 +10,8 @@ node_modules/
 # Build Output
 dist/
 *.tsbuildinfo
-
+.github/
+test-reports.yml/
 # Logs
 log/
 logs/

@@ -11,10 +11,10 @@ class GenerateReportNode extends BaseNode {
       icon: 'fa-file-alt',
       color: '#8b5cf6',
       inputs: [
-        { id: 'test_result', name: 'Test Result', dataType: 'object', required: true }
+        { id: 'main', name: 'Test Result', dataType: 'object', required: true }
       ],
       outputs: [
-        { id: 'artifact', name: 'Artifact', dataType: 'object', required: true }
+        { id: 'main', name: 'Artifact', dataType: 'object', required: true }
       ],
       config_schema: [
         {
@@ -51,8 +51,7 @@ class GenerateReportNode extends BaseNode {
   async execute(context, config, node) {
     const fs = require('fs');
     const path = require('path');
-
-    const input = this.getInput(context, 'main') || this.getInput(context, 'test_result') || this.getInput(context, 'input');
+    const input = this.getInput(context, 'main');
 
     if (!input || (!input.run_id && !input.results && !input.evaluations)) {
       throw new Error('Invalid input: test results are required to generate a report');
@@ -75,15 +74,15 @@ class GenerateReportNode extends BaseNode {
     
     // Map data to match template/template.ejs expectations
     const test_data = rawResults.map((item, index) => ({
-      no: index + 1,
+      no: item.no || index + 1,
       id: item.id || `T-${index + 1}`,
       title: item.title || item.topic || 'General',
       question: item.question || 'N/A',
-      response_kb: item.expected_answer || item.expected || 'N/A',
-      response_llm: item.bot_response || item.response || 'N/A',
+      response_kb: item.response_kb || item.expected_answer || item.expected || 'N/A',
+      response_llm: item.response_llm || item.bot_response || item.actual || item.response || 'N/A',
       explanation: item.ai_explanation || item.explanation || 'N/A',
-      status: item.ai_passed ? 'PASS' : 'FAILED',
-      skor: item.ai_score !== undefined ? item.ai_score : (item.score || 0),
+      status: (item.ai_passed !== undefined ? item.ai_passed : item.status === 'pass') ? 'PASS' : 'FAILED',
+      skor: item.ai_score !== undefined ? item.ai_score : (item.skor !== undefined ? item.skor : (item.score || 0)),
       duration: item.duration || '00:00:01',
       image_capture: item.image_capture || null
     }));
@@ -239,11 +238,11 @@ class GenerateReportNode extends BaseNode {
         item.no || index + 1,
         item.title || item.topic || `Item ${index + 1}`,
         item.question || 'N/A',
-        item.expected_answer || item.expected || 'N/A',
-        item.bot_response || item.response || 'N/A',
-        item.ai_passed ? 'PASS' : 'FAILED',
+        item.response_kb || item.expected_answer || item.expected || 'N/A',
+        item.response_llm || item.bot_response || item.actual || item.response || 'N/A',
+        (item.ai_passed !== undefined ? item.ai_passed : item.status === 'pass') ? 'PASS' : 'FAILED',
         item.duration || '0s',
-        item.ai_score !== undefined ? item.ai_score : (item.score || 0),
+        item.ai_score !== undefined ? item.ai_score : (item.skor !== undefined ? item.skor : (item.score || 0)),
         item.ai_explanation || item.explanation || 'N/A',
         item.image_capture || null
       ]);

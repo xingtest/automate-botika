@@ -53,7 +53,13 @@ class BaseNode {
    * @returns {any} - Input data
    */
   getInput(context, portName = 'input') {
-    return context.getInput(portName);
+    const data = context.getInput(portName);
+    this.log('info', `getInput called for port: ${portName}, found data: ${data ? 'yes' : 'no'}`);
+    if (!data) {
+      this.log('warn', `No data found for port: ${portName} on node ${context.current_node_id}`);
+      this.log('warn', `Available connections: ${JSON.stringify(context.connections)}`);
+    }
+    return data;
   }
   
   /**
@@ -67,6 +73,30 @@ class BaseNode {
   }
   
   /**
+   * Log message to technical logs table for UI visibility
+   */
+  async logTechnical(context, level, message) {
+    if (!context || !context.execution_id || !context.current_node_id) {
+      this.log(level, message);
+      return;
+    }
+
+    try {
+      const { pool: db } = require('../../db');
+      await db.queryOriginal(
+        `INSERT INTO workflow_node_logs (execution_id, node_id, level, message)
+         VALUES ($1, $2, $3, $4)`,
+        [context.execution_id, context.current_node_id, level, message]
+      );
+    } catch (err) {
+      console.error('Failed to save technical log:', err.message);
+    }
+
+    // Also log to console for server-side visibility
+    this.log(level, message);
+  }
+
+  /**
    * Log message
    * @param {string} level - Log level (info, warn, error)
    * @param {string} message - Log message
@@ -75,6 +105,87 @@ class BaseNode {
   log(level, message, data = {}) {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] [${level.toUpperCase()}] ${message}`, data);
+  }
+
+  /**
+   * Ensures a file exists locally. If it's a URL, it downloads it to a temp folder.
+   * Enhanced to search in assets directories if not found.
+   * @param {string} filePathOrUrl 
+   * @returns {Promise<string>} - Local file path
+   */
+  async ensureLocalFile(filePathOrUrl) {
+    if (!filePathOrUrl) return null;
+    
+    const fs = require('fs');
+    const path = require('path');
+    const axios = require('axios');
+
+    if (filePathOrUrl.startsWith('http')) {
+      this.log('info', `Downloading remote file: ${filePathOrUrl}`);
+      try {
+        const tempDir = path.join(process.cwd(), 'temp_data');
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+        
+        const fileName = path.basename(new URL(filePathOrUrl).pathname) || `downloaded_${Date.now()}.xlsx`;
+        const localPath = path.join(tempDir, fileName);
+        
+        const response = await axios({
+          method: 'get',
+          url: filePathOrUrl,
+          responseType: 'stream'
+        });
+        
+        const writer = fs.createWriteStream(localPath);
+        response.data.pipe(writer);
+        
+        return new Promise((resolve, reject) => {
+          writer.on('finish', () => resolve(localPath));
+          writer.on('error', reject);
+        });
+      } catch (error) {
+        this.log('error', `Failed to download file: ${error.message}`);
+        throw new Error(`Failed to download file from URL: ${filePathOrUrl}`);
+      }
+    }
+    
+    // 1. Cek path langsung (literal check)
+    if (fs.existsSync(filePathOrUrl)) {
+      return filePathOrUrl;
+    }
+    
+    // 2. Cek apakah ada di folder assets (xlsx, json, csv)
+    const baseFileName = path.basename(filePathOrUrl);
+    
+    // Coba bersihkan prefix umum jika ada
+    let cleanFileName = filePathOrUrl;
+    const prefixesToStrip = ['test-data/', 'test-data\\', 'assets/', 'assets\\'];
+    for (const prefix of prefixesToStrip) {
+      if (cleanFileName.toLowerCase().startsWith(prefix.toLowerCase())) {
+        cleanFileName = cleanFileName.slice(prefix.length);
+        break;
+      }
+    }
+    
+    const candidates = [
+      path.join(process.cwd(), 'assets', 'xlsx', cleanFileName),
+      path.join(process.cwd(), 'assets', 'json', cleanFileName),
+      path.join(process.cwd(), 'assets', 'csv', cleanFileName),
+      path.join(process.cwd(), 'assets', 'xlsx', baseFileName),
+      path.join(process.cwd(), 'assets', 'json', baseFileName),
+      path.join(process.cwd(), 'assets', 'csv', baseFileName),
+      path.join(process.cwd(), 'ci-dashboard', 'assets', 'xlsx', baseFileName),
+      path.join(process.cwd(), 'ci-dashboard', 'assets', 'json', baseFileName),
+      path.join(process.cwd(), 'ci-dashboard', 'assets', 'csv', baseFileName)
+    ];
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        this.log('info', `File found at fallback location: ${candidate}`);
+        return candidate;
+      }
+    }
+    
+    throw new Error(`File not found: ${filePathOrUrl}. Pastikan file ada di folder assets/`);
   }
 }
 

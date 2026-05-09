@@ -14,6 +14,9 @@ const GenerateReportNode = require('./nodes/generate-report-node');
 const SendNotificationNode = require('./nodes/send-notification-node');
 const TelegramNode = require('./nodes/telegram-node');
 const ReadExcelNode = require('./nodes/read-excel-node');
+const GroqNode = require('./nodes/groq-node');
+const GeminiNode = require('./nodes/gemini-node');
+const PlaywrightWebchatNode = require('./nodes/playwright-webchat-node');
 
 class NodeRegistry {
   constructor() {
@@ -37,6 +40,9 @@ class NodeRegistry {
     this.register('send-notification', SendNotificationNode);
     this.register('telegram', TelegramNode);
     this.register('read-excel', ReadExcelNode);
+    this.register('groq-ai', GroqNode);
+    this.register('gemini-ai', GeminiNode);
+    this.register('playwright-webchat', PlaywrightWebchatNode);
     
     // Control flow nodes
     this.register('condition', ConditionNode);

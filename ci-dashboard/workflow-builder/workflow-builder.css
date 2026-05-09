@@ -634,3 +634,31 @@
   padding: var(--sp-4);
   border-top: 1px solid var(--border-color);
 }
+.log-entry.log-technical {
+  border-left: 2px solid var(--text-muted);
+  background: rgba(255, 255, 255, 0.02);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  padding: var(--sp-1) var(--sp-3);
+  margin-left: var(--sp-4);
+  opacity: 0.8;
+}
+
+.log-entry.log-technical .log-node {
+  color: var(--text-muted);
+  font-weight: 500;
+  min-width: 60px;
+}
+
+.log-entry.log-technical .log-message {
+  color: var(--text-secondary);
+}
+
+.log-entry.log-technical.log-error {
+  border-left-color: var(--error);
+  color: var(--error);
+}
+
+.log-entry.log-technical.log-warn {
+  border-left-color: var(--warning);
+}

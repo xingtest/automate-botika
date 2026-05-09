@@ -1549,7 +1549,14 @@ const EvalPresetManager = {
                      data-preset-id="${p.id}" data-category="${p.category}"
                      onclick="EvalPresetManager.togglePreset('${p.id}')">
                     <div class="preset-card-check"><i class="fas fa-check"></i></div>
-                    <div class="preset-card-edit" onclick="event.stopPropagation(); EvalPresetManager.editPreset('${p.id}')" title="Edit Prompt"><i class="fas fa-pen"></i></div>
+                    <div class="preset-card-actions">
+                        <div class="preset-card-action" onclick="event.stopPropagation(); EvalPresetManager.addToWorkflow('${p.id}')" title="Add to Workflow Builder">
+                            <i class="fas fa-project-diagram"></i>
+                        </div>
+                        <div class="preset-card-action" onclick="event.stopPropagation(); EvalPresetManager.editPreset('${p.id}')" title="Edit Prompt">
+                            <i class="fas fa-pen"></i>
+                        </div>
+                    </div>
                     <div class="preset-card-icon"><i class="${p.icon}"></i></div>
                     <div class="preset-card-name">${p.name}${isCustomized ? ' <i class="fas fa-pen-fancy" style="font-size:0.6rem;color:var(--accent);opacity:0.7;" title="Customized"></i>' : ''}</div>
                     <div class="preset-card-desc">${p.description}</div>
@@ -1845,6 +1852,45 @@ OUTPUT WAJIB dalam format JSON valid tanpa markdown block:
 
     getSelectedIds() {
         return [...this.selectedPresets];
+    },
+
+    /** Add this preset as a node to the workflow builder */
+    async addToWorkflow(id) {
+        const p = JUDGE_PRESETS.find(pr => pr.id === id);
+        if (!p) return;
+
+        const prompt = this.customPrompts[id] || p.prompt;
+
+        // 1. Switch to Workflow Builder page
+        Router.navigate('workflow-builder');
+
+        // 2. Wait for WorkflowBuilder to be ready
+        if (typeof WorkflowBuilder !== 'undefined') {
+            if (!WorkflowBuilder.initialized) {
+                await WorkflowBuilder.init();
+            }
+            
+            // 3. Add node to canvas
+            const nodeData = {
+                type: 'ai-evaluate',
+                label: p.name,
+                x: 100 + (Math.random() * 50), // Randomize slightly to avoid overlapping
+                y: 100 + (Math.random() * 50),
+                config: {
+                    systemPrompt: prompt,
+                    temperature: 0.3,
+                    model: localStorage.getItem('acc_gemini_model') || 'gemini-1.5-flash'
+                }
+            };
+
+            if (typeof WorkflowCanvas !== 'undefined') {
+                const newNode = WorkflowCanvas.addNode(nodeData);
+                WorkflowCanvas.selectedNode = newNode;
+                WorkflowCanvas.render();
+                
+                Toast.success('Added to Builder', `Added "${p.name}" node to workflow canvas`);
+            }
+        }
     }
 };
 

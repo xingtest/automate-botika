@@ -1,20 +1,22 @@
 const BaseNode = require('./base-node');
 const { pool: db } = require('../../db');
+const fs = require('fs');
+const path = require('path');
 
 class RunTestNode extends BaseNode {
   constructor() {
     super({
       type: 'run-test',
-      category: 'action',
+      category: 'Execution',
       label: 'Run Test',
       description: 'Execute tests on specified platform',
       icon: 'fa-play-circle',
       color: '#8b5cf6',
       inputs: [
-        { id: 'trigger', name: 'Trigger', dataType: 'any', required: false }
+        { id: 'main', name: 'Input', dataType: 'any', required: false }
       ],
       outputs: [
-        { id: 'result', name: 'Test Result', dataType: 'object', required: true },
+        { id: 'main', name: 'Test Result', dataType: 'object', required: true },
         { id: 'error', name: 'Error', dataType: 'object', required: false }
       ],
       config_schema: [
@@ -36,8 +38,8 @@ class RunTestNode extends BaseNode {
           key: 'test_data_file',
           label: 'Test Data File',
           type: 'file',
-          required: true,
-          description: 'Path ke file CSV/Excel berisi pertanyaan test'
+          required: false,
+          description: 'Nama file CSV/Excel di folder ci-dashboard/assets/ (contoh: xlsx/Testing.xlsx) atau URL lengkap'
         },
         {
           key: 'tester_name',
@@ -68,97 +70,103 @@ class RunTestNode extends BaseNode {
   async execute(context, config, node) {
     // Validate required config fields
     if (!config.platform) throw new Error('Configuration error: platform is required');
-    if (!config.test_data_file) throw new Error('Configuration error: test_data_file is required');
     if (!config.platform_url) throw new Error('Configuration error: platform_url is required');
 
-    // Verify test data file exists
-    const fs = require('fs');
-    const path = require('path');
-    if (!fs.existsSync(config.test_data_file)) {
-      throw new Error(`Test data file not found: ${config.test_data_file}`);
+    // Check for input from previous nodes (e.g. Read Excel Node)
+    const input = this.getInput(context, 'main');
+    let testDataFile = config.test_data_file;
+
+    if (input) {
+      if (input.filePath) {
+        testDataFile = input.filePath;
+        this.log('info', `Using test data file from input path: ${testDataFile}`);
+      } else if (input.file) {
+        testDataFile = input.file;
+        this.log('info', `Using test data file from input name: ${testDataFile}`);
+      } else if (Array.isArray(input) || (input.results && Array.isArray(input.results))) {
+        // Direct data input (e.g. from Transform Node)
+        const data = Array.isArray(input) ? input : input.results;
+        const tempDir = path.join(process.cwd(), 'ci-dashboard', 'assets', 'temp');
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+        
+        const tempFileName = `transformed_${Date.now()}.xlsx`;
+        const tempPath = path.join(tempDir, tempFileName);
+        
+        const xlsx = require('xlsx');
+        const ws = xlsx.utils.json_to_sheet(data);
+        const wb = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(wb, ws, 'Sheet1');
+        xlsx.writeFile(wb, tempPath);
+        
+        testDataFile = tempPath;
+        this.log('info', `Created temporary test data file from transformed data: ${tempPath}`);
+      }
     }
 
-    this.log('info', `Running test on platform: ${config.platform}`);
+    if (!testDataFile) throw new Error('Configuration error: test_data_file is required');
 
-    // Map platform to executor name
-    const platformMap = {
-      'webchat': 'webchat-v3',
-      'telegram': 'telegram',
-      'facebook': 'facebook',
-      'instagram': 'instagram',
-      'dhai': 'dhai'
-    };
-    const executorName = platformMap[config.platform] || config.platform;
+    // Resolve test data file path relatif ke ci-dashboard/assets/
+    // - Jika URL → download ke ci-dashboard/assets/temp/
+    // - Jika relative path → resolve dari ci-dashboard/assets/
+    // - Jika absolute path → gunakan langsung
+    // - Strip prefix lama seperti "test-data/" jika ada
+    const ciDashboardDir = path.join(process.cwd(), 'ci-dashboard');
+    let inputFile = testDataFile;
+
+    // Normalisasi: strip prefix lama yang tidak valid
+    const oldPrefixes = ['test-data/', 'test-data\\', 'assets/xlsx/', 'assets\\xlsx\\', 'assets/csv/', 'assets\\csv\\'];
+    for (const prefix of oldPrefixes) {
+      if (inputFile.startsWith(prefix)) {
+        inputFile = inputFile.slice(prefix.length);
+        break;
+      }
+    }
+
+    let resolvedDataPath;
+
+    if (inputFile.startsWith('http')) {
+      // Download ke ci-dashboard/assets/temp/
+      const tempDir = path.join(ciDashboardDir, 'assets', 'temp');
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+      resolvedDataPath = await this.ensureLocalFile(inputFile);
+    } else if (path.isAbsolute(inputFile)) {
+      resolvedDataPath = inputFile;
+    } else {
+      // Relative path: coba di assets/xlsx/ dulu, lalu assets/csv/, lalu assets/ langsung
+      const candidates = [
+        path.join(ciDashboardDir, 'assets', 'xlsx', inputFile),
+        path.join(ciDashboardDir, 'assets', 'csv', inputFile),
+        path.join(ciDashboardDir, 'assets', inputFile),
+      ];
+      resolvedDataPath = candidates.find(p => fs.existsSync(p));
+      if (!resolvedDataPath) {
+        const errorMsg = `Test data file not found. Dicari di:\n${candidates.join('\n')}`;
+        await this.logTechnical(context, 'error', errorMsg);
+        throw new Error(`Test data file not found: ${inputFile}. Pastikan file ada di ci-dashboard/assets/xlsx/`);
+      }
+    }
+
+    // envfile.ts asli: path.join('assets', 'xlsx', filename)
+    // Jadi FILENAME harus nama file saja (tanpa subfolder)
+    // cwd child process = ci-dashboard/, jadi assets/xlsx/ resolve ke ci-dashboard/assets/xlsx/
+    const filenameForEnv = path.basename(resolvedDataPath);
+
+    await this.logTechnical(context, 'info', `Running test on platform: ${config.platform}`);
+    await this.logTechnical(context, 'info', `Test data: ${resolvedDataPath}`);
 
     const testId = `test_${Date.now()}`;
-    let result;
 
-    // Try to run the compiled platform executor via child_process
-    const distPath = path.join(process.cwd(), 'dist', 'platforms', `${executorName}.js`);
-    if (fs.existsSync(distPath)) {
-      try {
-        const { spawnSync } = require('child_process');
-        const configJson = JSON.stringify({
-          platform: config.platform,
-          test_data_file: config.test_data_file,
-          tester_name: config.tester_name || 'Workflow Bot',
-          greeting: config.greeting || 'Haloo',
-          platform_url: config.platform_url
-        });
-
-        const proc = spawnSync(
-          process.execPath,
-          ['-e', `
-            const mod = require(${JSON.stringify(distPath)});
-            const run = mod.run || mod.default;
-            if (typeof run === 'function') {
-              Promise.resolve(run(${configJson}))
-                .then(r => { process.stdout.write(JSON.stringify(r)); })
-                .catch(e => { process.stderr.write(e.message); process.exit(1); });
-            } else {
-              process.stderr.write('No run function exported');
-              process.exit(1);
-            }
-          `],
-          { timeout: 300000, encoding: 'utf8' }
-        );
-
-        if (proc.status === 0 && proc.stdout) {
-          result = JSON.parse(proc.stdout);
-        } else {
-          this.log('warn', `Platform executor failed, using mock data: ${proc.stderr || 'unknown error'}`);
-          result = null;
-        }
-      } catch (err) {
-        this.log('warn', `Failed to run platform executor, using mock data: ${err.message}`);
-        result = null;
-      }
-    } else {
-      this.log('warn', `Compiled executor not found at ${distPath}, using mock data`);
-      result = null;
+    // Check if main.js exists
+    const mainPath = path.join(process.cwd(), 'dist', 'main.js');
+    if (!fs.existsSync(mainPath)) {
+      const errorMsg = `Main executor not found at ${mainPath}. Please run 'npm run build' first.`;
+      await this.logTechnical(context, 'error', errorMsg);
+      throw new Error(errorMsg);
     }
 
-    // Fallback to mock data if executor not available
-    if (!result) {
-      const mockResults = [
-        { no: 1, title: 'Greeting', question: 'Haloo', response: 'Halo! Ada yang bisa saya bantu?', status: 'success', duration: '2.1s' },
-        { no: 2, title: 'FAQ Produk', question: 'Apa saja produk kalian?', response: 'Kami menyediakan berbagai produk digital...', status: 'success', duration: '3.4s' },
-        { no: 3, title: 'Harga', question: 'Berapa harganya?', response: 'Harga mulai dari Rp 50.000...', status: 'success', duration: '2.8s' }
-      ];
-
-      result = {
-        test_id: testId,
-        platform: config.platform,
-        status: 'completed',
-        total_questions: mockResults.length,
-        success_count: mockResults.filter(r => r.status === 'success').length,
-        failed_count: mockResults.filter(r => r.status === 'failed').length,
-        avg_score: 0.85,
-        duration: '8.3s',
-        results: mockResults,
-        message: `Test completed on ${config.platform} (mock)`
-      };
-    }
+    // Run platform executor via spawn (non-blocking)
+    // cwd = ci-dashboard/ agar semua path relatif (report/json, assets/xlsx) mengarah ke ci-dashboard/
+    const result = await this.runPlatformExecutor(context, mainPath, config, filenameForEnv, ciDashboardDir);
 
     // Ensure test_id is set
     if (!result.test_id) result.test_id = testId;
@@ -166,7 +174,132 @@ class RunTestNode extends BaseNode {
     // Save to database
     const runId = await this.createTestRun(context, config, result.test_id);
 
+    await this.logTechnical(context, 'info', `Test completed successfully. Run ID: ${runId}`);
     return { ...result, run_id: runId };
+  }
+
+  /**
+   * Run platform executor via spawn with timeout handling
+   * cwd diset ke ci-dashboard/ agar semua path relatif (report/json, assets/xlsx)
+   * otomatis mengarah ke dalam ci-dashboard/ tanpa perlu ubah src/
+   */
+  async runPlatformExecutor(context, distPath, config, filenameForEnv, ciDashboardDir) {
+    const { spawn } = require('child_process');
+    const TIMEOUT_MS = 300000; // 5 minutes
+
+    return new Promise((resolve, reject) => {
+      // Set environment variables — FILENAME relatif terhadap cwd (ci-dashboard/)
+      const env = {
+        ...process.env,
+        FILENAME: filenameForEnv,                  // relatif dari ci-dashboard/assets/xlsx/
+        TESTER_NAME: config.tester_name || 'Workflow Bot',
+        GREETING: config.greeting || 'Haloo',
+        GREETING_2: config.greeting2 || '',
+        TARGET_URL: config.platform_url,           // main.ts reads TARGET_URL for webchat
+        PLATFORM: config.platform,
+        HEADLESS: 'true'
+      };
+
+      // mainPath adalah path absolut ke dist/main.js di root project
+      const mainPath = path.join(process.cwd(), 'dist', 'main.js');
+
+      if (!fs.existsSync(mainPath)) {
+        reject(new Error(`Main executor not found at ${mainPath}`));
+        return;
+      }
+
+      const proc = spawn(process.execPath, [mainPath, config.platform], {
+        timeout: TIMEOUT_MS,
+        encoding: 'utf8',
+        env: env,
+        // cwd = ci-dashboard/ → report/json dan assets/xlsx resolve ke ci-dashboard/
+        cwd: ciDashboardDir
+      });
+
+      let stdout = '';
+      let stderr = '';
+      let timeoutId = null;
+      let isTimedOut = false;
+
+      // Set timeout handler
+      timeoutId = setTimeout(() => {
+        isTimedOut = true;
+        proc.kill('SIGTERM');
+        
+        // Force kill after 5 seconds if still running
+        setTimeout(() => {
+          if (!proc.killed) {
+            proc.kill('SIGKILL');
+          }
+        }, 5000);
+      }, TIMEOUT_MS);
+
+      // Collect stdout — log setiap baris ke DB agar muncul di dashboard
+      proc.stdout.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(l => l.trim());
+        for (const line of lines) {
+          // Fire-and-wait: simpan ke DB tapi jangan block
+          this.logTechnical(context, 'info', line.trim()).catch((err) => {
+            console.error('[RunTestNode] Failed to save log:', err.message);
+          });
+        }
+      });
+
+      // Collect stderr — log sebagai warn
+      proc.stderr.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(l => l.trim());
+        for (const line of lines) {
+          stderr += line + '\n';
+          this.logTechnical(context, 'warn', line.trim()).catch((err) => {
+            console.error('[RunTestNode] Failed to save stderr log:', err.message);
+          });
+        }
+      });
+
+      // Handle process exit
+      proc.on('close', async (code) => {
+        clearTimeout(timeoutId);
+
+        if (isTimedOut) {
+          const errorMsg = `Platform executor timed out after ${TIMEOUT_MS / 1000} seconds`;
+          await this.logTechnical(context, 'error', errorMsg);
+          reject(new Error(errorMsg));
+          return;
+        }
+
+        if (code === 0) {
+          // The main.js writes results to JSON files, we need to read them
+          // For now, return a success result indicating the test ran
+          // The actual results are in the report files
+          try {
+            const result = {
+              test_id: `test_${Date.now()}`,
+              platform: config.platform,
+              status: 'completed',
+              message: `Test executed successfully on ${config.platform}`,
+              stdout_preview: stdout.substring(stdout.length - 500) // Last 500 chars
+            };
+            resolve(result);
+          } catch (parseErr) {
+            const errorMsg = `Test completed but failed to parse results: ${parseErr.message}`;
+            await this.logTechnical(context, 'error', errorMsg);
+            reject(new Error(errorMsg));
+          }
+        } else {
+          const errorMsg = `Platform executor failed with code ${code}: ${stderr || 'unknown error'}`;
+          await this.logTechnical(context, 'error', errorMsg);
+          reject(new Error(errorMsg));
+        }
+      });
+
+      // Handle spawn errors
+      proc.on('error', async (err) => {
+        clearTimeout(timeoutId);
+        const errorMsg = `Failed to spawn platform executor: ${err.message}`;
+        await this.logTechnical(context, 'error', errorMsg);
+        reject(new Error(errorMsg));
+      });
+    });
   }
 
   async createTestRun(context, config, testId) {

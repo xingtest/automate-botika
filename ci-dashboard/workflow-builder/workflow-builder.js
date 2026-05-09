@@ -127,6 +127,11 @@ const WorkflowBuilder = {
     document.getElementById('wfValidateBtn')?.addEventListener('click', () => {
       this.validateWorkflow();
     });
+
+    // Toggle Logs
+    document.getElementById('wfLogsBtn')?.addEventListener('click', () => {
+      this.toggleExecutionPanel();
+    });
     
     // Export
     document.getElementById('wfExportBtn')?.addEventListener('click', () => {
@@ -393,6 +398,11 @@ const WorkflowBuilder = {
    */
   async runWorkflow() {
     try {
+      // Reset statuses first
+      if (typeof WorkflowCanvas !== 'undefined') {
+        WorkflowCanvas.resetNodeStatuses();
+      }
+
       // Validate first
       const validation = await this.validateWorkflow(true);
       if (!validation.valid) {
@@ -410,6 +420,13 @@ const WorkflowBuilder = {
         return;
       }
       
+      // Set trigger node to running status immediately for visual feedback
+      const nodes = WorkflowCanvas.nodes || [];
+      const triggerNode = nodes.find(n => n.type === 'manual-trigger' || n.category === 'trigger');
+      if (triggerNode) {
+        WorkflowCanvas.updateNodeStatus(triggerNode.id, 'running');
+      }
+
       // Execute workflow
       const response = await BackendAPI.post(`/workflows/${WorkflowManager.currentWorkflow.id}/execute`, {});
       
@@ -615,13 +632,29 @@ const WorkflowBuilder = {
   },
   
   /**
-   * Show execution panel
+   * Toggle execution panel visibility
+   */
+  toggleExecutionPanel(show) {
+    const panel = document.getElementById('wfExecutionPanel');
+    if (!panel) return;
+
+    const isHidden = panel.classList.contains('hidden');
+    const shouldShow = show !== undefined ? show : isHidden;
+
+    if (shouldShow) {
+      panel.classList.remove('hidden');
+      document.getElementById('wfLogsBtn')?.classList.add('active');
+    } else {
+      panel.classList.add('hidden');
+      document.getElementById('wfLogsBtn')?.classList.remove('active');
+    }
+  },
+
+  /**
+   * Show execution panel (legacy method name)
    */
   showExecutionPanel() {
-    const panel = document.getElementById('wfExecutionPanel');
-    if (panel) {
-      panel.classList.remove('hidden');
-    }
+    this.toggleExecutionPanel(true);
   },
   
   /**

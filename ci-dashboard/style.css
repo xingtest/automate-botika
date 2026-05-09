@@ -1543,6 +1543,45 @@ select.form-control {
   color: var(--error);
 }
 
+.preset-card-actions {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  display: flex;
+  gap: var(--sp-2);
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.preset-card:hover .preset-card-actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.preset-card-action {
+  width: 28px;
+  height: 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.preset-card-action:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  transform: scale(1.1);
+}
+
 .preset-actions {
   display: flex;
   gap: var(--sp-2);

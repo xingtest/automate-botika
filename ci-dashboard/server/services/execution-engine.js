@@ -76,6 +76,9 @@ class ExecutionEngine {
           context.setNodeStatus(nodeId, 'running');
           context.current_node_id = nodeId;
           
+          // Log start of execution
+          await this.logNodeExecution(executionId, node, 'running');
+          
           const startTime = Date.now();
           
           // Get node executor
@@ -309,21 +312,45 @@ class ExecutionEngine {
    */
   async logNodeExecution(executionId, node, status, outputData, inputData, errorMessage, duration = 0) {
     try {
-      await db.queryOriginal(
-        `INSERT INTO node_executions 
-         (execution_id, node_id, node_type, status, input_data, output_data, error_message, start_time, end_time, duration_ms)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $8)`,
-        [
-          executionId,
-          node.id,
-          node.type,
-          status,
-          inputData ? JSON.stringify(inputData) : null,
-          outputData ? JSON.stringify(outputData) : null,
-          errorMessage,
-          duration
-        ]
+      // Check if this node execution already has a record
+      const checkResult = await db.queryOriginal(
+        'SELECT id FROM node_executions WHERE execution_id = $1 AND node_id = $2',
+        [executionId, node.id]
       );
+
+      if (checkResult.rows.length > 0) {
+        // Update existing record
+        await db.queryOriginal(
+          `UPDATE node_executions 
+           SET status = $1, output_data = $2, error_message = $3, duration_ms = $4, end_time = CURRENT_TIMESTAMP
+           WHERE execution_id = $5 AND node_id = $6`,
+          [
+            status,
+            outputData ? JSON.stringify(outputData) : null,
+            errorMessage,
+            duration,
+            executionId,
+            node.id
+          ]
+        );
+      } else {
+        // Insert new record
+        await db.queryOriginal(
+          `INSERT INTO node_executions 
+           (execution_id, node_id, node_type, status, input_data, output_data, error_message, start_time, end_time, duration_ms)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $8)`,
+          [
+            executionId,
+            node.id,
+            node.type,
+            status,
+            inputData ? JSON.stringify(inputData) : null,
+            outputData ? JSON.stringify(outputData) : null,
+            errorMessage,
+            duration
+          ]
+        );
+      }
     } catch (error) {
       console.error('Failed to log node execution:', error);
     }

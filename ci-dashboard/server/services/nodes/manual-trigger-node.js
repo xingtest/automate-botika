@@ -11,7 +11,7 @@ class ManualTriggerNode extends BaseNode {
       color: '#6366f1',
       inputs: [],
       outputs: [
-        { id: 'trigger', name: 'Trigger', dataType: 'object', required: true }
+        { id: 'main', name: 'Trigger', dataType: 'object', required: true }
       ],
       config_schema: [
         {

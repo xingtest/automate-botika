@@ -109,6 +109,11 @@ const NodeConfigPanel = {
     `;
 
     nodeType.properties.forEach(prop => {
+      // Check if property is explicitly hidden
+      if (prop.hidden) {
+        return;
+      }
+
       // Check display conditions
       if (prop.displayOptions && !this.checkDisplayOptions(prop.displayOptions)) {
         return;
@@ -323,7 +328,7 @@ const NodeConfigPanel = {
 
   deleteNode() {
     if (confirm('Are you sure you want to delete this node?')) {
-      WorkflowCanvas.deleteNode(this.currentNode);
+      WorkflowCanvas.deleteNode(this.currentNode.id);
       this.hide();
     }
   }

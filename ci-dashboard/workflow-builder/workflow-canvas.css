@@ -456,7 +456,8 @@
 .node-status-badge.badge-success { background: var(--success); }
 .node-status-badge.badge-failed  { background: var(--error); }
 .node-status-badge.badge-skipped { background: var(--text-muted); }
-.node-status-badge.badge-running { background: var(--accent); animation: spin 0.8s linear infinite; }
+.node-status-badge.badge-running { background: var(--accent); }
+.node-status-badge.badge-running i { animation: spin 1s linear infinite; }
 
 /* Execution Time — durasi di bawah label node */
 .node-execution-time {

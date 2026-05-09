@@ -55,8 +55,8 @@ class WorkflowValidator {
     if (orphanedNodes.length > 0) {
       errors.push({
         code: 'ORPHANED_NODES',
-        message: 'All non-trigger nodes must have at least one incoming connection',
-        severity: 'error',
+        message: 'Some nodes have no incoming connections and will not be executed',
+        severity: 'warning',
         nodes: orphanedNodes.map(n => ({ id: n.id, label: n.label }))
       });
     }
@@ -234,13 +234,13 @@ class WorkflowValidator {
         break;
         
       case 'ai-evaluate':
-        if (!config.ai_provider) {
+        if (!config.provider && !config.ai_provider) {
           errors.push({
             code: 'MISSING_REQUIRED_PARAM',
-            message: `Node ${node.id}: ai_provider is required`,
+            message: `Node ${node.id}: provider is required`,
             severity: 'error',
             node: node.id,
-            field: 'ai_provider'
+            field: 'provider'
           });
         }
         break;
@@ -257,13 +257,13 @@ class WorkflowValidator {
         break;
         
       case 'generate-report':
-        if (!config.report_format) {
+        if (!config.format && !config.report_format) {
           errors.push({
             code: 'MISSING_REQUIRED_PARAM',
-            message: `Node ${node.id}: report_format is required`,
+            message: `Node ${node.id}: format is required`,
             severity: 'error',
             node: node.id,
-            field: 'report_format'
+            field: 'format'
           });
         }
         break;
@@ -310,6 +310,18 @@ class WorkflowValidator {
             severity: 'error',
             node: node.id,
             field: 'filePath'
+          });
+        }
+        break;
+
+      case 'playwright-webchat':
+        if (!config.platform_url) {
+          errors.push({
+            code: 'MISSING_REQUIRED_PARAM',
+            message: `Node ${node.id}: platform_url is required`,
+            severity: 'error',
+            node: node.id,
+            field: 'platform_url'
           });
         }
         break;

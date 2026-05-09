@@ -30,6 +30,20 @@ const WorkflowCanvas = {
   gridSize: 20,
   gridColor: 'rgba(100, 116, 139, 0.1)',
   
+  listeners: {},
+  on(event, callback) {
+    if (!this.listeners[event]) this.listeners[event] = [];
+    this.listeners[event].push(callback);
+  },
+  off(event, callback) {
+    if (!this.listeners[event]) return;
+    this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+  },
+  emit(event, data) {
+    if (!this.listeners[event]) return;
+    this.listeners[event].forEach(cb => cb(data));
+  },
+  
   initialized: false,
   
   /**
@@ -162,11 +176,19 @@ const WorkflowCanvas = {
       this.lastClick = now;
       this.lastClickNode = clickedNode;
 
-      // Check if clicking on output port (for connection creation)
-      const port = this.getPortAt(clickedNode, x, y, 'output');
-      if (port) {
-        this.startConnection(clickedNode, port);
-        return;
+      // Check for port click (disconnection or new connection)
+      const outputPort = this.getPortAt(clickedNode, x, y, 'output');
+      const inputPort = this.getPortAt(clickedNode, x, y, 'input');
+      
+      if (outputPort || inputPort) {
+        const portId = (outputPort || inputPort).id;
+        const portType = outputPort ? 'output' : 'input';
+        
+        // Initiate connection from output port
+        if (outputPort) {
+          this.startConnection(clickedNode, outputPort);
+          return;
+        }
       }
       
       // Start dragging node
@@ -346,74 +368,49 @@ const WorkflowCanvas = {
   /**
    * Render delete button for connection
    */
-  renderConnectionDeleteButton(start, end) {
-    // Calculate mid point of bezier curve
-    const midX = (start.x + end.x) / 2;
-    const midY = (start.y + end.y) / 2;
-    
-    const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-    foreignObject.setAttribute('x', midX - 12);
-    foreignObject.setAttribute('y', midY - 12);
-    foreignObject.setAttribute('width', '24');
-    foreignObject.setAttribute('height', '24');
-    foreignObject.style.pointerEvents = 'auto';
-    
-    foreignObject.innerHTML = `
-      <div class="conn-delete-btn" style="background:var(--error); color:white; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.2); font-size:10px;">
-        <i class="fas fa-times"></i>
-      </div>
-    `;
-    
-    foreignObject.querySelector('.conn-delete-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.deleteConnection(this.selectedConnection);
-    });
-    
-    this.svg.appendChild(foreignObject);
-  },
-
-  /**
-   * Delete connection
-   */
-  deleteConnection(conn) {
-    if (!conn) return;
-    const index = this.connections.indexOf(conn);
-    if (index !== -1) {
-      this.connections.splice(index, 1);
-      this.selectedConnection = null;
-      this.saveHistory();
-      this.emit('connectionDeleted', conn);
-      this.render();
-    }
-  },
-
-  /**
-   * Render delete button for connection
-   */
   renderConnectionDeleteButton(start, end, conn) {
+    // Calculate mid point of the line
     const midX = (start.x + end.x) / 2;
     const midY = (start.y + end.y) / 2;
     
     const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-    foreignObject.setAttribute('x', midX - 12);
-    foreignObject.setAttribute('y', midY - 12);
-    foreignObject.setAttribute('width', '24');
-    foreignObject.setAttribute('height', '24');
+    foreignObject.setAttribute('x', midX - 15);
+    foreignObject.setAttribute('y', midY - 15);
+    foreignObject.setAttribute('width', '30');
+    foreignObject.setAttribute('height', '30');
+    foreignObject.setAttribute('data-conn-id', `${conn.source_node_id}-${conn.target_node_id}`);
     foreignObject.style.pointerEvents = 'auto';
     
     foreignObject.innerHTML = `
-      <div class="conn-delete-btn" style="background:#ef4444; color:white; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.3); border:2px solid white;">
-        <i class="fas fa-times" style="font-size:10px;"></i>
+      <div class="conn-delete-btn" title="Delete connection" style="background:#ef4444; color:white; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.3); border:2px solid white; transition: transform 0.1s;">
+        <i class="fas fa-times" style="font-size:12px;"></i>
       </div>
     `;
     
-    foreignObject.querySelector('.conn-delete-btn').addEventListener('click', (e) => {
+    const btn = foreignObject.querySelector('.conn-delete-btn');
+    btn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.deleteConnection(conn);
     });
+
+    btn.addEventListener('mouseenter', () => {
+      btn.style.transform = 'scale(1.1)';
+    });
+
+    btn.addEventListener('mouseleave', (e) => {
+      btn.style.transform = 'scale(1)';
+      // If we are not selected, remove on leave
+      if (this.selectedConnection !== conn) {
+        foreignObject.remove();
+      }
+    });
     
     this.svg.appendChild(foreignObject);
   },
+
+
+
+
 
   /**
    * Handle double click
@@ -664,7 +661,7 @@ const WorkflowCanvas = {
     };
 
     const badgeHtml = node.status && statusIconMap[node.status] ? `
-      <div class="node-status-badge badge-${node.status}">
+      <div class="node-status-badge badge-${node.status} ${node.status === 'running' ? 'loading' : ''}">
         <i class="fas ${statusIconMap[node.status]}"></i>
       </div>
     ` : '';
@@ -771,7 +768,7 @@ const WorkflowCanvas = {
     hitPath.style.cursor = 'pointer';
     hitPath.style.pointerEvents = 'auto';
     
-    hitPath.addEventListener('click', (e) => {
+    hitPath.addEventListener('mousedown', (e) => {
       e.stopPropagation();
       this.selectedConnection = conn;
       this.selectedNode = null;
@@ -782,7 +779,21 @@ const WorkflowCanvas = {
     this.svg.appendChild(pathEl);
     this.svg.appendChild(hitPath);
     
-    // Add Delete Button if selected
+    // Add hover effect to show delete button
+    hitPath.addEventListener('mouseenter', () => {
+      this.renderConnectionDeleteButton(start, end, conn);
+    });
+    
+    hitPath.addEventListener('mouseleave', (e) => {
+      // Only hide if not moving to the delete button itself
+      const toEl = e.relatedTarget;
+      if (toEl && (toEl.closest('.conn-delete-btn') || toEl.closest('foreignObject'))) return;
+      
+      const btn = this.svg.querySelector(`foreignObject[data-conn-id="${conn.source_node_id}-${conn.target_node_id}"]`);
+      if (btn) btn.remove();
+    });
+
+    // Add Delete Button if selected (persistent)
     if (isSelected) {
       this.renderConnectionDeleteButton(start, end, conn);
     }
@@ -793,9 +804,14 @@ const WorkflowCanvas = {
    */
   renderConnectionPreview() {
     const sourceNode = this.connectionStart.node;
-    const sourcePort = this.getPortPosition(sourceNode, this.connectionStart.port.id, 'output');
+    const sourcePortRaw = this.getPortPosition(sourceNode, this.connectionStart.port.id, 'output');
     
-    if (!sourcePort) return;
+    if (!sourcePortRaw) return;
+
+    const sourcePort = {
+      x: sourcePortRaw.x * this.zoom + this.panX,
+      y: sourcePortRaw.y * this.zoom + this.panY
+    };
     
     const targetPos = {
       x: this.connectionPreview.x * this.zoom + this.panX,
@@ -876,16 +892,22 @@ const WorkflowCanvas = {
     if (!ports) return null;
     
     const portSize = 20; // Larger hit area for easier connection
-    const nodeWidth = 200;
     
-    // Get actual node element to find height
+    // Get actual node element to find dimensions
     const el = document.querySelector(`.workflow-node[data-node-id="${node.id}"]`);
-    const nodeHeight = el ? el.offsetHeight / this.zoom : 100;
+    const nodeWidth = el ? el.offsetWidth : 200;
+    const nodeHeight = el ? el.offsetHeight : 100;
+    
+    // Use the same offset as getPortPosition for hit detection
+    const portOffset = -2;
     
     for (let i = 0; i < ports.length; i++) {
       const port = ports[i];
-      const portX = type === 'input' ? node.x : node.x + nodeWidth;
-      const portY = node.y + nodeHeight / 2; // Center ports vertically
+      const portX = type === 'input' ? node.x + portOffset : node.x + nodeWidth - portOffset;
+      
+      // Distribute ports vertically
+      const spacing = nodeHeight / (ports.length + 1);
+      const portY = node.y + spacing * (i + 1);
       
       if (Math.abs(x - portX) < portSize && Math.abs(y - portY) < portSize) {
         return port;
@@ -905,19 +927,20 @@ const WorkflowCanvas = {
     const portIndex = ports.findIndex(p => p.id === portId);
     if (portIndex === -1) return { x: 0, y: 0 };
     
-    const nodeWidth = 200;
     const el = document.querySelector(`.workflow-node[data-node-id="${node.id}"]`);
+    
+    // Use actual dimensions from the DOM if available
+    const nodeWidth = el ? el.offsetWidth : 200;
     const nodeHeight = el ? el.offsetHeight : 100;
     
-    // Calculate vertical position based on port index
     const spacing = nodeHeight / (ports.length + 1);
-    const portY = (node.y + spacing * (portIndex + 1));
-    const portX = type === 'input' ? node.x : node.x + nodeWidth;
+    const portY = node.y + spacing * (portIndex + 1);
     
-    return {
-      x: portX,
-      y: portY
-    };
+    // Align with the port dots (8px is the offset from CSS)
+    const portOffset = -2; // Adjustment to hit the center of the 12px dot
+    const portX = type === 'input' ? node.x + portOffset : node.x + nodeWidth - portOffset;
+    
+    return { x: portX, y: portY };
   },
   
   /**
@@ -927,6 +950,26 @@ const WorkflowCanvas = {
     this.connectionStart = { node, port };
   },
   
+  /**
+   * Validate connection
+   */
+  validateConnection(sourceNode, sourcePort, targetNode, targetPort) {
+    // Basic validation
+    if (!sourceNode || !targetNode || !sourcePort || !targetPort) return false;
+    if (sourceNode.id === targetNode.id) return false; // No self-connections
+    
+    // Check if connection already exists
+    const exists = this.connections.some(c => 
+      c.source_node_id === sourceNode.id && 
+      c.source_port_id === sourcePort.id &&
+      c.target_node_id === targetNode.id &&
+      c.target_port_id === targetPort.id
+    );
+    if (exists) return false;
+    
+    return true;
+  },
+
   /**
    * Create connection
    */
@@ -950,147 +993,32 @@ const WorkflowCanvas = {
     this.emit('connectionCreated', conn);
     this.render();
   },
-  
   /**
    * Delete connection
    */
   deleteConnection(conn) {
-    const index = this.connections.findIndex(c => 
-      c.source_node_id === conn.source_node_id && 
-      c.source_port_id === conn.source_port_id &&
-      c.target_node_id === conn.target_node_id &&
-      c.target_port_id === conn.target_port_id
-    );
-    if (index !== -1) {
-      this.connections.splice(index, 1);
-      if (this.selectedConnection === conn) this.selectedConnection = null;
-      this.saveHistory();
-      this.emit('connectionDeleted', conn);
-      this.render();
-    }
-  },
-  
-  /**
-   * Validate connection
-   */
-  validateConnection(sourceNode, sourcePort, targetNode, targetPort) {
-    // Check for cycles
-    if (this.wouldCreateCycle(sourceNode.id, targetNode.id)) {
-      return false;
-    }
+    if (!conn) return;
     
-    // Check if target port already has a connection
-    const existingConn = this.connections.find(c => 
-      c.target_node_id === targetNode.id && c.target_port_id === targetPort.id
-    );
-    
-    if (existingConn) {
-      return false;
-    }
-    
-    return true;
-  },
-  
-  /**
-   * Check if connection would create a cycle
-   */
-  wouldCreateCycle(sourceId, targetId) {
-    const visited = new Set();
-    const stack = [targetId];
-    
-    while (stack.length > 0) {
-      const nodeId = stack.pop();
+    // Find index using strict reference or property matching
+    const index = this.connections.findIndex(c => {
+      // 1. Check direct reference
+      if (c === conn) return true;
       
-      if (nodeId === sourceId) {
-        return true;
-      }
+      // 2. Check by ID (only if both have IDs)
+      if (c.id && conn.id && c.id === conn.id) return true;
       
-      if (visited.has(nodeId)) {
-        continue;
-      }
-      
-      visited.add(nodeId);
-      
-      // Find all nodes that this node connects to
-      const outgoing = this.connections.filter(c => c.source_node_id === nodeId);
-      outgoing.forEach(c => stack.push(c.target_node_id));
-    }
-    
-    return false;
-  },
-  
-  /**
-   * Add node to canvas
-   */
-  addNode(nodeData) {
-    // Handle declarative inputs/outputs if they are just strings
-    const processPorts = (ports, defaultLabel) => {
-      if (!ports) return [{ id: 'input', label: defaultLabel, dataType: 'any' }];
-      return ports.map(p => typeof p === 'string' ? { id: p, label: p.charAt(0).toUpperCase() + p.slice(1), dataType: 'any' } : p);
-    };
+      // 3. Check by node/port coordinates (fallback for objects without IDs)
+      return c.source_node_id === conn.source_node_id && 
+             c.source_port_id === conn.source_port_id &&
+             c.target_node_id === conn.target_node_id &&
+             c.target_port_id === conn.target_port_id;
+    });
 
-    const node = {
-      id: `node_${Date.now()}`,
-      type: nodeData.type || nodeData.name,
-      label: nodeData.displayName || nodeData.label || nodeData.name,
-      icon: nodeData.icon || 'fa-cube',
-      color: nodeData.color || '#6366f1',
-      x: nodeData.x || 100,
-      y: nodeData.y || 100,
-      config: nodeData.config || {},
-      settings: nodeData.settings || {
-        continueOnFail: false,
-        retryCount: 0,
-        retryDelay: 1000
-      },
-      inputs: processPorts(nodeData.inputs, 'Input'),
-      outputs: processPorts(nodeData.outputs, 'Output'),
-      status: null,
-      duration_ms: null,
-      lastOutput: null,
-      lastError: null
-    };
-    
-    this.nodes.push(node);
-    this.saveHistory();
-    this.emit('nodeAdded', node);
-    this.render();
-    return node;
-  },
-  
-  /**
-   * Delete node
-   */
-  deleteNode(node) {
-    const index = this.nodes.findIndex(n => n.id === node.id);
-    if (index !== -1) {
-      this.nodes.splice(index, 1);
-      // Remove associated connections
-      this.connections = this.connections.filter(c => 
-        c.source_node_id !== node.id && c.target_node_id !== node.id
-      );
-      if (this.selectedNode === node) this.selectedNode = null;
-      this.saveHistory();
-      this.emit('nodeDeleted', node);
-      this.render();
-    }
-  },
-  
-  /**
-   * Delete connection
-   */
-  deleteConnection(conn) {
-    const index = this.connections.findIndex(c => 
-      c.id === conn.id || (
-        c.source_node_id === conn.source_node_id && 
-        c.source_port_id === conn.source_port_id &&
-        c.target_node_id === conn.target_node_id &&
-        c.target_port_id === conn.target_port_id
-      )
-    );
     if (index !== -1) {
       this.connections.splice(index, 1);
-      if (this.selectedConnection === conn) this.selectedConnection = null;
+      if (this.selectedConnection === conn) {
+        this.selectedConnection = null;
+      }
       this.saveHistory();
       this.emit('connectionDeleted', conn);
       this.render();
@@ -1134,6 +1062,82 @@ const WorkflowCanvas = {
   },
   
   /**
+   * Process ports data
+   */
+  processPorts(ports, type) {
+    if (!ports || (Array.isArray(ports) && ports.length === 0)) {
+      return [{ id: 'main', label: type }];
+    }
+    
+    if (Array.isArray(ports)) {
+      return ports.map(p => {
+        if (typeof p === 'string') return { id: p, label: p };
+        return p;
+      });
+    }
+    
+    return [{ id: 'main', label: type }];
+  },
+  
+  /**
+   * Add a node to the canvas
+   */
+  addNode(nodeData) {
+    const node = {
+      id: nodeData.id || `node_${Date.now()}`,
+      type: nodeData.type || nodeData.name,
+      label: nodeData.label || nodeData.displayName || nodeData.name || 'New Node',
+      icon: nodeData.icon || 'fa-cube',
+      color: nodeData.color || '#6366f1',
+      x: nodeData.x || 100,
+      y: nodeData.y || 100,
+      config: nodeData.config || {},
+      inputs: this.processPorts(nodeData.inputs, 'Input'),
+      outputs: this.processPorts(nodeData.outputs, 'Output'),
+      status: null
+    };
+    
+    this.nodes.push(node);
+    this.saveHistory();
+    this.render();
+    
+    // Auto-select the new node
+    this.selectedNode = node;
+    this.emit('nodeAdded', node);
+    this.emit('nodeSelected', node);
+    
+    return node;
+  },
+  
+  /**
+   * Delete a node and its connections
+   */
+  deleteNode(nodeOrId) {
+    const nodeId = (nodeOrId && typeof nodeOrId === 'object') ? nodeOrId.id : nodeOrId;
+    if (!nodeId) return;
+    
+    const nodeIndex = this.nodes.findIndex(n => n.id === nodeId);
+    if (nodeIndex === -1) return;
+    
+    // Remove connections associated with this node
+    this.connections = this.connections.filter(c => 
+      c.source_node_id !== nodeId && c.target_node_id !== nodeId
+    );
+    
+    // Remove the node
+    this.nodes.splice(nodeIndex, 1);
+    
+    if (this.selectedNode && this.selectedNode.id === nodeId) {
+      this.selectedNode = null;
+      this.emit('nodeDeselected');
+    }
+    
+    this.saveHistory();
+    this.render();
+    this.emit('nodeDeleted', nodeId);
+  },
+
+  /**
    * Load workflow
    */
   loadWorkflow(workflow) {
@@ -1141,6 +1145,7 @@ const WorkflowCanvas = {
     this.connections = workflow.definition?.connections || [];
     this.selectedNode = null;
     this.selectedConnection = null;
+    this.saveHistory(); // Save initial state for undo
     this.render();
   },
   
