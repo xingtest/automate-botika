@@ -19,7 +19,9 @@
     "server": "node ci-dashboard/server/server.js",
     "server:dev": "node --watch ci-dashboard/server/server.js",
     "db:setup": "node ci-dashboard/server/setup-db.js",
-    "db:fix": "node ci-dashboard/server/fix-tables.js"
+    "db:fix": "node ci-dashboard/server/fix-tables.js",
+    "db:export": "node ci-dashboard/server/db-export.js",
+    "db:import": "node ci-dashboard/server/db-import.js"
   },
   "author": "okinr.testcase",
   "license": "ISC",
