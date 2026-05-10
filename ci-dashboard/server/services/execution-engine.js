@@ -24,6 +24,37 @@ class ExecutionEngine {
     let context = null;
     
     try {
+      console.log(`[ExecutionEngine] Starting execution: ${executionId}`);
+      
+      // Validate workflow before execution
+      const validation = nodeRegistry.validateWorkflow(workflow.definition);
+      
+      if (!validation.valid) {
+        const errorMsg = `Workflow validation failed. Missing nodes: ${validation.missingNodes.join(', ')}`;
+        console.error(`[ExecutionEngine] ${errorMsg}`);
+        
+        // Create context for logging
+        context = new ExecutionContext({
+          workflow_id: workflow.id,
+          execution_id: executionId,
+          user_id: userId,
+          trigger_data: triggerData,
+          connections: workflow.definition.connections || []
+        });
+        
+        // Mark as failed immediately
+        await db.queryOriginal(
+          `UPDATE workflow_executions 
+           SET status = 'failed', error_message = $1, start_time = CURRENT_TIMESTAMP, end_time = CURRENT_TIMESTAMP
+           WHERE execution_id = $2`,
+          [errorMsg, executionId]
+        );
+        
+        throw new Error(errorMsg);
+      }
+      
+      console.log(`[ExecutionEngine] Workflow validation passed: ${validation.availableNodes.length}/${validation.totalNodes} nodes available`);
+      
       // Create execution context
       context = new ExecutionContext({
         workflow_id: workflow.id,

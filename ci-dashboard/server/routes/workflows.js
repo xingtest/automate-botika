@@ -1,10 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const workflowController = require('../controllers/workflow.controller');
+const { authenticateToken } = require('../middleware/auth');
+
+// Apply authentication to all workflow routes
+router.use(authenticateToken);
 
 // Node types
 router.get('/node-types', workflowController.listNodeTypes);
 router.get('/node-types/:type', workflowController.getNodeTypeSchema);
+router.get('/node-registry/status', workflowController.getNodeRegistryStatus);
 
 // Templates
 router.get('/templates', workflowController.listTemplates);

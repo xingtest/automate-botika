@@ -3,6 +3,10 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const { pool } = require('../db');
+const { authenticateToken } = require('../middleware/auth');
+
+// Apply authentication to all artifact routes
+router.use(authenticateToken);
 
 // Ensure artifacts directory exists
 const artifactsDir = path.join(__dirname, '..', '..', 'artifacts');

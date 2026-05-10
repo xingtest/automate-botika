@@ -163,10 +163,9 @@ class GenerateReportNode extends BaseNode {
         const durationString = input.duration || `${Math.round((Date.now() - new Date(startTime).getTime()) / 1000)}s`;
         const userId = context.user_id || null;
 
-        const runResult = await db.queryOriginal(
+        const runResult = await db.query(
           `INSERT INTO test_runs (user_id, test_id, run_title, platform, tester_name, filename, ai_evaluation, date_test, start_time_test, end_time_test, duration, total_title, total_question, success, failed, avg_score)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-           RETURNING id`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             userId,
             testId,
@@ -187,11 +186,11 @@ class GenerateReportNode extends BaseNode {
           ]
         );
 
-        if (!runResult.rows || !runResult.rows[0]) {
+        if (!runResult || !runResult[0].insertId) {
           throw new Error('Failed to create placeholder judge run - no ID returned');
         }
 
-        finalRunId = runResult.rows[0].id;
+        finalRunId = runResult[0].insertId;
         this.log('info', `Created judge run with ID: ${finalRunId}`);
       } catch (e) {
         this.log('error', `Failed to create judge run: ${e.message}`);
@@ -199,16 +198,15 @@ class GenerateReportNode extends BaseNode {
       }
     } else {
       // If a run_id exists but the run record is missing or incomplete, ensure it exists in test_runs.
-      const existingRun = await db.queryOriginal(
-        'SELECT id FROM test_runs WHERE id = $1',
+      const existingRun = await db.query(
+        'SELECT id FROM test_runs WHERE id = ?',
         [finalRunId]
       );
-      if (!existingRun.rows.length) {
+      if (!existingRun[0].length) {
         this.log('info', `Run ID ${finalRunId} not found, creating judge run entry`);
-        const runResult = await db.queryOriginal(
+        const runResult = await db.query(
           `INSERT INTO test_runs (user_id, test_id, run_title, platform, tester_name, filename, ai_evaluation, date_test, start_time_test, end_time_test, duration, total_title, total_question, success, failed, avg_score)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-           RETURNING id`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             context.user_id || null,
             `WORKFLOW-${Date.now()}`,
@@ -228,12 +226,12 @@ class GenerateReportNode extends BaseNode {
             avgScore
           ]
         );
-        finalRunId = runResult.rows[0].id;
+        finalRunId = runResult[0].insertId;
       }
     }
 
     if (resultsData.length > 0) {
-      const rows = resultsData.map((item, index) => [
+      const resultsValues = resultsData.map((item, index) => [
         finalRunId,
         item.no || index + 1,
         item.title || item.topic || `Item ${index + 1}`,
@@ -246,17 +244,17 @@ class GenerateReportNode extends BaseNode {
         item.ai_explanation || item.explanation || 'N/A',
         item.image_capture || null
       ]);
-      await db.queryOriginal(
+
+      await db.query(
         `INSERT INTO test_results (run_id, no, title, question, response_kb, response_llm, status, duration, skor, explanation, image_path)
-         VALUES ${rows.map((_, idx) => `($${idx * 11 + 1}, $${idx * 11 + 2}, $${idx * 11 + 3}, $${idx * 11 + 4}, $${idx * 11 + 5}, $${idx * 11 + 6}, $${idx * 11 + 7}, $${idx * 11 + 8}, $${idx * 11 + 9}, $${idx * 11 + 10}, $${idx * 11 + 11})`).join(', ')}`,
-        rows.flat()
+         VALUES ?`,
+        [resultsValues]
       );
     }
 
-    const result = await db.queryOriginal(
+    const result = await db.query(
       `INSERT INTO artifacts (run_id, artifact_type, filename, file_path, file_size, description)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id`,
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         finalRunId,
         format,
@@ -267,7 +265,7 @@ class GenerateReportNode extends BaseNode {
       ]
     );
 
-    const artifactId = result.rows[0].id;
+    const artifactId = result[0].insertId;
 
     return {
       artifact_id: artifactId,

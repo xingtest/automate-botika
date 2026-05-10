@@ -186,6 +186,18 @@ const NodeLibrary = {
             default: 'Playwright Bot'
           },
           {
+            displayName: 'Tester Email',
+            name: 'tester_email',
+            type: 'string',
+            default: 'playwright@example.com'
+          },
+          {
+            displayName: 'Tester Phone',
+            name: 'tester_phone',
+            type: 'string',
+            default: '6281234567890'
+          },
+          {
             displayName: 'Greeting Message',
             name: 'greeting',
             type: 'string',

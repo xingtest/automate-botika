@@ -28,18 +28,35 @@ pool.query = async function (text, params = []) {
 
     if (typeof text === 'string') {
         // Handle IN (?) expansion
-        // Note: This is a simple implementation. If there are multiple IN (?) it might get tricky.
         if (text.includes('IN (?)')) {
             const inIndex = pgParams.findIndex(p => Array.isArray(p));
             if (inIndex !== -1) {
                 const arrayParam = pgParams[inIndex];
                 const placeholders = arrayParam.map(() => '?').join(',');
                 pgText = pgText.replace('IN (?)', `IN (${placeholders})`);
-                // Flatten pgParams
                 const newParams = [];
                 for (let i = 0; i < pgParams.length; i++) {
-                    if (i === inIndex) {
-                        newParams.push(...pgParams[i]);
+                    if (i === inIndex) newParams.push(...pgParams[i]);
+                    else newParams.push(pgParams[i]);
+                }
+                pgParams = newParams;
+            }
+        }
+
+        // Handle bulk INSERT (VALUES ?) expansion for PostgreSQL
+        if (text.toUpperCase().includes('VALUES ?')) {
+            const valuesIndex = pgParams.findIndex(p => Array.isArray(p) && Array.isArray(p[0]));
+            if (valuesIndex !== -1) {
+                const rows = pgParams[valuesIndex];
+                const rowPlaceholders = rows.map(row => 
+                    '(' + row.map(() => '?').join(',') + ')'
+                ).join(',');
+                pgText = pgText.replace(/VALUES\s+\?/i, `VALUES ${rowPlaceholders}`);
+                
+                const newParams = [];
+                for (let i = 0; i < pgParams.length; i++) {
+                    if (i === valuesIndex) {
+                        rows.forEach(row => newParams.push(...row));
                     } else {
                         newParams.push(pgParams[i]);
                     }

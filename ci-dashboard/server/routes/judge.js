@@ -5,6 +5,7 @@ const { authenticateToken } = require('../middleware/auth');
 const XLSX = require('xlsx');
 const ejs = require('ejs');
 const path = require('path');
+const { EnhancedEvaluator, EVAL_CONFIG } = require('../services/enhanced-evaluator');
 // Node 18+ has built-in fetch, no need for node-fetch
 
 // Generic LLM Evaluator
@@ -124,6 +125,10 @@ router.post('/step', authenticateToken, async (req, res) => {
         const activePresets = Array.isArray(presets) ? presets : [];
         console.log(`[JUDGE] Step: RunId ${runId}, Row ${row.no || '?'} [${settings.provider || 'gemini'}] Presets: ${activePresets.length ? activePresets.join(', ') : 'none'}`);
 
+        const evaluator = new EnhancedEvaluator();
+        const localEval = evaluator.evaluate(row.question || '', row.expected || '', row.actual || '', row.title || 'Evaluation');
+        console.log(`[JUDGE] Local evaluation: Score=${localEval.totalScore}, Success=${localEval.success}, Hallucinations=${localEval.hasHallucination ? 'YES' : 'NO'}`);
+
         let prompt;
         if (custom_prompt && custom_prompt.trim()) {
             prompt = custom_prompt
@@ -143,19 +148,26 @@ KONTEKS PENGUJIAN:
 INSTRUKSI EVALUASI:
 Lakukan analisa langkah demi langkah sebelum memberikan skor akhir. WAJIB JELASKAN SEMUA LANGKAH:
 
-LANGKAH 1: ANALISA KEBENARAN FAKTUAL (Bobot Tertinggi)
+LANGKAH 1: ANALISA KEBENARAN FAKTUAL (Bobot 40%)
 - Bandingkan fakta di "Jawaban Chatbot" dengan "Referensi Kebenaran".
 - Apakah ada angka, nama, atau prosedur yang salah?
 - Jika Referensi Kebenaran bilang "A", tapi Chatbot bilang "B", ini FATAL.
 - PENTING: Sebutkan secara spesifik fakta mana yang benar/salah!
 
-LANGKAH 2: ANALISA RELEVANSI & KONTEKS
+LANGKAH 2: ANALISA RELEVANSI (Bobot 25%)
 - Apakah Chatbot menjawab pertanyaan user secara langsung?
-- Apakah ada informasi berlebih (hallucination) yang tidak diminta dan berpotensi salah?
-- PENTING: Sebutkan apakah jawaban sudah menjawab inti pertanyaan!
+- Apakah jawaban fokus pada inti pertanyaan?
+
+LANGKAH 3: ANALISA KELENGKAPAN (Bobot 20%)
+- Apakah semua poin penting dalam referensi disebutkan?
+- Apakah jawaban cukup komprehensif?
+
+LANGKAH 4: DETEKSI HALUSINASI (Bobot 15%)
+- Apakah ada informasi berlebih yang tidak ada di referensi dan berpotensi salah?
+- Apakah ada klaim yang tidak didukung oleh referensi?
 
 ATURAN SCORING:
-- 1.00 (Sempurna): Faktual 100% benar, lengkap, relevan, bahasa bagus.
+- 1.00 (Sempurna): Faktual 100% benar, lengkap, relevan, bahasa bagus, tanpa halusinasi.
 - 0.70 - 0.99 (Pass): Faktual benar, mungkin ada kekurangan minor.
 - 0.40 - 0.69 (Fail - Minor): Ada info kurang tepat tapi tidak fatal.
 - 0.00 - 0.39 (Fail - Major): Halusinasi, salah total, atau tidak nyambung.
@@ -169,17 +181,35 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
         }
 
         const evalResult = await evaluateWithLLM(settings, prompt);
-        const score = parseFloat(evalResult.score) || 0;
-        const status = score >= 0.7 ? 'pass' : 'failed';
+        
+        const llmScore = parseFloat(evalResult.score) || 0;
+        const combinedScore = (llmScore * 0.6) + (localEval.totalScore * 0.4);
+        const finalScore = parseFloat(combinedScore.toFixed(3));
+        
+        const status = finalScore >= 0.7 ? 'pass' : 'failed';
         const durationSeconds = ((Date.now() - startTime) / 1000).toFixed(2);
+
+        const combinedExplanation = `${localEval.explanation} | LLM: ${evalResult.explanation || ''}`.substring(0, 500);
 
         await pool.query(
             `INSERT INTO test_results (run_id, no, title, question, response_kb, response_llm, status, duration, skor, explanation, image_path)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [runId, row.no, row.title || 'LLM Evaluation', row.question, row.expected, row.actual, status, `${durationSeconds}s`, score, evalResult.explanation, null]
+            [runId, row.no, row.title || 'LLM Evaluation', row.question, row.expected, row.actual, status, `${durationSeconds}s`, finalScore, combinedExplanation, null]
         );
 
-        res.json({ success: true, result: { ...evalResult, status, score } });
+        res.json({ 
+            success: true, 
+            result: { 
+                ...evalResult, 
+                status, 
+                score: finalScore,
+                llm_score: llmScore,
+                local_score: localEval.totalScore,
+                has_hallucination: localEval.hasHallucination,
+                hallucinations: localEval.hallucinations,
+                breakdown: localEval.breakdown
+            } 
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

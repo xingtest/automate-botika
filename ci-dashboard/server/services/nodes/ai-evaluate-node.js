@@ -1,4 +1,5 @@
 const BaseNode = require('./base-node');
+const { EnhancedEvaluator, EVAL_CONFIG } = require('../enhanced-evaluator');
 
 class AIEvaluateNode extends BaseNode {
   constructor() {
@@ -142,6 +143,16 @@ FORMAT OUTPUT (Wajib JSON):
     const expected = item.response_kb || item.expected || '';
     const title = item.title || 'General Test';
 
+    this.logTechnical(context, 'info', `Starting evaluation for item: ${title}`);
+    this.logTechnical(context, 'debug', `Question: ${question}`);
+    this.logTechnical(context, 'debug', `Expected: ${expected}`);
+    this.logTechnical(context, 'debug', `Actual: ${response}`);
+
+    const evaluator = new EnhancedEvaluator({ thresholds: { ...EVAL_CONFIG.thresholds, good: threshold } });
+    const localEval = evaluator.evaluate(question, expected, response, title);
+    
+    this.logTechnical(context, 'info', `Local evaluation complete: Score=${localEval.totalScore}, Success=${localEval.success}`);
+
     let prompt = customPrompt || 'Evaluate the following response based on reference.';
     
     const hasPlaceholders = prompt.includes('{actual}') || prompt.includes('{response}') || prompt.includes('{question}');
@@ -158,27 +169,30 @@ FORMAT OUTPUT (Wajib JSON):
       prompt += `PERTANYAAN USER: ${question}\n`;
       prompt += `REFERENSI KEBENARAN (EXPECTED): ${expected}\n`;
       prompt += `JAWABAN CHATBOT (ACTUAL): ${response}\n`;
+      prompt += `\n--- PETUNJUK KHUSUS ---\n`;
+      prompt += `1. Fokus pada akurasi faktual (bobot 40%)\n`;
+      prompt += `2. Periksa relevansi dengan pertanyaan (bobot 25%)\n`;
+      prompt += `3. Pastikan kelengkapan informasi (bobot 20%)\n`;
+      prompt += `4. Deteksi halusinasi (bobot 15%)\n`;
     }
     
-    this.logTechnical(context, 'info', `Sending Prompt to ${provider}:\n${prompt}`);
+    this.logTechnical(context, 'info', `Sending Prompt to ${provider}`);
 
     const temp = temperature || 0.3;
-    let score = 0.5;
-    let explanation = 'Evaluation failed';
+    let score = localEval.totalScore;
+    let explanation = localEval.explanation;
+    let aiPassed = localEval.success;
 
     try {
       if (!apiKey) {
-        let mockScore = 0.5;
-        try {
-          const fuzz = require('fuzzball');
-          mockScore = fuzz.ratio(expected, response) / 100;
-        } catch (e) {
-          mockScore = Math.random() * 0.4 + 0.6;
-        }
+        this.logTechnical(context, 'info', 'API key not configured, using enhanced local evaluator');
         return {
-          ai_score: Math.round(mockScore * 100) / 100,
-          ai_explanation: `Mock evaluation using fuzzy match (${Math.round(mockScore * 100)}% similarity)`,
-          ai_passed: mockScore >= threshold
+          ai_score: localEval.totalScore,
+          ai_explanation: localEval.explanation,
+          ai_passed: localEval.success,
+          ai_breakdown: localEval.breakdown,
+          has_hallucination: localEval.hasHallucination,
+          hallucinations: localEval.hallucinations
         };
       }
 
@@ -282,10 +296,17 @@ FORMAT OUTPUT (Wajib JSON):
       explanation = `Evaluation error: ${err.message}`;
     }
 
+    const finalScore = Math.round(Math.min(1, Math.max(0, score)) * 100) / 100;
+    
+    this.logTechnical(context, 'info', `Final evaluation complete: Score=${finalScore}, Threshold=${threshold}`);
+    
     return {
-      ai_score: Math.round(Math.min(1, Math.max(0, score)) * 100) / 100,
+      ai_score: finalScore,
       ai_explanation: explanation,
-      ai_passed: score >= threshold
+      ai_passed: finalScore >= threshold,
+      ai_breakdown: localEval.breakdown,
+      has_hallucination: localEval.hasHallucination,
+      hallucinations: localEval.hallucinations
     };
   }
 }

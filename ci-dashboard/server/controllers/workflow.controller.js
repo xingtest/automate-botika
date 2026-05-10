@@ -2,6 +2,7 @@ const { pool: db } = require('../db');
 const { v4: uuidv4 } = require('uuid');
 const workflowValidator = require('../services/workflow-validator');
 const executionEngine = require('../services/execution-engine');
+const nodeRegistry = require('../services/node-registry');
 
 // Helper function to check workflow ownership or permissions
 async function checkWorkflowAccess(workflowId, userId, requiredPermission = 'view') {
@@ -608,7 +609,7 @@ exports.getExecutionLogs = async (req, res) => {
   }
 };
 
-// Validate workflow
+// Validate workflow (enhanced with node registry)
 exports.validateWorkflow = async (req, res) => {
   try {
     const { definition } = req.body;
@@ -617,11 +618,44 @@ exports.validateWorkflow = async (req, res) => {
       return res.status(400).json({ error: 'Definition is required' });
     }
     
-    const validation = workflowValidator.validate(definition);
-    res.json(validation);
+    // Validate both structure and node availability
+    const structureValidation = workflowValidator.validate(definition);
+    const nodeValidation = nodeRegistry.validateWorkflow(definition);
+    
+    const combinedValidation = {
+      ...structureValidation,
+      node_validation: nodeValidation,
+      valid: structureValidation.valid && nodeValidation.valid,
+      all_errors: [
+        ...(structureValidation.errors || []),
+        ...(nodeValidation.missingNodes.length > 0 
+          ? [`Missing nodes: ${nodeValidation.missingNodes.join(', ')}`] 
+          : [])
+      ]
+    };
+    
+    res.json(combinedValidation);
   } catch (error) {
     console.error('Error validating workflow:', error);
     res.status(500).json({ error: 'Failed to validate workflow', message: error.message });
+  }
+};
+
+// Get node registry status
+exports.getNodeRegistryStatus = async (req, res) => {
+  try {
+    const allNodes = nodeRegistry.getAllNodeTypes();
+    const missingNodes = nodeRegistry.getMissingNodes();
+    
+    res.json({
+      registered_nodes: allNodes,
+      missing_nodes: missingNodes,
+      total_nodes: allNodes.length,
+      available_nodes: allNodes.filter(n => !missingNodes.includes(n.type)).length
+    });
+  } catch (error) {
+    console.error('Error getting node registry status:', error);
+    res.status(500).json({ error: 'Failed to get node registry status', message: error.message });
   }
 };
 
@@ -658,12 +692,16 @@ exports.getNodeTypeSchema = async (req, res) => {
 // List templates
 exports.listTemplates = async (req, res) => {
   try {
+    const userId = req.user?.id || 1;
     const result = await db.queryOriginal(
       `SELECT id, name, description, thumbnail_path, created_at,
               (SELECT COUNT(*) FROM jsonb_array_elements(definition->'nodes')) as node_count
        FROM workflows
-       WHERE is_template = true AND is_public = true
+       WHERE is_template = true
+         AND (is_public = true OR user_id = $1)
        ORDER BY created_at DESC`
+      ,
+      [userId]
     );
     
     res.json(result.rows);
@@ -677,10 +715,14 @@ exports.listTemplates = async (req, res) => {
 exports.getTemplate = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id || 1;
     
     const result = await db.queryOriginal(
-      'SELECT * FROM workflows WHERE id = $1 AND is_template = true',
-      [id]
+      `SELECT * FROM workflows
+       WHERE id = $1
+         AND is_template = true
+         AND (is_public = true OR user_id = $2)`,
+      [id, userId]
     );
     
     if (result.rows.length === 0) {
