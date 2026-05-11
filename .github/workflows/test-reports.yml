@@ -117,10 +117,13 @@ jobs:
       DEFAULT_GREETING_2: Indonesia
 
       # -----------------------------
-      # TARGET URL / ID / USERNAME
+      # TARGET URL / ID / USERNAME / KREDENSIAL
       # -----------------------------
       WEBCHAT_URL: "https://chat.botika.online/EJUnkrW"
       WEBCHAT_V3_URL: "https://chat.botika.online/v3/mk6YoYD"
+      DEFAULT_WEBCHAT_NAME: "Cik luna testing bot"
+      DEFAULT_WEBCHAT_EMAIL: "tester@botika.online"
+      DEFAULT_WEBCHAT_PHONE: "081234567890"
       DHAI_TARGET_URL: "https://client.botika.online/virtual-avatar-pln-icon/?mode=wake-word"
       DHAI_WAKE_WORD: "halo luna"
       INSTAGRAM_USERNAME: "ahmadnurbrasta2.2"
@@ -257,14 +260,35 @@ jobs:
               URL="${{ github.event.inputs.WEBCHAT_URL }}"
               [ -z "$URL" ] && URL="${WEBCHAT_URL}"
               echo "TARGET_URL=${URL}" >> .env
-              echo "WEBCHAT_NAME=\"${{ github.event.inputs.WEBCHAT_NAME }}\"" >> .env
-              echo "WEBCHAT_EMAIL=\"${{ github.event.inputs.WEBCHAT_EMAIL }}\"" >> .env
-              echo "WEBCHAT_PHONE=\"${{ github.event.inputs.WEBCHAT_PHONE }}\"" >> .env
+              
+              W_NAME="${{ github.event.inputs.WEBCHAT_NAME }}"
+              [ -z "$W_NAME" ] && W_NAME="${DEFAULT_WEBCHAT_NAME}"
+              echo "WEBCHAT_NAME=\"${W_NAME}\"" >> .env
+              
+              W_EMAIL="${{ github.event.inputs.WEBCHAT_EMAIL }}"
+              [ -z "$W_EMAIL" ] && W_EMAIL="${DEFAULT_WEBCHAT_EMAIL}"
+              echo "WEBCHAT_EMAIL=\"${W_EMAIL}\"" >> .env
+              
+              W_PHONE="${{ github.event.inputs.WEBCHAT_PHONE }}"
+              [ -z "$W_PHONE" ] && W_PHONE="${DEFAULT_WEBCHAT_PHONE}"
+              echo "WEBCHAT_PHONE=\"${W_PHONE}\"" >> .env
               ;;
             webchat-v3)
               URL="${{ github.event.inputs.WEBCHAT_V3_URL }}"
               [ -z "$URL" ] && URL="${WEBCHAT_V3_URL}"
               echo "WEBCHAT_V3_TARGET_URL=${URL}" >> .env
+              
+              W_NAME="${{ github.event.inputs.WEBCHAT_NAME }}"
+              [ -z "$W_NAME" ] && W_NAME="${DEFAULT_WEBCHAT_NAME}"
+              echo "WEBCHAT_NAME=\"${W_NAME}\"" >> .env
+              
+              W_EMAIL="${{ github.event.inputs.WEBCHAT_EMAIL }}"
+              [ -z "$W_EMAIL" ] && W_EMAIL="${DEFAULT_WEBCHAT_EMAIL}"
+              echo "WEBCHAT_EMAIL=\"${W_EMAIL}\"" >> .env
+              
+              W_PHONE="${{ github.event.inputs.WEBCHAT_PHONE }}"
+              [ -z "$W_PHONE" ] && W_PHONE="${DEFAULT_WEBCHAT_PHONE}"
+              echo "WEBCHAT_PHONE=\"${W_PHONE}\"" >> .env
               ;;
             dhai)
               URL="${{ github.event.inputs.DHAI_TARGET_URL }}"
