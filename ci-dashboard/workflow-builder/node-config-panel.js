@@ -451,6 +451,11 @@ const NodeConfigPanel = {
       WorkflowManager.markAsModified();
     }
     
+    // Auto-save workflow to DB to prevent data loss on hard reload
+    if (typeof WorkflowBuilder !== 'undefined' && WorkflowManager.currentWorkflow?.id) {
+      WorkflowBuilder.saveWorkflow(true);
+    }
+    
     // Update snapshot after save
     this.originalSnapshot = JSON.stringify(this.tempData);
     

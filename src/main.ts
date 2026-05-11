@@ -216,6 +216,10 @@ async function main(): Promise<void> {
       console.log(`URL Pengujian (V3): ${url}\n`);
 
       const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium', headlessMode);
+      const webchatName = process.env.WEBCHAT_NAME || 'Tester';
+      const webchatEmail = process.env.WEBCHAT_EMAIL || 'tester@example.com';
+      const webchatPhone = process.env.WEBCHAT_PHONE || '081234567890';
+      await WebchatV3Platform.prechatForm(page, greeting, greeting2, webchatName, webchatEmail, webchatPhone);
       await WebchatV3Platform.actions(page, greeting, greeting2, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder, testTracker);
       await Modul.closeBrowser(browser);
 

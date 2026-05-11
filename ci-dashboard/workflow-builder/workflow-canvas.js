@@ -1195,8 +1195,20 @@ const WorkflowCanvas = {
    * Load workflow
    */
   loadWorkflow(workflow) {
-    this.nodes = workflow.definition?.nodes || [];
-    this.connections = workflow.definition?.connections || [];
+    let def = workflow.definition;
+    
+    // Parse definition if it comes from the DB as a stringified JSON string
+    if (typeof def === 'string') {
+      try {
+        def = JSON.parse(def);
+      } catch (e) {
+        console.error('Failed to parse workflow definition string:', e);
+        def = { nodes: [], connections: [] };
+      }
+    }
+    
+    this.nodes = def?.nodes || [];
+    this.connections = def?.connections || [];
     this.selectedNode = null;
     this.selectedConnection = null;
     this.saveHistory(); // Save initial state for undo
