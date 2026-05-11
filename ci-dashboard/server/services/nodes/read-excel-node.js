@@ -46,11 +46,7 @@ class ReadExcelNode extends BaseNode {
     this.log('info', `Reading Excel/CSV file: ${filePath}`);
 
     try {
-      const fullPath = path.resolve(process.cwd(), filePath);
-      
-      if (!fs.existsSync(fullPath)) {
-        throw new Error(`File not found: ${filePath}`);
-      }
+      const fullPath = await this.ensureLocalFile(filePath);
 
       const workbook = XLSX.readFile(fullPath);
       

@@ -57,10 +57,40 @@ const WorkflowValidator = {
     // 7. Backend validation (optional, for deep schema checks)
     try {
       const response = await BackendAPI.post('/workflows/validate', { definition });
-      if (response && response.data) {
-        // Merge backend errors/warnings
-        if (response.data.errors) errors.push(...response.data.errors);
-        if (response.data.warnings) warnings.push(...response.data.warnings);
+      
+      // Handle the new structure from the backend
+      if (response) {
+        // Backend returns: { valid, node_validation: { valid, errors: [...] }, errors: [...] }
+        if (response.node_validation && !response.node_validation.valid) {
+          response.node_validation.errors.forEach(err => {
+            if (err.type === 'config') {
+              err.errors.forEach(fieldErr => {
+                errors.push({
+                  message: `${err.node_label}: ${fieldErr.message}`,
+                  nodeId: err.node_id,
+                  field: fieldErr.field,
+                  severity: 'error'
+                });
+              });
+            } else {
+              errors.push({
+                message: `${err.node_label}: ${err.reason || 'Validation error'}`,
+                nodeId: err.node_id,
+                severity: 'error'
+              });
+            }
+          });
+        }
+        
+        // Structure errors
+        if (response.errors && Array.isArray(response.errors)) {
+          response.errors.forEach(err => {
+            errors.push({
+              message: typeof err === 'string' ? err : err.message,
+              severity: 'error'
+            });
+          });
+        }
       }
     } catch (e) {
       console.warn('[WorkflowValidator] Backend validation failed:', e);

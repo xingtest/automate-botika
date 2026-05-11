@@ -211,6 +211,46 @@ const NodeLibrary = {
           }
         ]
       },
+      {
+        displayName: 'Instagram DM Test',
+        name: 'playwright-instagram',
+        category: 'Actions',
+        description: 'Execute Playwright test via Instagram Direct Message',
+        icon: 'fa-instagram',
+        color: '#E1306C',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Target Username (IG)',
+            name: 'target_username',
+            type: 'string',
+            required: true,
+            default: 'botika.online',
+            description: 'Username Instagram akun chatbot yang akan dites (tanpa @)'
+          },
+          {
+            displayName: 'Session ID Cookie',
+            name: 'sessionid',
+            type: 'string',
+            required: true,
+            default: '',
+            description: 'Cara dapatkan: Login IG di browser Anda > Inspect Element > Application > Cookies > Copy Value dari sessionid'
+          },
+          {
+            displayName: 'Greeting Message',
+            name: 'greeting',
+            type: 'string',
+            default: 'Halo'
+          },
+          {
+            displayName: 'Headless Mode',
+            name: 'headless',
+            type: 'boolean',
+            default: true
+          }
+        ]
+      },
 
       // --- AI & JUDGING ---
       {
@@ -259,8 +299,9 @@ const NodeLibrary = {
             displayName: 'API Key',
             name: 'apiKey',
             type: 'string',
+            required: true,
             default: '',
-            description: 'Optional: Use a custom API key for this node. If empty, uses global settings.'
+            description: 'API Key untuk provider yang dipilih. Wajib diisi agar workflow dapat berjalan.'
           },
           {
             displayName: 'Model (Groq)',

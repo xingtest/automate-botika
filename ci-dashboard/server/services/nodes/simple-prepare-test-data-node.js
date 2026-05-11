@@ -33,7 +33,9 @@ class SimplePrepareTestDataNode extends BaseNode {
     let rows = [];
 
     if ((config.source || 'sample') === 'file') {
-      rows = this.readFile(config.filePath || 'test-data/WABIS KB.xlsx', config.sheetName || 'Worksheet');
+      const filePath = config.filePath || 'test-data/WABIS KB.xlsx';
+      const fullPath = await this.ensureLocalFile(filePath);
+      rows = this.readFile(fullPath, config.sheetName || 'Worksheet');
     } else if (config.source === 'input') {
       rows = getItems(input);
     } else {
@@ -65,11 +67,8 @@ class SimplePrepareTestDataNode extends BaseNode {
     });
   }
 
-  readFile(filePath, sheetName) {
-    const fullPath = path.resolve(process.cwd(), filePath);
-    if (!fs.existsSync(fullPath)) {
-      throw new Error(`File not found: ${filePath}`);
-    }
+  readFile(fullPath, sheetName) {
+    // Note: fullPath is now expected to be resolved via ensureLocalFile
     const workbook = XLSX.readFile(fullPath);
     const sheet = workbook.Sheets[workbook.SheetNames.includes(sheetName) ? sheetName : workbook.SheetNames[0]];
     return XLSX.utils.sheet_to_json(sheet);

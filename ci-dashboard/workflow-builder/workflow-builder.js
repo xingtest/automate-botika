@@ -520,6 +520,29 @@ const WorkflowBuilder = {
       if (validation.valid) {
         if (!silent) Toast.success('Valid', 'Workflow is valid');
       } else {
+        // Find first node with error and open its config
+        const firstNodeError = validation.errors.find(e => e.nodeId);
+        if (firstNodeError) {
+          const node = WorkflowCanvas.nodes.find(n => n.id === firstNodeError.nodeId);
+          if (node) {
+            // Select and highlight node
+            WorkflowCanvas.selectNode(node.id);
+            
+            // Open config panel with field highlights
+            const errorFields = validation.errors
+              .filter(e => e.nodeId === node.id && e.field)
+              .map(e => e.field);
+            
+            console.log('[WorkflowBuilder] Auto-opening invalid node config:', node.id, errorFields);
+            
+            setTimeout(() => {
+              if (typeof NodeConfigPanel !== 'undefined') {
+                NodeConfigPanel.showConfig(node, { highlightFields: errorFields });
+              }
+            }, 250); // Slightly longer delay to ensure canvas selection finishes
+          }
+        }
+
         if (!silent) {
           const errorCount = validation.errors.length;
           const warningCount = validation.warnings?.length || 0;

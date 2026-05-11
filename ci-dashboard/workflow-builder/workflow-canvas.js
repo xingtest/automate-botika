@@ -162,6 +162,15 @@ const WorkflowCanvas = {
     const x = (e.clientX - rect.left - this.panX) / this.zoom;
     const y = (e.clientY - rect.top - this.panY) / this.zoom;
     
+    // NEW: Check for port click globally first (easier to hit, prevents accidental node drag)
+    const globalPort = this.getGlobalPortAt(x, y);
+    if (globalPort) {
+      if (globalPort.type === 'output') {
+        this.startConnection(globalPort.node, globalPort.port);
+        return;
+      }
+    }
+
     // Check if clicking on a node
     const clickedNode = this.getNodeAt(x, y);
     
@@ -176,20 +185,7 @@ const WorkflowCanvas = {
       this.lastClick = now;
       this.lastClickNode = clickedNode;
 
-      // Check for port click (disconnection or new connection)
-      const outputPort = this.getPortAt(clickedNode, x, y, 'output');
-      const inputPort = this.getPortAt(clickedNode, x, y, 'input');
-      
-      if (outputPort || inputPort) {
-        const portId = (outputPort || inputPort).id;
-        const portType = outputPort ? 'output' : 'input';
-        
-        // Initiate connection from output port
-        if (outputPort) {
-          this.startConnection(clickedNode, outputPort);
-          return;
-        }
-      }
+      // Note: We already checked globalPort above for connection initiation
       
       // Start dragging node
       this.selectedNode = clickedNode;
@@ -248,7 +244,19 @@ const WorkflowCanvas = {
     
     // Handle connection preview
     if (this.connectionStart) {
-      this.connectionPreview = { x, y };
+      // Snap to nearest input port if close
+      const snapPort = this.getGlobalPortAt(x, y);
+      if (snapPort && snapPort.type === 'input' && snapPort.node !== this.connectionStart.node) {
+          const portPos = this.getPortPosition(snapPort.node, snapPort.port.id, 'input');
+          this.connectionPreview = { x: portPos.x, y: portPos.y };
+          // Highlight target node
+          document.querySelectorAll('.workflow-node').forEach(el => el.classList.remove('port-hover'));
+          const el = document.querySelector(`.workflow-node[data-node-id="${snapPort.node.id}"]`);
+          if (el) el.classList.add('port-hover');
+      } else {
+          this.connectionPreview = { x, y };
+          document.querySelectorAll('.workflow-node').forEach(el => el.classList.remove('port-hover'));
+      }
       this.render();
       return;
     }
@@ -280,15 +288,14 @@ const WorkflowCanvas = {
     
     // Handle connection completion
     if (this.connectionStart) {
-      const targetNode = this.getNodeAt(x, y);
-      if (targetNode && targetNode !== this.connectionStart.node) {
-        const port = this.getPortAt(targetNode, x, y, 'input');
-        if (port) {
-          this.createConnection(this.connectionStart.node, this.connectionStart.port, targetNode, port);
-        }
+      const target = this.getGlobalPortAt(x, y);
+      if (target && target.type === 'input' && target.node !== this.connectionStart.node) {
+          this.createConnection(this.connectionStart.node, this.connectionStart.port, target.node, target.port);
       }
+      
       this.connectionStart = null;
       this.connectionPreview = null;
+      document.querySelectorAll('.workflow-node').forEach(el => el.classList.remove('port-hover'));
       this.render();
       return;
     }
@@ -528,6 +535,39 @@ const WorkflowCanvas = {
       status: null
     });
     this.selectedNode = newNode;
+    this.render();
+  },
+
+  /**
+   * Select a node by ID
+   */
+  selectNode(nodeId) {
+    const node = this.nodes.find(n => n.id === nodeId);
+    if (node) {
+      this.selectedNode = node;
+      this.selectedConnection = null;
+      this.emit('nodeSelected', node);
+      this.render();
+      
+      // Pan to node if out of view
+      this.panToNode(node);
+    }
+  },
+
+  /**
+   * Pan view to a specific node
+   */
+  panToNode(node) {
+    const container = document.getElementById('workflowCanvasContainer');
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    this.panX = centerX - (node.x + 100) * this.zoom; // Assume node width ~200
+    this.panY = centerY - (node.y + 50) * this.zoom; // Assume node height ~100
+    
     this.render();
   },
   resize() {
@@ -868,6 +908,20 @@ const WorkflowCanvas = {
   },
   
   /**
+   * Get port at position (globally across all nodes)
+   */
+  getGlobalPortAt(x, y) {
+    for (const node of this.nodes) {
+      const outputPort = this.getPortAt(node, x, y, 'output');
+      if (outputPort) return { node, port: outputPort, type: 'output' };
+      
+      const inputPort = this.getPortAt(node, x, y, 'input');
+      if (inputPort) return { node, port: inputPort, type: 'input' };
+    }
+    return null;
+  },
+  
+  /**
    * Get node at position
    */
   getNodeAt(x, y) {
@@ -891,7 +945,7 @@ const WorkflowCanvas = {
     const ports = type === 'input' ? node.inputs : node.outputs;
     if (!ports) return null;
     
-    const portSize = 20; // Larger hit area for easier connection
+    const portSize = 35; // Significantly larger hit area (radius) for easier connection
     
     // Get actual node element to find dimensions
     const el = document.querySelector(`.workflow-node[data-node-id="${node.id}"]`);

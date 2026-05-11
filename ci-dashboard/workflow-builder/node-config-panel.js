@@ -7,6 +7,8 @@ const NodeConfigPanel = {
   currentNode: null,
   activeTab: 'parameters',
   initialized: false,
+  tempData: null,
+  originalSnapshot: null,
   
   init() {
     if (this.initialized) return;
@@ -18,14 +20,56 @@ const NodeConfigPanel = {
     });
     
     WorkflowCanvas.on('nodeDeselected', () => {
-      this.hide();
+      this.requestHide();
     });
   },
   
-  async showConfig(node) {
+  getDefaultSettings() {
+    return {
+      continueOnFail: false,
+      alwaysOutputData: false,
+      executeOnce: false,
+      retryCount: 0,
+      retryDelay: 1000
+    };
+  },
+
+  getDefaultConfig(nodeType) {
+    const config = {};
+    if (nodeType && nodeType.properties) {
+        nodeType.properties.forEach(prop => {
+            config[prop.name] = prop.default;
+        });
+    }
+    return config;
+  },
+
+  async showConfig(node, options = {}) {
     this.currentNode = node;
     this.activeTab = 'parameters';
+    this.highlightFields = options.highlightFields || [];
     
+    const nodeType = NodeLibrary.nodeTypes.find(nt => nt.name === node.type);
+    
+    // Create temp data with defaults + current values
+    this.tempData = {
+        label: node.label || '',
+        config: {
+            ...this.getDefaultConfig(nodeType),
+            ...(node.config || {})
+        },
+        settings: {
+            ...this.getDefaultSettings(),
+            ...(node.settings || {})
+        }
+    };
+    
+    // Deep clone to ensure no references
+    this.tempData = JSON.parse(JSON.stringify(this.tempData));
+    
+    // Store original state for dirty checking
+    this.originalSnapshot = JSON.stringify(this.tempData);
+
     const panel = document.getElementById('wfConfigPanel');
     const content = document.getElementById('wfConfigContent');
     
@@ -35,17 +79,96 @@ const NodeConfigPanel = {
     this.render();
   },
   
+  requestHide() {
+    if (!this.currentNode) {
+        this.hide();
+        return;
+    }
+    
+    // Sync current tab before checking
+    this.syncCurrentTabToTemp();
+    
+    if (this.isDirty()) {
+        openModal('unsavedChangesModal');
+        
+        document.getElementById('unsavedSaveBtn').onclick = () => {
+            this.saveConfig();
+            closeModal('unsavedChangesModal');
+            this.hide();
+        };
+        
+        document.getElementById('unsavedDiscardBtn').onclick = () => {
+            closeModal('unsavedChangesModal');
+            this.hide();
+        };
+        
+        return;
+    }
+    
+    this.hide();
+  },
+
   hide() {
     const panel = document.getElementById('wfConfigPanel');
     if (panel) panel.classList.add('hidden');
     this.currentNode = null;
+    this.tempData = null;
+    this.originalSnapshot = null;
+    this.highlightFields = [];
+  },
+
+  isDirty() {
+    if (!this.tempData || !this.originalSnapshot) return false;
+    // We use a normalized comparison
+    return JSON.stringify(this.tempData) !== this.originalSnapshot;
   },
 
   switchTab(tab) {
+    this.syncCurrentTabToTemp();
     this.activeTab = tab;
     this.render();
   },
   
+  syncCurrentTabToTemp() {
+    if (!this.currentNode || !this.tempData) return;
+
+    if (this.activeTab === 'parameters') {
+        const labelInput = document.getElementById('nodeLabelInput');
+        if (labelInput) this.tempData.label = labelInput.value;
+
+        const nodeType = NodeLibrary.nodeTypes.find(nt => nt.name === this.currentNode.type);
+        if (nodeType) {
+            nodeType.properties.forEach(prop => {
+                const el = document.getElementById(`prop_${prop.name}`);
+                if (el) {
+                    if (prop.type === 'boolean') {
+                        this.tempData.config[prop.name] = el.checked;
+                    } else if (prop.type === 'number') {
+                        const val = parseFloat(el.value);
+                        this.tempData.config[prop.name] = isNaN(val) ? el.value : val;
+                    } else if (prop.type === 'json') {
+                        try {
+                            this.tempData.config[prop.name] = JSON.parse(el.value);
+                        } catch (e) {
+                            this.tempData.config[prop.name] = el.value;
+                        }
+                    } else {
+                        this.tempData.config[prop.name] = el.value;
+                    }
+                }
+            });
+        }
+    } else if (this.activeTab === 'settings') {
+        this.tempData.settings = {
+            continueOnFail: document.getElementById('setting_continueOnFail')?.checked || false,
+            alwaysOutputData: document.getElementById('setting_alwaysOutputData')?.checked || false,
+            executeOnce: document.getElementById('setting_executeOnce')?.checked || false,
+            retryCount: parseInt(document.getElementById('setting_retryCount')?.value) || 0,
+            retryDelay: parseInt(document.getElementById('setting_retryDelay')?.value) || 1000
+        };
+    }
+  },
+
   render() {
     const content = document.getElementById('wfConfigContent');
     if (!content || !this.currentNode) return;
@@ -65,7 +188,7 @@ const NodeConfigPanel = {
             <i class="fas ${nodeType.icon}"></i>
           </div>
           <div class="node-config-info">
-            <h4>${this.currentNode.label || nodeType.displayName}</h4>
+            <h4>${this.tempData.label || nodeType.displayName}</h4>
             <p>${nodeType.description}</p>
           </div>
         </div>
@@ -94,7 +217,7 @@ const NodeConfigPanel = {
   },
 
   renderParameters(nodeType) {
-    const config = this.currentNode.config || {};
+    const config = this.tempData.config || {};
     let html = '<div class="space-y-4">';
     
     // Node Label (Global Field)
@@ -103,7 +226,7 @@ const NodeConfigPanel = {
         <div class="config-field-header">
           <label class="config-field-label">Node Name</label>
         </div>
-        <input type="text" id="nodeLabelInput" class="form-control text-sm" value="${this.currentNode.label || ''}" placeholder="${nodeType.displayName}">
+        <input type="text" id="nodeLabelInput" class="form-control text-sm" value="${this.tempData.label || ''}" placeholder="${nodeType.displayName}" oninput="NodeConfigPanel.onFieldChange()">
       </div>
       <div class="border-b my-4"></div>
     `;
@@ -119,8 +242,9 @@ const NodeConfigPanel = {
         return;
       }
 
+      const isHighlighted = this.highlightFields && this.highlightFields.includes(prop.name);
       html += `
-        <div class="form-group mb-4" data-prop-name="${prop.name}">
+        <div class="form-group mb-4 ${isHighlighted ? 'field-error-highlight' : ''}" data-prop-name="${prop.name}">
           <div class="config-field-header">
             <label class="config-field-label">
               ${prop.displayName}
@@ -129,7 +253,7 @@ const NodeConfigPanel = {
             </label>
             ${prop.type !== 'boolean' ? '<button class="expression-btn" title="Toggle expression">{ }</button>' : ''}
           </div>
-          ${this.renderField(prop, config[prop.name])}
+          ${this.renderField(prop, config[prop.name], isHighlighted)}
         </div>
       `;
     });
@@ -138,33 +262,73 @@ const NodeConfigPanel = {
     return html;
   },
 
-  renderField(prop, value) {
+  renderField(prop, value, isError = false) {
     const id = `prop_${prop.name}`;
     const val = value !== undefined ? value : prop.default;
     const placeholder = prop.placeholder ? `placeholder="${prop.placeholder}"` : '';
+    const errorClass = isError ? 'border-red-500 bg-red-50' : '';
 
     switch (prop.type) {
       case 'options':
         return `
-          <select id="${id}" class="form-control text-sm" onchange="NodeConfigPanel.onFieldChange()">
+          <select id="${id}" class="form-control text-sm ${errorClass}" onchange="NodeConfigPanel.onFieldChange()">
             ${prop.options.map(opt => `<option value="${opt.value}" ${val === opt.value ? 'selected' : ''}>${opt.name}</option>`).join('')}
           </select>
         `;
       case 'boolean':
         return `
           <div class="flex items-center">
-             <input type="checkbox" id="${id}" ${val ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+             <input type="checkbox" id="${id}" ${val ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" onchange="NodeConfigPanel.onFieldChange()">
              <span class="ml-2 text-xs text-gray-600">Enabled</span>
           </div>
         `;
       case 'number':
-        return `<input type="number" id="${id}" class="form-control text-sm" value="${val}" ${placeholder} ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''}>`;
+        return `<input type="number" id="${id}" class="form-control text-sm ${errorClass}" value="${val}" ${placeholder} ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''} oninput="NodeConfigPanel.onFieldChange()">`;
       case 'textarea':
-        return `<textarea id="${id}" class="form-control text-sm font-mono" rows="4" ${placeholder}>${val}</textarea>`;
+        return `<textarea id="${id}" class="form-control text-sm font-mono" rows="4" ${placeholder} oninput="NodeConfigPanel.onFieldChange()">${val}</textarea>`;
       case 'json':
-        return `<textarea id="${id}" class="form-control text-sm font-mono" rows="6" ${placeholder}>${typeof val === 'object' ? JSON.stringify(val, null, 2) : val}</textarea>`;
+        return `<textarea id="${id}" class="form-control text-sm font-mono" rows="6" ${placeholder} oninput="NodeConfigPanel.onFieldChange()">${typeof val === 'object' ? JSON.stringify(val, null, 2) : val}</textarea>`;
       default:
-        return `<input type="text" id="${id}" class="form-control text-sm" value="${val || ''}" ${placeholder}>`;
+        let inputHtml = `<input type="text" id="${id}" class="form-control text-sm ${errorClass}" value="${val || ''}" ${placeholder} oninput="NodeConfigPanel.onFieldChange()">`;
+        
+        // Add custom button for Instagram session extraction
+        if (prop.name === 'sessionid' && this.currentNode?.type === 'playwright-instagram') {
+          inputHtml += `
+            <button onclick="NodeConfigPanel.extractInstagramSession()" type="button" class="mt-2 w-full btn btn-sm" style="background-color: #E1306C; color: white;">
+              <i class="fas fa-magic mr-1"></i> Auto-Get Cookie dari Browser
+            </button>
+            <div id="ig_auth_status" class="text-xs mt-1 hidden"></div>
+          `;
+        }
+        return inputHtml;
+    }
+  },
+
+  async extractInstagramSession() {
+    const statusEl = document.getElementById('ig_auth_status');
+    const inputEl = document.getElementById('prop_sessionid');
+    
+    if (!statusEl || !inputEl) return;
+    
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500 mr-1"></i> Sedang membuka browser. Silakan login ke Instagram...';
+    statusEl.classList.remove('hidden');
+    statusEl.className = 'text-xs mt-2 text-blue-500';
+    
+    try {
+      // Panggil backend API untuk launch playwright GUI
+      const response = await BackendAPI.post('/workflows/instagram-auth', {});
+      
+      if (response && response.success && response.sessionid) {
+        inputEl.value = response.sessionid;
+        this.onFieldChange();
+        statusEl.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Berhasil mendapatkan Cookie!';
+        statusEl.className = 'text-xs mt-2 text-green-600 font-bold';
+      } else {
+        throw new Error(response.error || 'Gagal mendapatkan sessionid');
+      }
+    } catch (error) {
+      statusEl.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i> ${error.message}`;
+      statusEl.className = 'text-xs mt-2 text-red-500 font-bold';
     }
   },
 
@@ -202,7 +366,7 @@ const NodeConfigPanel = {
   },
 
   renderSettings() {
-    const settings = this.currentNode.settings || {};
+    const settings = this.tempData.settings || {};
     return `
       <div class="space-y-6">
         <div class="setting-group">
@@ -210,15 +374,15 @@ const NodeConfigPanel = {
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <span class="text-xs text-gray-700">Continue on Fail</span>
-              <input type="checkbox" id="setting_continueOnFail" ${settings.continueOnFail ? 'checked' : ''} class="w-4 h-4">
+              <input type="checkbox" id="setting_continueOnFail" ${settings.continueOnFail ? 'checked' : ''} class="w-4 h-4" onchange="NodeConfigPanel.onFieldChange()">
             </div>
             <div class="flex items-center justify-between">
               <span class="text-xs text-gray-700">Always Output Data</span>
-              <input type="checkbox" id="setting_alwaysOutputData" ${settings.alwaysOutputData ? 'checked' : ''} class="w-4 h-4">
+              <input type="checkbox" id="setting_alwaysOutputData" ${settings.alwaysOutputData ? 'checked' : ''} class="w-4 h-4" onchange="NodeConfigPanel.onFieldChange()">
             </div>
             <div class="flex items-center justify-between">
               <span class="text-xs text-gray-700">Execute Once</span>
-              <input type="checkbox" id="setting_executeOnce" ${settings.executeOnce ? 'checked' : ''} class="w-4 h-4">
+              <input type="checkbox" id="setting_executeOnce" ${settings.executeOnce ? 'checked' : ''} class="w-4 h-4" onchange="NodeConfigPanel.onFieldChange()">
             </div>
           </div>
         </div>
@@ -230,11 +394,11 @@ const NodeConfigPanel = {
           <div class="space-y-4">
             <div class="form-group">
               <span class="text-[10px] text-gray-500 mb-1 block">Number of Retries</span>
-              <input type="number" id="setting_retryCount" class="form-control text-sm" value="${settings.retryCount || 0}" min="0" max="5">
+              <input type="number" id="setting_retryCount" class="form-control text-sm" value="${settings.retryCount || 0}" min="0" max="5" oninput="NodeConfigPanel.onFieldChange()">
             </div>
             <div class="form-group">
               <span class="text-[10px] text-gray-500 mb-1 block">Retry Delay (ms)</span>
-              <input type="number" id="setting_retryDelay" class="form-control text-sm" value="${settings.retryDelay || 1000}" step="500">
+              <input type="number" id="setting_retryDelay" class="form-control text-sm" value="${settings.retryDelay || 1000}" step="500" oninput="NodeConfigPanel.onFieldChange()">
             </div>
           </div>
         </div>
@@ -247,28 +411,23 @@ const NodeConfigPanel = {
     
     // options.show = { propertyName: ['value1', 'value2'] }
     for (const [propName, values] of Object.entries(options.show)) {
-      // Find current value of dependency property
-      const el = document.getElementById(`prop_${propName}`);
-      let currentVal;
-      if (el) {
-        currentVal = el.value;
-      } else {
-        // Check current node config if element not yet in DOM
-        currentVal = (this.currentNode.config || {})[propName];
-        // If still not found, check node type defaults
-        if (currentVal === undefined) {
-           const nodeType = NodeLibrary.nodeTypes.find(nt => nt.name === this.currentNode.type);
-           const prop = nodeType.properties.find(p => p.name === propName);
-           currentVal = prop ? prop.default : undefined;
-        }
-      }
+      // Use tempData instead of DOM for display logic to be more consistent
+      const currentVal = this.tempData.config[propName];
       
-      if (!values.includes(currentVal)) return false;
+      if (currentVal === undefined) {
+         // Check node type defaults
+         const nodeType = NodeLibrary.nodeTypes.find(nt => nt.name === this.currentNode.type);
+         const prop = nodeType.properties.find(p => p.name === propName);
+         if (prop && !values.includes(prop.default)) return false;
+      } else if (!values.includes(currentVal)) {
+          return false;
+      }
     }
     return true;
   },
 
   onFieldChange() {
+    this.syncCurrentTabToTemp();
     // Re-render to handle displayOptions
     this.render();
   },
@@ -278,51 +437,23 @@ const NodeConfigPanel = {
   },
 
   saveConfig() {
-    if (!this.currentNode) return;
+    if (!this.currentNode || !this.tempData) return;
     
-    const nodeType = NodeLibrary.nodeTypes.find(nt => nt.name === this.currentNode.type);
-    if (!nodeType) return;
+    this.syncCurrentTabToTemp();
 
-    // Save Label
-    const labelInput = document.getElementById('nodeLabelInput');
-    if (labelInput) this.currentNode.label = labelInput.value;
-
-    // Save Parameters
-    const config = {};
-    nodeType.properties.forEach(prop => {
-      const el = document.getElementById(`prop_${prop.name}`);
-      if (el) {
-        if (prop.type === 'boolean') {
-          config[prop.name] = el.checked;
-        } else if (prop.type === 'number') {
-          config[prop.name] = parseFloat(el.value);
-        } else if (prop.type === 'json') {
-          try {
-            config[prop.name] = JSON.parse(el.value);
-          } catch (e) {
-            config[prop.name] = el.value;
-          }
-        } else {
-          config[prop.name] = el.value;
-        }
-      }
-    });
-    this.currentNode.config = config;
-
-    // Save Settings
-    const settings = {
-      continueOnFail: document.getElementById('setting_continueOnFail')?.checked || false,
-      alwaysOutputData: document.getElementById('setting_alwaysOutputData')?.checked || false,
-      executeOnce: document.getElementById('setting_executeOnce')?.checked || false,
-      retryCount: parseInt(document.getElementById('setting_retryCount')?.value) || 0,
-      retryDelay: parseInt(document.getElementById('setting_retryDelay')?.value) || 1000
-    };
-    this.currentNode.settings = settings;
+    // Commit temp data to node
+    this.currentNode.label = this.tempData.label;
+    this.currentNode.config = JSON.parse(JSON.stringify(this.tempData.config));
+    this.currentNode.settings = JSON.parse(JSON.stringify(this.tempData.settings));
 
     WorkflowCanvas.render();
     if (typeof WorkflowManager !== 'undefined') {
       WorkflowManager.markAsModified();
     }
+    
+    // Update snapshot after save
+    this.originalSnapshot = JSON.stringify(this.tempData);
+    
     Toast.success('Saved', 'Configuration saved successfully');
   },
 

@@ -949,7 +949,7 @@
                             <div class="workflow-panel workflow-panel-right hidden" id="wfConfigPanel">
                                 <div class="panel-header">
                                     <h4><i class="fas fa-cog"></i> Node Configuration</h4>
-                                    <button class="panel-close" onclick="document.getElementById('wfConfigPanel').classList.add('hidden')">
+                                    <button class="panel-close" onclick="NodeConfigPanel.requestHide()">
                                         <i class="fas fa-times"></i>
                                     </button>
                                 </div>
@@ -1622,6 +1622,38 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
     <script src="workflow-builder/execution-monitor.js"></script>
     <script src="workflow-builder/workflow-templates.js"></script>
     <script src="workflow-builder/workflow-builder.js"></script>
+
+    <!-- Unsaved Changes Modal -->
+    <div class="modal-overlay" id="unsavedChangesModal">
+        <div class="modal-content" style="max-width:400px; border-radius: 16px; overflow: hidden; border: none; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);">
+            <div class="modal-header" style="background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); padding: 1.25rem 1.5rem;">
+                <h3 style="display:flex; align-items:center; gap:12px; margin:0; font-size: 1.1rem; color: var(--text-primary);">
+                    <div style="width: 32px; height: 32px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-exclamation-triangle" style="color:#f59e0b; font-size: 0.9rem;"></i>
+                    </div>
+                    <span>Unsaved Changes</span>
+                </h3>
+                <button class="modal-close" onclick="closeModal('unsavedChangesModal')" style="background: none; border: none; color: var(--text-muted); cursor: pointer;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem; text-align: center;">
+                <p style="margin: 0; color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem;">
+                    You have made changes to this node that haven't been saved yet. What would you like to do?
+                </p>
+            </div>
+            <div class="modal-footer" style="padding: 1.25rem 1.5rem; background: var(--bg-secondary); border-top: 1px solid var(--border-color); flex-direction: column; gap: 0.75rem;">
+                <button class="btn btn-primary w-full" id="unsavedSaveBtn" style="padding: 0.6rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+                <button class="btn btn-secondary w-full" id="unsavedDiscardBtn" style="padding: 0.6rem; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 8px; background: white; border: 1px solid var(--border-color);">
+                    <i class="fas fa-trash-alt"></i> Discard Changes
+                </button>
+                <button class="btn btn-ghost w-full" onclick="closeModal('unsavedChangesModal')" style="padding: 0.6rem; font-size: 0.85rem; color: var(--text-muted);">
+                    Cancel (Go back to edit)
+                </button>
+            </div>
+        </div>
+    </div>
+
 
 </body>
 

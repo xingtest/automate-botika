@@ -1,5 +1,7 @@
 const BaseNode = require('./base-node');
 const { pool: db } = require('../../db');
+const fs = require('fs');
+const path = require('path');
 
 class GenerateReportNode extends BaseNode {
   constructor() {
@@ -49,8 +51,6 @@ class GenerateReportNode extends BaseNode {
   }
 
   async execute(context, config, node) {
-    const fs = require('fs');
-    const path = require('path');
     const input = this.getInput(context, 'main');
 
     if (!input || (!input.run_id && !input.results && !input.evaluations)) {
@@ -60,10 +60,15 @@ class GenerateReportNode extends BaseNode {
     const format = config.report_format || 'json';
     const baseName = config.output_filename || `report-${Date.now()}`;
     const filename = `${baseName}.${format}`;
-    const outputDir = path.join(__dirname, '../../../../artifacts');
+    
+    // Move output to ci-dashboard/artifacts/
+    const ciDashboardDir = path.join(__dirname, '../../..');
+    const outputDir = path.join(ciDashboardDir, 'artifacts');
     const filePath = path.join(outputDir, filename);
 
-    fs.mkdirSync(outputDir, { recursive: true });
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
 
     this.log('info', `Generating ${format} report: ${filename}`);
 
@@ -139,7 +144,8 @@ class GenerateReportNode extends BaseNode {
     }
 
     const fileSize = fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
-    const relativePath = path.relative(outputDir, filePath);
+    // Relative path for database and dashboard access (relative to ci-dashboard root)
+    const relativePath = `artifacts/${filename}`;
 
     let finalRunId = input.run_id;
     const evaluations = input.evaluations || [];

@@ -480,6 +480,20 @@ input[type="file"].form-control::file-selector-button:hover {
   background: var(--bg-sidebar);
 }
 
+/* Field Error Highlight */
+.field-error-highlight {
+  border-left: 3px solid var(--error);
+  padding-left: var(--sp-2);
+  background: rgba(239, 68, 68, 0.05);
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% { background: rgba(239, 68, 68, 0.05); }
+  50% { background: rgba(239, 68, 68, 0.15); }
+  100% { background: rgba(239, 68, 68, 0.05); }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .node-config-header {

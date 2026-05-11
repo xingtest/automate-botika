@@ -63,6 +63,12 @@ const WorkflowManager = {
       this.currentWorkflow.version = response.version || this.currentWorkflow.version;
       this.currentWorkflow.name = response.name || this.currentWorkflow.name;
       this.isModified = false;
+      
+      // Save ID to local storage so it persists on reload
+      if (this.currentWorkflow.id) {
+        localStorage.setItem('last_workflow_id', this.currentWorkflow.id);
+      }
+      
       return this.currentWorkflow;
     } catch (error) {
       console.error('[WorkflowManager] Save error:', error);

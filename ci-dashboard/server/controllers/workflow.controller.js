@@ -622,15 +622,15 @@ exports.validateWorkflow = async (req, res) => {
     const structureValidation = workflowValidator.validate(definition);
     const nodeValidation = nodeRegistry.validateWorkflow(definition);
     
+    const missingNodes = nodeValidation.errors?.filter(e => e.type === 'missing') || [];
+    
     const combinedValidation = {
       ...structureValidation,
       node_validation: nodeValidation,
       valid: structureValidation.valid && nodeValidation.valid,
       all_errors: [
         ...(structureValidation.errors || []),
-        ...(nodeValidation.missingNodes.length > 0 
-          ? [`Missing nodes: ${nodeValidation.missingNodes.join(', ')}`] 
-          : [])
+        ...missingNodes.map(err => `Missing node: ${err.node_label} (${err.reason})`)
       ]
     };
     
@@ -861,5 +861,68 @@ exports.revokePermission = async (req, res) => {
   } catch (error) {
     console.error('Error revoking permission:', error);
     res.status(500).json({ error: 'Failed to revoke permission', message: error.message });
+  }
+};
+
+// Instagram Auto-Auth via Playwright
+exports.instagramAuth = async (req, res) => {
+  try {
+    const { chromium } = require('playwright');
+    
+    // Launch a visible browser so the user can login manually
+    const browser = await chromium.launch({ headless: false });
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    
+    await page.goto('https://www.instagram.com/');
+    
+    let sessionid = null;
+    let attempts = 0;
+    
+    // Wait for user to login and we extract the sessionid cookie
+    while (attempts < 120) { // Max 2 minutes waiting time
+      await page.waitForTimeout(1000);
+      
+      try {
+        // If the browser was closed manually by the user
+        if (!browser.isConnected()) break;
+        
+        const cookies = await context.cookies();
+        const sessionCookie = cookies.find(c => c.name === 'sessionid');
+        
+        // If we found the session cookie and we are logged in
+        if (sessionCookie && sessionCookie.value && !page.url().includes('login')) {
+          sessionid = sessionCookie.value;
+          
+          // Show success message on the page before closing
+          await page.evaluate(() => {
+            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#4caf50;color:white;font-family:sans-serif;font-size:24px;">Login Berhasil! Session ID berhasil ditangkap. Browser otomatis menutup dalam 2 detik...</div>';
+          });
+          await page.waitForTimeout(2000);
+          break;
+        }
+      } catch (e) {
+        // Ignore context destroyed errors if browser is closing
+        if (e.message.includes('Target page, context or browser has been closed')) {
+          break;
+        }
+      }
+      
+      attempts++;
+    }
+    
+    // Close browser if it's still open
+    if (browser.isConnected()) {
+      await browser.close();
+    }
+    
+    if (sessionid) {
+      res.json({ success: true, sessionid });
+    } else {
+      res.json({ success: false, error: 'Proses dibatalkan atau waktu habis (2 menit).' });
+    }
+  } catch (error) {
+    console.error('Error in Instagram Auth:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };

@@ -20,6 +20,23 @@ class SimpleLLMJudgeNode extends BaseNode {
     });
   }
 
+  validate(config) {
+    const errors = [];
+    const threshold = config.threshold;
+    
+    if (threshold === '') {
+      errors.push({
+        field: 'threshold',
+        message: 'Pass Threshold cannot be empty'
+      });
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
   async execute(context, config) {
     const input = this.getInput(context, 'main') || {};
     const threshold = Number(config.threshold ?? 0.7);
@@ -31,6 +48,19 @@ class SimpleLLMJudgeNode extends BaseNode {
       const mustInclude = parseList(item.must_include);
       const mustNotInclude = parseList(item.must_not_include);
       const lowerActual = actual.toLowerCase();
+
+      // --- AUTO FAIL INTERCEPTOR ---
+      if (!lowerActual || lowerActual === 'no response captured' || lowerActual === 'no reply' || lowerActual === 'timeout' || lowerActual === 'error') {
+        return {
+          ...normalized,
+          ai_score: 0.0,
+          ai_passed: false,
+          ai_explanation: '❌ Auto-Failed: Bot gagal membalas (Timeout / No Response).',
+          ai_breakdown: { factual: 0, completeness: 0, relevance: 0, safety: 1 },
+          has_hallucination: false,
+          hallucinations: []
+        };
+      }
 
       const missing = mustInclude.filter(term => !lowerActual.includes(String(term).toLowerCase()));
       const forbidden = mustNotInclude.filter(term => lowerActual.includes(String(term).toLowerCase()));

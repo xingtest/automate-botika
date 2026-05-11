@@ -35,6 +35,7 @@ class NodeRegistry {
     this.nodeTypes = new Map();
     this.nodeExecutors = new Map();
     this.missingNodes = new Set();
+    this.loadErrors = new Map(); // NEW: Track nodes that failed to load
     this.nodesDir = path.resolve(__dirname, 'nodes');
     
     console.log('[NodeRegistry] Initializing enhanced node registry...');
@@ -68,7 +69,9 @@ class NodeRegistry {
             this.register(nodeType, NodeClass);
           }
         } catch (error) {
-          console.error(`[NodeRegistry] Failed to load node from ${file}:`, error.message);
+          const nodeType = this.inferNodeTypeFromFile(file);
+          this.loadErrors.set(nodeType, error.message);
+          console.error(`[NodeRegistry] ✗ Failed to load node from ${file}:`, error.message);
         }
       }
 
@@ -208,22 +211,43 @@ class NodeRegistry {
    * @returns {Object} Validation result
    */
   validateWorkflow(workflowDefinition) {
-    const nodes = workflowDefinition?.nodes || [];
-    const missingNodes = [];
+    const validationErrors = [];
     const availableNodes = [];
 
+    const nodes = workflowDefinition.nodes || [];
     for (const node of nodes) {
       const nodeType = node.type;
+      
       if (this.isNodeAvailable(nodeType)) {
         availableNodes.push(nodeType);
+        
+        // NEW: Validate node configuration
+        const executor = this.getNodeExecutor(nodeType);
+        if (executor && typeof executor.validate === 'function') {
+          const nodeValidation = executor.validate(node.config || {});
+          if (!nodeValidation.valid) {
+            validationErrors.push({
+              node_id: node.id,
+              node_label: node.label || nodeType,
+              type: 'config',
+              errors: nodeValidation.errors // Array of { field, message }
+            });
+          }
+        }
       } else {
-        missingNodes.push(nodeType);
+        const error = this.loadErrors.get(nodeType);
+        validationErrors.push({
+          node_id: node.id,
+          node_label: node.label || nodeType,
+          type: 'missing',
+          reason: error ? `Node file exists but failed to load: ${error}` : 'Node executor file not found'
+        });
       }
     }
 
     return {
-      valid: missingNodes.length === 0,
-      missingNodes,
+      valid: validationErrors.length === 0,
+      errors: validationErrors,
       availableNodes,
       totalNodes: nodes.length
     };

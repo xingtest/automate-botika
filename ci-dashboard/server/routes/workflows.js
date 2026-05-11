@@ -22,6 +22,9 @@ router.get('/executions', workflowController.listExecutions);
 // Validation
 router.post('/validate', workflowController.validateWorkflow);
 
+// Utils
+router.post('/instagram-auth', workflowController.instagramAuth);
+
 // Workflow CRUD
 router.post('/', workflowController.createWorkflow);
 router.get('/', workflowController.listWorkflows);

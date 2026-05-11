@@ -45,6 +45,11 @@
   box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-lg);
 }
 
+.workflow-node.port-hover {
+  border-color: var(--success) !important;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2), var(--shadow-lg) !important;
+}
+
 /* Node Status */
 .workflow-node.status-pending {
   border-color: var(--text-muted);
@@ -127,8 +132,10 @@
 }
 
 .node-port:hover {
-  transform: scale(1.3);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  transform: scale(1.6);
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-glow), 0 0 10px var(--accent);
+  z-index: 30;
 }
 
 .node-port.input {

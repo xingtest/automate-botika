@@ -1,17 +1,23 @@
 # Environment
-# .env
-# .env.local
-# .env.*.local
-# .github
-# ci-dashboard/
-# Dependencies
-node_modules/
+.env
+.env.local
+.env.*.local
 
 # Build Output
 dist/
 *.tsbuildinfo
-.github/
-test-reports.yml/
+
+# Test Outputs
+artifacts/
+ci-dashboard/artifacts/
+report/
+test-results/
+screenshots/
+playwright-report/
+
+# Dependencies
+node_modules/
+
 # Logs
 log/
 logs/
@@ -19,13 +25,6 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-
-
-
-# # Session Files (keep structure, ignore content)
-# session/*.json
-# !session/.gitkeep
 
 # Debug Files
 debug_*.png
@@ -39,17 +38,6 @@ error_*.png
 *~
 .DS_Store
 
-# Python (legacy - should not exist)
-__pycache__/
-*.py[cod]
-*$py.class
-.Python
-*.so
-.venv/
-venv/
-
 # OS
 Thumbs.db
-.DS_Store
-log
-docs
+.DS_Store

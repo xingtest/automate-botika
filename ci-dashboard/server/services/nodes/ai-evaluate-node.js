@@ -33,8 +33,8 @@ class AIEvaluateNode extends BaseNode {
           key: 'apiKey',
           label: 'API Key',
           type: 'text',
-          required: false,
-          description: 'API Key untuk provider yang dipilih (Opsional, gunakan jika ingin menimpa .env)'
+          required: true,
+          description: 'API Key untuk provider yang dipilih. Wajib diisi agar workflow dapat berjalan.'
         },
         {
           key: 'model',
@@ -84,16 +84,50 @@ FORMAT OUTPUT (Wajib JSON):
       ]
     });
   }
+  
+  validate(config) {
+    const errors = [];
+    const provider = config.provider || 'gemini';
+    
+    // Check if API key is provided in config
+    const apiKey = config.apiKey || config.api_key;
+    
+    if (!apiKey) {
+      errors.push({
+        field: 'apiKey',
+        message: `API Key for ${provider} is required.`
+      });
+    }
+
+    // Check pass threshold (handle scoring_threshold or threshold fallback)
+    // If it's missing (undefined), it's fine because the executor will use the default 0.7.
+    // We only error if it's explicitly set to an empty string.
+    const threshold = config.scoring_threshold !== undefined ? config.scoring_threshold : 
+                     (config.threshold !== undefined ? config.threshold : undefined);
+    
+    if (threshold === '') {
+      errors.push({
+        field: 'scoring_threshold',
+        message: 'Pass Threshold cannot be empty'
+      });
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
 
   async execute(context, config, node) {
     const input = this.getInput(context, 'main');
     const provider = config.provider || config.ai_provider;
 
     const apiKeyMap = {
-      'gemini': config.apiKey || process.env.GEMINI_API_KEY || process.env.API_KEY_GEMINI,
-      'groq': config.apiKey || process.env.GROQ_API_KEY,
-      'openai': config.apiKey || process.env.OPENAI_API_KEY,
-      'cerebras': config.apiKey || process.env.CEREBRAS_API_KEY
+      'gemini': config.apiKey || config.api_key || process.env.GEMINI_API_KEY || process.env.API_KEY_GEMINI,
+      'groq': config.apiKey || config.api_key || process.env.GROQ_API_KEY,
+      'openai': config.apiKey || config.api_key || process.env.OPENAI_API_KEY,
+      'cerebras': config.apiKey || config.api_key || process.env.CEREBRAS_API_KEY
     };
 
     const apiKey = apiKeyMap[provider];
@@ -104,7 +138,7 @@ FORMAT OUTPUT (Wajib JSON):
     this.log('info', `Evaluating with AI provider: ${provider}`);
 
     const results = input?.results || [];
-    const threshold = config.scoring_threshold || 0.7;
+    const threshold = config.scoring_threshold !== undefined ? config.scoring_threshold : (config.threshold || 0.7);
     const model = config.model || (provider === 'groq' ? config.model_groq : (provider === 'gemini' ? config.model_gemini : null));
 
     const evaluations = [];
@@ -147,6 +181,32 @@ FORMAT OUTPUT (Wajib JSON):
     this.logTechnical(context, 'debug', `Question: ${question}`);
     this.logTechnical(context, 'debug', `Expected: ${expected}`);
     this.logTechnical(context, 'debug', `Actual: ${response}`);
+
+    // --- AUTO FAIL INTERCEPTOR ---
+    // Prevent false positives when the bot simply times out or fails to reply
+    const lowerResponse = response.toLowerCase().trim();
+    if (!lowerResponse || 
+        lowerResponse === 'no response captured' || 
+        lowerResponse === 'no reply' || 
+        lowerResponse === 'timeout' || 
+        lowerResponse === 'error') {
+      
+      this.logTechnical(context, 'warn', `No valid response captured for item: ${title}. Auto-failing with score 0.0`);
+      
+      return {
+        ai_score: 0.0,
+        ai_explanation: '❌ Auto-Failed: Bot gagal membalas (Timeout / No Response). Evaluasi tidak dapat dilakukan.',
+        ai_passed: false,
+        ai_breakdown: {
+          factual: 0,
+          completeness: 0,
+          relevance: 0,
+          safety: 1
+        },
+        has_hallucination: false,
+        hallucinations: []
+      };
+    }
 
     const evaluator = new EnhancedEvaluator({ thresholds: { ...EVAL_CONFIG.thresholds, good: threshold } });
     const localEval = evaluator.evaluate(question, expected, response, title);
