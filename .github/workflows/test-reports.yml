@@ -32,6 +32,10 @@ on:
         description: 'Second greeting message (optional)'
         required: false
         default: ''
+      WELCOME_MESSAGE_WAIT_SECONDS:
+        description: 'Duration (in seconds) to wait for initial welcome message from bot (default: 3)'
+        required: false
+        default: '30'
       WEBCHAT_URL:
         description: 'WebChat URL (V2)'
         required: false
@@ -106,20 +110,20 @@ jobs:
     # pilihan: webchat | webchat-v3 | dhai | instagram | facebook | telegram
     # =====================================================
     env:
-      SELECTED_PLATFORM: webchat-v3
+      SELECTED_PLATFORM: webchat
       DEFAULT_AI_PROVIDER: multi
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama3.1-8b
-      DEFAULT_FILENAME: Testing LGI 1.xlsx
+      DEFAULT_FILENAME: test lgi 3 pertanyaan.xlsx
       DEFAULT_TESTER_NAME: Cik test webchat v3
-      DEFAULT_GREETING: Haloo
-      DEFAULT_GREETING_2: Indonesia
+      DEFAULT_GREETING: B. Indonesia
+      DEFAULT_GREETING_2: 
 
       # -----------------------------
       # TARGET URL / ID / USERNAME / KREDENSIAL
       # -----------------------------
-      WEBCHAT_URL: "https://chat.botika.online/EJUnkrW"
+      WEBCHAT_URL: "https://chat.botika.online/IpTW41B?newMessage=chat%20started&attachment=false&auth=JiQSg8PEZ%2FLCT964dTazyOuehjLUbzKxJUmXjMk9AJgB2tKyrbEy2IfktoPYa4BpTDryrmQb%2BtVE9sX0NlfpDmcVu48%3D&header=hidden&history=false"
       WEBCHAT_V3_URL: "https://chat.botika.online/v3/mk6YoYD"
       DEFAULT_WEBCHAT_NAME: "Cik luna testing bot"
       DEFAULT_WEBCHAT_EMAIL: "tester@botika.online"
@@ -226,6 +230,11 @@ jobs:
           echo "TESTER_NAME=${TESTER}" >> .env
           echo "GREETING=\"${GREET}\"" >> .env
           echo "GREETING_2=\"${GREET_2}\"" >> .env
+          
+          WAIT_SEC="${{ github.event.inputs.WELCOME_MESSAGE_WAIT_SECONDS }}"
+          [ -z "$WAIT_SEC" ] && WAIT_SEC="3"
+          echo "WELCOME_MESSAGE_WAIT_SECONDS=${WAIT_SEC}" >> .env
+
           echo "RUN_NAME=\"${{ github.event.inputs.RUN_NAME }}\"" >> .env
           GEMINI_K="${{ github.event.inputs.GEMINI_API_KEY }}"
           [ -z "$GEMINI_K" ] && GEMINI_K="${API_KEY_GEMINI}"

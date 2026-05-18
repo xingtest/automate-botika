@@ -303,6 +303,13 @@ export class WebchatPlatform {
       log.warn('❌ Pre-chat form not available or no fields found');
       log.info('🔄 Using direct message input instead');
 
+      // Jeda stabilisasi pesan sambutan awal dari bot (misalnya akibat "chat started")
+      const waitSeconds = parseInt(process.env.WELCOME_MESSAGE_WAIT_SECONDS || '3', 10);
+      if (waitSeconds > 0) {
+        log.info(`⏳ Waiting ${waitSeconds} seconds for initial bot greeting to stabilize...`);
+        await Modul.waitTime(waitSeconds);
+      }
+
       try {
         await page.locator('#input-message').fill(greeting);
         await page.keyboard.press('Enter');

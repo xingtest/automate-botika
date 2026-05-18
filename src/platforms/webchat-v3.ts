@@ -299,6 +299,13 @@ export class WebchatV3Platform {
     const start = Modul.startTime();
     console.log('\n🚀 Starting Webchat V3 Actions');
 
+    // Jeda stabilisasi pesan sambutan awal dari bot (misalnya akibat "chat started")
+    const waitSeconds = parseInt(process.env.WELCOME_MESSAGE_WAIT_SECONDS || '3', 10);
+    if (waitSeconds > 0) {
+        console.log(`⏳ Waiting ${waitSeconds} seconds for initial bot greeting to stabilize...`);
+        await Modul.waitTime(waitSeconds);
+    }
+
     // Handle initial greetings for V3
     if (greeting) {
         console.log(`📤 Sending Greeting 1: ${greeting}`);
