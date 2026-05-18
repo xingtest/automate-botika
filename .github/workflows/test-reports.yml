@@ -35,7 +35,7 @@ on:
       WELCOME_MESSAGE_WAIT_SECONDS:
         description: 'Duration (in seconds) to wait for initial welcome message from bot (default: 3)'
         required: false
-        default: '30'
+        default: '120'
       WEBCHAT_URL:
         description: 'WebChat URL (V2)'
         required: false
