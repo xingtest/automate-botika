@@ -503,8 +503,6 @@ export class WebchatPlatform {
     }, 0);
 
     for (const element of jsonData) {
-      await page.reload();
-      await Modul.waitTime(3);
       const durationPerTitle = Modul.startTime();
       Modul.showLoading(element.title || 'Untitled');
       console.log();

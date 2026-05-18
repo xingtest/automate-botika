@@ -410,11 +410,7 @@ export class WebchatV3Platform {
           };
           EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
 
-          if (globalCount % 5 === 0) {
-            console.log('🔄 Reloading page to prevent memory leaks...');
-            await page.reload();
-            await Modul.waitTime(3);
-          }
+
         }
       }
       const endDurationPerTitle = Modul.endTime(durationPerTitle);
