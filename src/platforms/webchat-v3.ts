@@ -197,71 +197,86 @@ export class WebchatV3Platform {
   ): Promise<void> {
     Modul.showLoading('Checking for available webchat V3 pre-chat form');
 
-    await Modul.waitTime(10);
-    let webform = false;
+    await Modul.waitTime(5);
     let fieldsFound = 0;
 
     log.platform.action('Checking for pre-chat form fields in V3');
 
     try {
-      const nameInput = await page.locator('#registername');
-      if (await nameInput.isVisible()) {
-        await nameInput.fill(name);
-        log.info('✅ Pre-chat form name field available');
-        webform = true;
-        fieldsFound++;
-      }
-    } catch (error) {
-      log.debug('Name field not found or not visible');
-    }
-
-    try {
-      const emailInput = await page.locator('#registeremail');
-      if (await emailInput.isVisible()) {
-        await emailInput.fill(email);
-        log.info('✅ Pre-chat form email field available');
-        webform = true;
-        fieldsFound++;
-      }
-    } catch (error) {
-      log.debug('Email field not found or not visible');
-    }
-
-    try {
-      const phoneInput = await page.locator('#registerphone');
-      if (await phoneInput.isVisible()) {
-        await phoneInput.fill(phone);
-        log.info('✅ Pre-chat form phone field available');
-        webform = true;
-        fieldsFound++;
-      }
-    } catch (error) {
-      log.debug('Phone field not found or not visible');
-    }
-
-    if (webform && fieldsFound > 0) {
-      log.info(`✅ Pre-chat form detected with ${fieldsFound} fields in V3`);
-
-      try {
-        const startChatButton = await page.locator('button:has-text("Mulai Obrolan"), button:has-text("Start Chat")').first();
-        if (await startChatButton.isVisible()) {
-            await startChatButton.click();
-            log.info('✅ Clicked "Start Chat" button');
-            await Modul.waitTime(2); // Wait for form transition
-        } else {
-            // Coba cari tombol submit standar webchat
-            const submitBtn = await page.locator('#btn-submit-register, .btn-submit').first();
-            if (await submitBtn.isVisible()) {
-                await submitBtn.click();
-                log.info('✅ Clicked "Submit" button');
-                await Modul.waitTime(2);
-            }
+      // 1. Name
+      const nameSelectors = ['#registername', 'input[placeholder*="Name"]', 'input[label*="Name"]'];
+      for (const selector of nameSelectors) {
+        const input = page.locator(selector);
+        if (await input.isVisible()) {
+          await input.fill(name);
+          log.info('✅ Pre-chat form name field available');
+          fieldsFound++;
+          break;
         }
-      } catch (error) {
-        log.error('Failed to click start chat button', error);
       }
-    } else {
-      log.debug('No pre-chat form detected in V3, proceeding directly');
+
+      // 2. Email
+      const emailSelectors = ['#registeremail', 'input[placeholder*="Email"]', 'input[label*="Email"]', 'input[type="email"]'];
+      for (const selector of emailSelectors) {
+        const input = page.locator(selector);
+        if (await input.isVisible()) {
+          await input.fill(email);
+          log.info('✅ Pre-chat form email field available');
+          fieldsFound++;
+          break;
+        }
+      }
+
+      // 3. Phone
+      const phoneSelectors = ['#registerphone', 'input[placeholder*="Phone"]', 'input[label*="Phone"]', 'input[type="tel"]'];
+      for (const selector of phoneSelectors) {
+        const input = page.locator(selector);
+        if (await input.isVisible()) {
+          await input.fill(phone);
+          log.info('✅ Pre-chat form phone field available');
+          fieldsFound++;
+          break;
+        }
+      }
+
+      // 4. Gender or other dropdowns
+      const dropdownSelectors = ['.v-select', '.v-combobox', '.v-autocomplete'];
+      const dropdowns = page.locator(dropdownSelectors.join(','));
+      const count = await dropdowns.count();
+      
+      for (let i = 0; i < count; i++) {
+        const dropdown = dropdowns.nth(i);
+        if (await dropdown.isVisible()) {
+          const text = await dropdown.textContent() || '';
+          if (text.toLowerCase().includes('gender') || text.toLowerCase().includes('jenis kelamin')) {
+            log.info('✅ Gender dropdown detected, selecting first option');
+            await dropdown.click();
+            await page.waitForTimeout(1000);
+            
+            const option = page.locator('.v-list-item, .v-overlay-container .v-list-item').first();
+            if (await option.isVisible()) {
+              await option.click();
+              fieldsFound++;
+              await page.waitForTimeout(500);
+            }
+          }
+        }
+      }
+
+      if (fieldsFound > 0) {
+        log.info(`✅ Pre-chat form detected with ${fieldsFound} fields in V3`);
+
+        const startChatButton = page.locator('button:has-text("Mulai Obrolan"), button:has-text("Start Chat"), button:has-text("Kirim"), #btn-submit-register, .btn-submit, button[type="submit"]').first();
+        if (await startChatButton.isVisible()) {
+          await startChatButton.click();
+          log.info('✅ Clicked Start Chat button');
+          await Modul.waitTime(3);
+        }
+      } else {
+        log.debug('No pre-chat form detected in V3, proceeding directly');
+      }
+    } catch (error) {
+      log.error('Error handling pre-chat form', error);
     }
   }
 

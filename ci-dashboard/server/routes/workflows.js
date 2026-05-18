@@ -24,6 +24,9 @@ router.post('/validate', workflowController.validateWorkflow);
 
 // Utils
 router.post('/instagram-auth', workflowController.instagramAuth);
+router.post('/facebook-auth', workflowController.facebookAuth);
+router.post('/telegram-auth/request-code', workflowController.telegramRequestCode);
+router.post('/telegram-auth/finalize', workflowController.telegramFinalize);
 
 // Workflow CRUD
 router.post('/', workflowController.createWorkflow);

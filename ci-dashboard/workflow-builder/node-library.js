@@ -153,11 +153,11 @@ const NodeLibrary = {
         ]
       },
       {
-        displayName: 'Playwright Webchat',
+        displayName: 'Webchat',
         name: 'playwright-webchat',
         category: 'Actions',
         description: 'Execute Playwright test specifically for Webchat (Classic)',
-        icon: 'fa-globe',
+        icon: 'fa-comments',
         color: '#2b6cb0',
         inputs: ['main'],
         outputs: ['main'],
@@ -204,6 +204,12 @@ const NodeLibrary = {
             default: 'Haloo'
           },
           {
+            displayName: 'Greeting Message 2',
+            name: 'greeting_2',
+            type: 'string',
+            default: ''
+          },
+          {
             displayName: 'Headless',
             name: 'headless',
             type: 'boolean',
@@ -212,11 +218,11 @@ const NodeLibrary = {
         ]
       },
       {
-        displayName: 'Instagram DM Test',
+        displayName: 'Instagram DM',
         name: 'playwright-instagram',
         category: 'Actions',
         description: 'Execute Playwright test via Instagram Direct Message',
-        icon: 'fa-instagram',
+        icon: 'fab fa-instagram',
         color: '#E1306C',
         inputs: ['main'],
         outputs: ['main'],
@@ -244,10 +250,235 @@ const NodeLibrary = {
             default: 'Halo'
           },
           {
+            displayName: 'Greeting Message 2',
+            name: 'greeting_2',
+            type: 'string',
+            default: ''
+          },
+          {
             displayName: 'Headless Mode',
             name: 'headless',
             type: 'boolean',
             default: true
+          }
+        ]
+      },
+      {
+        displayName: 'Facebook DM',
+        name: 'playwright-facebook',
+        category: 'Actions',
+        description: 'Execute Playwright test via Facebook Direct Message',
+        icon: 'fab fa-facebook',
+        color: '#1877F2',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Fanpage ID / Username',
+            name: 'fanpage_id',
+            type: 'string',
+            required: true,
+            default: '',
+            description: 'ID atau Username Facebook Fanpage (contoh: botika.online)'
+          },
+          {
+            displayName: 'c_user Cookie',
+            name: 'c_user',
+            type: 'string',
+            required: true,
+            default: '',
+            description: 'Copy value dari cookie "c_user" di browser setelah login Facebook'
+          },
+          {
+            displayName: 'xs Cookie',
+            name: 'xs',
+            type: 'string',
+            required: true,
+            default: '',
+            description: 'Copy value dari cookie "xs" di browser setelah login Facebook'
+          },
+          {
+            displayName: 'Greeting Message',
+            name: 'greeting',
+            type: 'string',
+            default: 'Halo'
+          },
+          {
+            displayName: 'Greeting Message 2',
+            name: 'greeting_2',
+            type: 'string',
+            default: ''
+          },
+          {
+            displayName: 'Headless Mode',
+            name: 'headless',
+            type: 'boolean',
+            default: true
+          }
+        ]
+      },
+      {
+        displayName: 'DHA Webchat',
+        name: 'playwright-dha',
+        category: 'Actions',
+        description: 'Execute Playwright test specifically for DHA (Luna) Platform',
+        icon: 'fa-robot',
+        color: '#4B9CD3',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Target URL',
+            name: 'target_url',
+            type: 'string',
+            required: true,
+            default: 'https://dha.botika.online/',
+            description: 'URL Webchat DHA yang akan dites'
+          },
+          {
+            displayName: 'Greeting Message',
+            name: 'greeting',
+            type: 'string',
+            default: 'Halo'
+          },
+          {
+            displayName: 'Greeting Message 2',
+            name: 'greeting_2',
+            type: 'string',
+            default: ''
+          },
+          {
+            displayName: 'Wait Time (s)',
+            name: 'wait_time',
+            type: 'number',
+            default: 5,
+            description: 'Waktu tunggu setelah mengirim pesan'
+          },
+          {
+            displayName: 'Headless Mode',
+            name: 'headless',
+            type: 'boolean',
+            default: true
+          }
+        ]
+      },
+      {
+        displayName: 'Webchat V3',
+        name: 'playwright-webchat-v3',
+        category: 'Actions',
+        description: 'Execute Playwright test for Webchat V3 (Vuetify based)',
+        icon: 'fa-comment-dots',
+        color: '#3b82f6',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Target URL',
+            name: 'target_url',
+            type: 'string',
+            required: true,
+            default: 'https://v3.botika.online/',
+            description: 'URL Webchat V3 yang akan dites'
+          },
+          {
+            displayName: 'Greeting Message',
+            name: 'greeting',
+            type: 'string',
+            default: 'Halo'
+          },
+          {
+            displayName: 'Greeting Message 2',
+            name: 'greeting_2',
+            type: 'string',
+            default: ''
+          },
+          {
+            displayName: 'Pre-chat Name',
+            name: 'prechat_name',
+            type: 'string',
+            default: 'Tester'
+          },
+          {
+            displayName: 'Pre-chat Email',
+            name: 'prechat_email',
+            type: 'string',
+            default: 'tester@example.com'
+          },
+          {
+            displayName: 'Pre-chat Phone',
+            name: 'prechat_phone',
+            type: 'string',
+            default: '08123456789'
+          },
+          {
+            displayName: 'Wait Time (s)',
+            name: 'wait_time',
+            type: 'number',
+            default: 5,
+            description: 'Waktu tunggu setelah mengirim pesan'
+          },
+          {
+            displayName: 'Headless Mode',
+            name: 'headless',
+            type: 'boolean',
+            default: true
+          }
+        ]
+      },
+      {
+        displayName: 'Telegram Client',
+        name: 'telegram-client',
+        category: 'Actions',
+        description: 'Interact with Telegram bots using GramJS (No browser)',
+        icon: 'fa-paper-plane',
+        color: '#0088cc',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Bot Username',
+            name: 'bot_username',
+            type: 'string',
+            required: true,
+            default: '@YourBotName',
+            description: 'Username bot yang akan dites (contoh: @botika_bot)'
+          },
+          {
+            displayName: 'API ID',
+            name: 'api_id',
+            type: 'string',
+            required: true,
+            default: '',
+            description: 'Dapatkan dari my.telegram.org'
+          },
+          {
+            displayName: 'API Hash',
+            name: 'api_hash',
+            type: 'string',
+            required: true,
+            default: '',
+            description: 'Dapatkan dari my.telegram.org'
+          },
+          {
+            displayName: 'Session String',
+            name: 'session_string',
+            type: 'textarea',
+            required: true,
+            default: '',
+            description: 'String session hasil login (Gunakan script generate-telegram-session.ts)'
+          },
+          {
+            displayName: 'Greeting Message',
+            name: 'greeting',
+            type: 'string',
+            default: '/start'
+          },
+          {
+            displayName: 'Max Wait (s)',
+            name: 'max_wait',
+            type: 'number',
+            default: 20,
+            description: 'Maksimum waktu tunggu balasan bot'
           }
         ]
       },
@@ -848,7 +1079,7 @@ FORMAT OUTPUT (Wajib JSON):
   renderNodeCard(node) {
     return `
       <div class="node-card" draggable="true" data-node-type="${node.name}">
-        <div class="node-card-icon" style="background: ${node.color};"><i class="fas ${node.icon}"></i></div>
+        <div class="node-card-icon" style="background: ${node.color};"><i class="${node.icon && node.icon.includes(' ') ? node.icon : 'fas ' + node.icon}"></i></div>
         <div class="node-card-content">
           <div class="node-card-name">${node.displayName}</div>
           <div class="node-card-description text-xs opacity-70">${node.description}</div>

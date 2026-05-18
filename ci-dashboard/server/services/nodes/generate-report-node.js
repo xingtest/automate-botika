@@ -1,7 +1,6 @@
 const BaseNode = require('./base-node');
 const { pool: db } = require('../../db');
-const fs = require('fs');
-const path = require('path');
+const { normalizeItem } = require('./llm-judge-utils');
 
 class GenerateReportNode extends BaseNode {
   constructor() {
@@ -13,10 +12,10 @@ class GenerateReportNode extends BaseNode {
       icon: 'fa-file-alt',
       color: '#8b5cf6',
       inputs: [
-        { id: 'main', name: 'Test Result', dataType: 'object', required: true }
+        { id: 'test_result', name: 'Test Result', dataType: 'object', required: true }
       ],
       outputs: [
-        { id: 'main', name: 'Artifact', dataType: 'object', required: true }
+        { id: 'artifact', name: 'Artifact', dataType: 'object', required: true }
       ],
       config_schema: [
         {
@@ -51,7 +50,10 @@ class GenerateReportNode extends BaseNode {
   }
 
   async execute(context, config, node) {
-    const input = this.getInput(context, 'main');
+    const fs = require('fs');
+    const path = require('path');
+
+    const input = this.getInput(context, 'main') || this.getInput(context, 'test_result') || this.getInput(context, 'input');
 
     if (!input || (!input.run_id && !input.results && !input.evaluations)) {
       throw new Error('Invalid input: test results are required to generate a report');
@@ -60,46 +62,44 @@ class GenerateReportNode extends BaseNode {
     const format = config.report_format || 'json';
     const baseName = config.output_filename || `report-${Date.now()}`;
     const filename = `${baseName}.${format}`;
-    
-    // Move output to ci-dashboard/artifacts/
-    const ciDashboardDir = path.join(__dirname, '../../..');
-    const outputDir = path.join(ciDashboardDir, 'artifacts');
+    const outputDir = path.join(__dirname, '../../../../artifacts');
     const filePath = path.join(outputDir, filename);
 
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
+    fs.mkdirSync(outputDir, { recursive: true });
 
     this.log('info', `Generating ${format} report: ${filename}`);
 
     // Standardize input data for the template
     const rawResults = input.results || input.evaluations || [];
+    const normalizedResults = rawResults.map((item, index) => normalizeItem(item, index));
     const runId = input.run_id || `WF-${Date.now()}`;
     const startTime = input.start_time || new Date().toISOString();
     
     // Map data to match template/template.ejs expectations
-    const test_data = rawResults.map((item, index) => ({
+    const test_data = normalizedResults.map((item, index) => ({
       no: item.no || index + 1,
       id: item.id || `T-${index + 1}`,
-      title: item.title || item.topic || 'General',
+      title: item.title || 'General',
       question: item.question || 'N/A',
-      response_kb: item.response_kb || item.expected_answer || item.expected || 'N/A',
-      response_llm: item.response_llm || item.bot_response || item.actual || item.response || 'N/A',
+      expected: item.expected || 'N/A',
+      actual: item.actual || 'N/A',
+      response_kb: item.response_kb || item.expected || 'N/A',
+      response_llm: item.response_llm || item.actual || 'N/A',
       explanation: item.ai_explanation || item.explanation || 'N/A',
-      status: (item.ai_passed !== undefined ? item.ai_passed : item.status === 'pass') ? 'PASS' : 'FAILED',
-      skor: item.ai_score !== undefined ? item.ai_score : (item.skor !== undefined ? item.skor : (item.score || 0)),
+      status: item.ai_passed ? 'PASS' : 'FAILED',
+      skor: item.ai_score !== undefined ? item.ai_score : (item.score || 0),
       duration: item.duration || '00:00:01',
       image_capture: item.image_capture || null
     }));
 
-    const passedCount = test_data.filter(i => i.status === 'PASS').length;
-    const failedCount = test_data.length - passedCount;
+    const summaryPassedCount = test_data.filter(i => i.status === 'PASS').length;
+    const summaryFailedCount = test_data.length - summaryPassedCount;
     const totalDuration = test_data.reduce((acc, curr) => acc + 1, 0); // Placeholder duration logic
 
     const summary = [{
       id_test: runId,
-      success: passedCount,
-      failed: failedCount,
+      success: summaryPassedCount,
+      failed: summaryFailedCount,
       total_title: [...new Set(test_data.map(i => i.title))].length,
       total_question: test_data.length,
       duration: `${totalDuration}s`,
@@ -144,17 +144,17 @@ class GenerateReportNode extends BaseNode {
     }
 
     const fileSize = fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
-    // Relative path for database and dashboard access (relative to ci-dashboard root)
-    const relativePath = `artifacts/${filename}`;
+    const relativePath = path.relative(outputDir, filePath);
 
     let finalRunId = input.run_id;
     const evaluations = input.evaluations || [];
-    const resultsData = input.results || evaluations;
-    const totalEvaluated = evaluations.length || (input.results ? input.results.length : 0);
-    const runPassedCount = evaluations.filter(i => i.ai_passed).length;
-    const runFailedCount = totalEvaluated - runPassedCount;
-    const avgScore = evaluations.length > 0
-      ? Math.round((evaluations.reduce((sum, item) => sum + (item.ai_score || 0), 0) / evaluations.length) * 100) / 100
+    const resultsData = normalizedResults;
+    const totalEvaluated = evaluations.length || normalizedResults.length;
+    const scoringItems = evaluations.length > 0 ? evaluations : normalizedResults;
+    const passedCount = scoringItems.filter(i => i.ai_passed).length;
+    const failedCount = totalEvaluated - passedCount;
+    const avgScore = scoringItems.length > 0
+      ? Math.round((scoringItems.reduce((sum, item) => sum + (item.ai_score || 0), 0) / scoringItems.length) * 100) / 100
       : 0;
 
     if (!finalRunId) {
@@ -169,9 +169,10 @@ class GenerateReportNode extends BaseNode {
         const durationString = input.duration || `${Math.round((Date.now() - new Date(startTime).getTime()) / 1000)}s`;
         const userId = context.user_id || null;
 
-        const runResult = await db.query(
+        const runResult = await db.queryOriginal(
           `INSERT INTO test_runs (user_id, test_id, run_title, platform, tester_name, filename, ai_evaluation, date_test, start_time_test, end_time_test, duration, total_title, total_question, success, failed, avg_score)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+           RETURNING id`,
           [
             userId,
             testId,
@@ -186,17 +187,17 @@ class GenerateReportNode extends BaseNode {
             durationString,
             [...new Set(test_data.map(i => i.title || 'General'))].length,
             totalEvaluated,
-            runPassedCount,
-            runFailedCount,
+            passedCount,
+            failedCount,
             avgScore
           ]
         );
 
-        if (!runResult || !runResult[0].insertId) {
+        if (!runResult.rows || !runResult.rows[0]) {
           throw new Error('Failed to create placeholder judge run - no ID returned');
         }
 
-        finalRunId = runResult[0].insertId;
+        finalRunId = runResult.rows[0].id;
         this.log('info', `Created judge run with ID: ${finalRunId}`);
       } catch (e) {
         this.log('error', `Failed to create judge run: ${e.message}`);
@@ -204,15 +205,16 @@ class GenerateReportNode extends BaseNode {
       }
     } else {
       // If a run_id exists but the run record is missing or incomplete, ensure it exists in test_runs.
-      const existingRun = await db.query(
-        'SELECT id FROM test_runs WHERE id = ?',
+      const existingRun = await db.queryOriginal(
+        'SELECT id FROM test_runs WHERE id = $1',
         [finalRunId]
       );
-      if (!existingRun[0].length) {
+      if (!existingRun.rows.length) {
         this.log('info', `Run ID ${finalRunId} not found, creating judge run entry`);
-        const runResult = await db.query(
+        const runResult = await db.queryOriginal(
           `INSERT INTO test_runs (user_id, test_id, run_title, platform, tester_name, filename, ai_evaluation, date_test, start_time_test, end_time_test, duration, total_title, total_question, success, failed, avg_score)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+           RETURNING id`,
           [
             context.user_id || null,
             `WORKFLOW-${Date.now()}`,
@@ -227,40 +229,40 @@ class GenerateReportNode extends BaseNode {
             `${Math.round((Date.now() - new Date(startTime).getTime()) / 1000)}s`,
             [...new Set(test_data.map(i => i.title || 'General'))].length,
             totalEvaluated,
-            runPassedCount,
-            runFailedCount,
+            passedCount,
+            failedCount,
             avgScore
           ]
         );
-        finalRunId = runResult[0].insertId;
+        finalRunId = runResult.rows[0].id;
       }
     }
 
     if (resultsData.length > 0) {
-      const resultsValues = resultsData.map((item, index) => [
+      const rows = resultsData.map((item, index) => [
         finalRunId,
         item.no || index + 1,
         item.title || item.topic || `Item ${index + 1}`,
         item.question || 'N/A',
-        item.response_kb || item.expected_answer || item.expected || 'N/A',
-        item.response_llm || item.bot_response || item.actual || item.response || 'N/A',
-        (item.ai_passed !== undefined ? item.ai_passed : item.status === 'pass') ? 'PASS' : 'FAILED',
+        item.response_kb || item.expected || 'N/A',
+        item.response_llm || item.actual || 'N/A',
+        item.ai_passed ? 'PASS' : 'FAILED',
         item.duration || '0s',
-        item.ai_score !== undefined ? item.ai_score : (item.skor !== undefined ? item.skor : (item.score || 0)),
+        item.ai_score !== undefined ? item.ai_score : (item.score || 0),
         item.ai_explanation || item.explanation || 'N/A',
         item.image_capture || null
       ]);
-
-      await db.query(
+      await db.queryOriginal(
         `INSERT INTO test_results (run_id, no, title, question, response_kb, response_llm, status, duration, skor, explanation, image_path)
-         VALUES ?`,
-        [resultsValues]
+         VALUES ${rows.map((_, idx) => `($${idx * 11 + 1}, $${idx * 11 + 2}, $${idx * 11 + 3}, $${idx * 11 + 4}, $${idx * 11 + 5}, $${idx * 11 + 6}, $${idx * 11 + 7}, $${idx * 11 + 8}, $${idx * 11 + 9}, $${idx * 11 + 10}, $${idx * 11 + 11})`).join(', ')}`,
+        rows.flat()
       );
     }
 
-    const result = await db.query(
+    const result = await db.queryOriginal(
       `INSERT INTO artifacts (run_id, artifact_type, filename, file_path, file_size, description)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
       [
         finalRunId,
         format,
@@ -271,7 +273,7 @@ class GenerateReportNode extends BaseNode {
       ]
     );
 
-    const artifactId = result[0].insertId;
+    const artifactId = result.rows[0].id;
 
     return {
       artifact_id: artifactId,

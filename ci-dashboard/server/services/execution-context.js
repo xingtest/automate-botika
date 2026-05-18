@@ -19,18 +19,20 @@ class ExecutionContext {
   }
   
   /**
-   * Get input data for current node from connected upstream node
+   * Get input data for a specific node from connected upstream node
    * @param {string} portName - Input port name
+   * @param {string} nodeId - Optional node ID (defaults to current_node_id)
    * @returns {any} - Input data
    */
-  getInput(portName) {
-    if (!this.current_node_id) {
+  getInput(portName, nodeId = null) {
+    const targetNodeId = nodeId || this.current_node_id;
+    if (!targetNodeId) {
       return null;
     }
     
     // Find connection to this node's input port
     const connection = this.connections.find(c => 
-      c.target_node_id === this.current_node_id && 
+      c.target_node_id === targetNodeId && 
       c.target_port_id === portName
     );
     
@@ -43,18 +45,20 @@ class ExecutionContext {
   }
   
   /**
-   * Set output data for current node
+   * Set output data for a node
    * @param {string} portName - Output port name
    * @param {any} data - Output data
+   * @param {string} nodeId - Optional node ID (defaults to current_node_id)
    */
-  setOutput(portName, data) {
-    if (!this.current_node_id) {
-      throw new Error('No current node set');
+  setOutput(portName, data, nodeId = null) {
+    const targetNodeId = nodeId || this.current_node_id;
+    if (!targetNodeId) {
+      throw new Error('No node ID provided for setOutput');
     }
     
     // Store output (make immutable by deep cloning)
-    const immutableData = JSON.parse(JSON.stringify(data));
-    this.node_outputs.set(this.current_node_id, immutableData);
+    const immutableData = data !== undefined ? JSON.parse(JSON.stringify(data)) : null;
+    this.node_outputs.set(targetNodeId, immutableData);
   }
   
   /**

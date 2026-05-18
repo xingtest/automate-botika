@@ -40,6 +40,13 @@ class PlaywrightInstagramNode extends BaseNode {
           default: 'Halo'
         },
         {
+          key: 'greeting_2',
+          label: 'Greeting Message 2',
+          type: 'text',
+          required: false,
+          default: ''
+        },
+        {
           key: 'headless',
           label: 'Headless Mode',
           type: 'boolean',
@@ -54,6 +61,7 @@ class PlaywrightInstagramNode extends BaseNode {
     const targetUsername = config.target_username;
     const sessionId = config.sessionid;
     const greeting = config.greeting !== undefined ? config.greeting : 'Halo';
+    const greeting2 = config.greeting_2 || '';
     const headless = config.headless !== undefined ? config.headless : true;
     
     const inputData = this.getInput(context, 'main');
@@ -99,28 +107,57 @@ class PlaywrightInstagramNode extends BaseNode {
         throw new Error('Login Gagal! Session ID sudah expired atau tidak valid. Silakan copy Session ID yang baru dari browser.');
       }
 
-      // Klik tombol Message di profil pengguna
-      this.logTechnical(context, 'info', 'Opening Direct Message...');
+      // Matikan popup notifikasi atau login wall jika muncul
+      const popups = [
+        'button:has-text("Not Now")', 
+        'button:has-text("Lain Kali")',
+        'button:has-text("Dismiss")',
+        'div[role="dialog"] button:has-text("Close")',
+        'svg[aria-label="Close"]'
+      ];
       
-      // Tombol Message di profil IG biasanya punya teks 'Message' atau 'Kirim pesan'
+      for (const selector of popups) {
+        try {
+          if (await page.isVisible(selector).catch(() => false)) {
+            await page.click(selector, { timeout: 2000 }).catch(() => {});
+          }
+        } catch (e) {}
+      }
+
+      // Klik tombol Message di profil pengguna
+      this.logTechnical(context, 'info', 'Searching for Message button...');
+      
       const messageButtonSelectors = [
         'div[role="button"]:has-text("Message")',
         'div[role="button"]:has-text("Kirim pesan")',
-        'a[role="link"][href^="/direct/t/"]',
-        'a:has-text("Message")'
+        'button:has-text("Message")',
+        'button:has-text("Kirim pesan")',
+        'a[href*="/direct/t/"]',
+        'xpath=//div[text()="Message"]',
+        'xpath=//div[text()="Kirim pesan"]',
+        'xpath=//button[text()="Message"]'
       ];
 
       let clicked = false;
       for (const selector of messageButtonSelectors) {
-        if (await page.isVisible(selector).catch(() => false)) {
-          await page.click(selector);
-          clicked = true;
-          break;
-        }
+        try {
+          const btn = page.locator(selector).first();
+          if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            this.logTechnical(context, 'info', `Clicking Message button with selector: ${selector}`);
+            await btn.click();
+            clicked = true;
+            break;
+          }
+        } catch (e) {}
       }
 
       if (!clicked) {
-        throw new Error('Gagal menemukan tombol Message di profil target. Pastikan username benar dan Anda memiliki akses untuk mengirim pesan.');
+        // Ambil screenshot untuk debug sebelum throw error
+        const screenshotPath = `artifacts/ig_failure_${Date.now()}.png`;
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        this.log('error', `Debug screenshot saved to: ${screenshotPath}`);
+        
+        throw new Error(`Gagal menemukan tombol Message di profil target. Pastikan Session ID valid dan akun target tidak di-private. Lihat screenshot: ${screenshotPath}`);
       }
 
       // Tunggu sampai kotak input DM muncul
@@ -135,9 +172,17 @@ class PlaywrightInstagramNode extends BaseNode {
       }
 
       if (greeting && String(greeting).trim()) {
-        this.logTechnical(context, 'info', 'Sending greeting message...');
+        this.logTechnical(context, 'info', `Sending greeting message: "${greeting}"`);
         await this.sendMessage(page, greeting, dmInputSelector);
         await this.waitForReply(page, greeting, 15000); // Tunggu balasan greeting
+        this.logTechnical(context, 'info', 'Greeting message sent and handled');
+      }
+
+      if (greeting2 && String(greeting2).trim()) {
+        this.logTechnical(context, 'info', `Sending second greeting message: "${greeting2}"`);
+        await this.sendMessage(page, greeting2, dmInputSelector);
+        await this.waitForReply(page, greeting2, 15000); // Tunggu balasan greeting
+        this.logTechnical(context, 'info', 'Second greeting message sent and handled');
       }
 
       // Mulai Testing
@@ -148,6 +193,7 @@ class PlaywrightInstagramNode extends BaseNode {
         const title = this.getField(testItem, ['title', 'topic']) || `Test ${i + 1}`;
         const no = this.getField(testItem, ['no', 'number']) || i + 1;
 
+        this.logTechnical(context, 'info', `[${i + 1}/${testData.length}] Testing question: "${question.substring(0, 50)}..."`);
         this.log('info', `[${i + 1}/${testData.length}] Testing: ${question.substring(0, 50)}...`);
         
         const startTime = Date.now();
@@ -156,6 +202,8 @@ class PlaywrightInstagramNode extends BaseNode {
         // Timeout balasan bot 30 detik
         const actual = await this.waitForReply(page, question, 30000);
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+        this.logTechnical(context, 'info', `[${i + 1}/${testData.length}] Received reply: "${actual.substring(0, 50)}..." (${duration}s)`);
 
         results.push({
           no,
@@ -169,7 +217,7 @@ class PlaywrightInstagramNode extends BaseNode {
         });
 
         // Delay antar pesan agar tidak terdeteksi sebagai spammer agresif
-        if (testData.length > 1) {
+        if (testData.length > 1 && i < testData.length - 1) {
           await new Promise(r => setTimeout(r, 2000));
         }
       }

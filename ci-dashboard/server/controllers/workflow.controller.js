@@ -884,25 +884,21 @@ exports.instagramAuth = async (req, res) => {
       await page.waitForTimeout(1000);
       
       try {
-        // If the browser was closed manually by the user
         if (!browser.isConnected()) break;
         
         const cookies = await context.cookies();
         const sessionCookie = cookies.find(c => c.name === 'sessionid');
         
-        // If we found the session cookie and we are logged in
         if (sessionCookie && sessionCookie.value && !page.url().includes('login')) {
           sessionid = sessionCookie.value;
           
-          // Show success message on the page before closing
           await page.evaluate(() => {
-            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#4caf50;color:white;font-family:sans-serif;font-size:24px;">Login Berhasil! Session ID berhasil ditangkap. Browser otomatis menutup dalam 2 detik...</div>';
+            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#E1306C;color:white;font-family:sans-serif;font-size:24px;text-align:center;padding:20px;">Login Berhasil!<br>Session ID Instagram berhasil ditangkap.<br>Browser otomatis menutup dalam 2 detik...</div>';
           });
           await page.waitForTimeout(2000);
           break;
         }
       } catch (e) {
-        // Ignore context destroyed errors if browser is closing
         if (e.message.includes('Target page, context or browser has been closed')) {
           break;
         }
@@ -911,7 +907,6 @@ exports.instagramAuth = async (req, res) => {
       attempts++;
     }
     
-    // Close browser if it's still open
     if (browser.isConnected()) {
       await browser.close();
     }
@@ -925,4 +920,177 @@ exports.instagramAuth = async (req, res) => {
     console.error('Error in Instagram Auth:', error);
     res.status(500).json({ success: false, error: error.message });
   }
+};
+
+// Facebook Auto-Auth via Playwright
+exports.facebookAuth = async (req, res) => {
+  try {
+    const { chromium } = require('playwright');
+    
+    // Launch a visible browser with some evasion to reduce captcha difficulty
+    const browser = await chromium.launch({ 
+      headless: false,
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        '--no-sandbox'
+      ]
+    });
+    
+    const context = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    });
+    
+    const page = await context.newPage();
+    
+    // Set some extra properties to look more human
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    });
+    
+    await page.goto('https://www.facebook.com/');
+    
+    let c_user = null;
+    let xs = null;
+    let attempts = 0;
+    
+    // Wait for user to login and we extract the cookies
+    while (attempts < 180) { // Extended to 3 minutes because of captchas
+      await page.waitForTimeout(1000);
+      
+      try {
+        if (!browser.isConnected()) break;
+        
+        const cookies = await context.cookies();
+        const cUserCookie = cookies.find(c => c.name === 'c_user');
+        const xsCookie = cookies.find(c => c.name === 'xs');
+        
+        if (cUserCookie && cUserCookie.value && xsCookie && xsCookie.value && !page.url().includes('login')) {
+          c_user = cUserCookie.value;
+          xs = xsCookie.value;
+          
+          await page.evaluate(() => {
+            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#1877F2;color:white;font-family:sans-serif;font-size:24px;text-align:center;padding:20px;">Login Berhasil!<br>Session Cookies Facebook berhasil ditangkap.<br>Browser otomatis menutup dalam 2 detik...</div>';
+          });
+          await page.waitForTimeout(2000);
+          break;
+        }
+      } catch (e) {
+        if (e.message.includes('Target page, context or browser has been closed')) {
+          break;
+        }
+      }
+      
+      attempts++;
+    }
+    
+    if (browser.isConnected()) {
+      await browser.close();
+    }
+    
+    if (c_user && xs) {
+      res.json({ success: true, c_user, xs });
+    } else {
+      res.json({ success: false, error: 'Proses dibatalkan atau waktu habis.' });
+    }
+  } catch (error) {
+    console.error('Error in Facebook Auth:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+// --- Telegram Auth Methods ---
+const pendingTelegramClients = new Map();
+
+exports.telegramRequestCode = async (req, res) => {
+    try {
+        const { apiId, apiHash, phone } = req.body;
+        if (!apiId || !apiHash || !phone) {
+            return res.status(400).json({ success: false, error: 'API ID, API Hash, and Phone are required' });
+        }
+
+        const { TelegramClient } = require('telegram');
+        const { StringSession } = require('telegram/sessions');
+        const { v4: uuidv4 } = require('uuid');
+
+        const client = new TelegramClient(new StringSession(''), parseInt(apiId), apiHash, {
+            connectionRetries: 5,
+        });
+
+        await client.connect();
+
+        const token = uuidv4();
+        
+        // We need to store the phoneCodePromise to resolve it later
+        let phoneCodeResolve;
+        const phoneCodePromise = new Promise((resolve) => {
+            phoneCodeResolve = resolve;
+        });
+
+        // Start the sign-in process in the background
+        const signInPromise = client.start({
+            phoneNumber: async () => phone,
+            phoneCode: async () => phoneCodePromise,
+            password: async () => pendingTelegramClients.get(token).passwordPromise,
+            onError: (err) => {
+                console.error('Telegram Auth Error:', err);
+                pendingTelegramClients.delete(token);
+            }
+        });
+
+        pendingTelegramClients.set(token, {
+            client,
+            phoneCodeResolve,
+            signInPromise,
+            token,
+            createdAt: Date.now()
+        });
+
+        // Cleanup stale clients after 10 minutes
+        setTimeout(() => {
+            if (pendingTelegramClients.has(token)) {
+                const data = pendingTelegramClients.get(token);
+                data.client.disconnect();
+                pendingTelegramClients.delete(token);
+            }
+        }, 10 * 60 * 1000);
+
+        res.json({ success: true, token });
+    } catch (error) {
+        console.error('Error in Telegram Request Code:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+exports.telegramFinalize = async (req, res) => {
+    try {
+        const { token, code, password } = req.body;
+        const data = pendingTelegramClients.get(token);
+
+        if (!data) {
+            return res.status(400).json({ success: false, error: 'Invalid or expired token' });
+        }
+
+        // Handle password (2FA)
+        if (password) {
+            data.passwordPromise = Promise.resolve(password);
+        } else {
+            data.passwordPromise = Promise.resolve('');
+        }
+
+        // Resolve the code promise to continue the login flow
+        data.phoneCodeResolve(code);
+
+        // Wait for the sign-in to complete
+        await data.signInPromise;
+
+        const sessionString = data.client.session.save();
+        
+        // Cleanup
+        await data.client.disconnect();
+        pendingTelegramClients.delete(token);
+
+        res.json({ success: true, sessionString });
+    } catch (error) {
+        console.error('Error in Telegram Finalize:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
 };

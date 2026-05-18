@@ -116,8 +116,8 @@
                     <button class="icon-btn" id="shortcutsBtn" title="Keyboard Shortcuts (?)">
                         <i class="fas fa-keyboard"></i>
                     </button>
-                    <button class="icon-btn" id="connStatusBtn" title="Connection Status">
-                        <i class="fas fa-wifi"></i>
+                    <button class="icon-btn" id="connStatusBtn" title="AI Connection Status">
+                        <i class="fas fa-microchip"></i>
                         <span class="conn-dot checking" id="connDot"></span>
                     </button>
                     <button class="icon-btn" id="dbStatusBtn" title="Database Status"
@@ -880,7 +880,7 @@
                                 <button class="btn btn-secondary btn-sm" id="wfLogsBtn" title="Toggle Execution Logs"><i class="fas fa-terminal"></i> Logs</button>
                             </div>
                             <div class="toolbar-right">
-                                <span class="workflow-name" id="wfCurrentName">Untitled Workflow</span>
+                                <span class="workflow-name" id="wfCurrentName" contenteditable="true" title="Click to rename workflow">Untitled Workflow</span>
                                 <button class="btn btn-secondary btn-sm" id="wfExportBtn" title="Export"><i class="fas fa-download"></i></button>
                                 <button class="btn btn-secondary btn-sm" id="wfImportBtn" title="Import"><i class="fas fa-upload"></i></button>
                                 <button class="btn btn-secondary btn-sm" id="wfShareBtn" title="Share"><i class="fas fa-share-alt"></i></button>
@@ -964,14 +964,19 @@
                             <div class="execution-panel-header">
                                 <h4><i class="fas fa-terminal"></i> Execution Monitor</h4>
                                 <div class="execution-panel-actions">
-                                    <div class="execution-status" id="wfExecutionStatus">Idle</div>
+                                    <div class="execution-status" id="wfExecutionStatus">IDLE</div>
                                     <button class="panel-close" onclick="WorkflowBuilder.toggleExecutionPanel(false)">
                                         <i class="fas fa-times"></i>
                                     </button>
                                 </div>
                             </div>
-                            <div class="execution-panel-content" id="wfExecutionLogs">
-                                <!-- Logs will appear here -->
+                            <div class="execution-panel-body">
+                                <div class="execution-panel-content" id="wfExecutionLogs">
+                                    <!-- Logs will appear here -->
+                                </div>
+                                <div class="execution-panel-mascot-zone" id="wfExecutionMascotZone">
+                                    <!-- Full body pixel mascot playground will appear here -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1623,6 +1628,60 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
     <script src="workflow-builder/workflow-templates.js"></script>
     <script src="workflow-builder/workflow-builder.js"></script>
 
+    <!-- Share Workflow Modal -->
+    <div class="modal-overlay" id="shareWorkflowModal">
+        <div class="modal-content" style="max-width:450px; border-radius: 20px; overflow: hidden; border: none; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); padding: 1.5rem;">
+                <h3 style="display:flex; align-items:center; gap:12px; margin:0; font-size: 1.2rem; color: var(--text-primary);">
+                    <div style="width: 40px; height: 40px; background: rgba(99, 102, 241, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-share-alt" style="color:var(--accent); font-size: 1.1rem;"></i>
+                    </div>
+                    <span>Share Workflow</span>
+                </h3>
+                <button class="modal-close" onclick="closeModal('shareWorkflowModal')" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 2rem;">
+                <p style="margin: 0 0 1.5rem 0; color: var(--text-secondary); line-height: 1.5; font-size: 0.95rem;">
+                    Generate a shareable link for this workflow. Choose the permission level for the recipient.
+                </p>
+                
+                <div class="share-options" style="display: grid; gap: 1rem;">
+                    <div class="share-option-card active" id="shareViewBtn" data-mode="view" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                        <div style="width: 40px; height: 40px; background: rgba(16, 185, 129, 0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-eye" style="color:#10b981;"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">View Only</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Recipient can only view the workflow</div>
+                        </div>
+                        <div class="check-icon" style="color: var(--accent);"><i class="fas fa-check-circle"></i></div>
+                    </div>
+                    
+                    <div class="share-option-card" id="shareEditBtn" data-mode="edit" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                        <div style="width: 40px; height: 40px; background: rgba(245, 158, 11, 0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-pen" style="color:#f59e0b;"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">Editor</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Recipient can edit and save changes</div>
+                        </div>
+                        <div class="check-icon" style="color: var(--accent); opacity: 0;"><i class="fas fa-check-circle"></i></div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">Share Link</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="shareLinkInput" readonly style="flex: 1; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.9rem; font-family: monospace;" value="https://acc.ai/share/loading..." />
+                        <button class="btn btn-primary" id="copyShareLinkBtn" style="padding: 0 1.25rem; border-radius: 10px; display: flex; align-items: center; gap: 8px; white-space: nowrap;">
+                            <i class="fas fa-copy"></i> Copy Link
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Unsaved Changes Modal -->
     <div class="modal-overlay" id="unsavedChangesModal">
         <div class="modal-content" style="max-width:400px; border-radius: 16px; overflow: hidden; border: none; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);">
@@ -1655,6 +1714,55 @@ Berikan output HANYA dalam format JSON valid tanpa markdown block:
     </div>
 
 
+    <!-- Telegram Login Modal -->
+    <div class="modal-overlay" id="telegramLoginModal">
+        <div class="modal-content" style="max-width:400px; border-radius: 20px; overflow: hidden; border: none; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); padding: 1.5rem;">
+                <h3 style="display:flex; align-items:center; gap:12px; margin:0; font-size: 1.1rem; color: var(--text-primary);">
+                    <div style="width: 36px; height: 36px; background: rgba(0, 136, 204, 0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fab fa-telegram-plane" style="color:#0088cc; font-size: 1rem;"></i>
+                    </div>
+                    <span>Telegram Login</span>
+                </h3>
+                <button class="modal-close" onclick="NodeConfigPanel.cancelTelegramLogin()" style="background: none; border: none; color: var(--text-muted); cursor: pointer;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div id="tgStep1">
+                    <p class="text-xs text-muted mb-4">Langkah 1: Masukkan nomor telepon Anda untuk menerima kode verifikasi.</p>
+                    <div class="form-group mb-4">
+                        <label class="config-field-label">Phone Number</label>
+                        <input type="text" id="tgPhoneInput" class="form-control" placeholder="+6281234567890">
+                    </div>
+                    <button class="btn btn-primary w-full" id="tgRequestBtn" onclick="NodeConfigPanel.tgRequestCode()">
+                        <i class="fas fa-paper-plane mr-2"></i> Request Code
+                    </button>
+                </div>
+                
+                <div id="tgStep2" class="hidden">
+                    <p class="text-xs text-muted mb-4">Langkah 2: Masukkan kode yang dikirim ke aplikasi Telegram Anda.</p>
+                    <div class="form-group mb-4">
+                        <label class="config-field-label">Verification Code</label>
+                        <input type="text" id="tgCodeInput" class="form-control" placeholder="12345">
+                    </div>
+                    <div class="form-group mb-4">
+                        <label class="config-field-label">2FA Password (Optional)</label>
+                        <input type="password" id="tgPasswordInput" class="form-control" placeholder="Optional">
+                    </div>
+                    <button class="btn btn-primary w-full" id="tgFinalizeBtn" onclick="NodeConfigPanel.tgFinalizeLogin()">
+                        <i class="fas fa-check mr-2"></i> Finalize Login
+                    </button>
+                    <button class="btn btn-ghost w-full mt-2 text-xs" onclick="NodeConfigPanel.tgBackToStep1()">
+                        Back
+                    </button>
+                </div>
+                
+                <div id="tgLoading" class="hidden text-center py-8">
+                    <i class="fas fa-spinner fa-spin text-3xl text-blue-500 mb-4"></i>
+                    <p id="tgLoadingText" class="text-sm font-medium">Processing...</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

@@ -55,6 +55,13 @@ class PlaywrightWebchatNode extends BaseNode {
           default: 'Haloo'
         },
         {
+          key: 'greeting_2',
+          label: 'Greeting Message 2',
+          type: 'text',
+          required: false,
+          default: ''
+        },
+        {
           key: 'headless',
           label: 'Headless',
           type: 'boolean',
@@ -71,6 +78,7 @@ class PlaywrightWebchatNode extends BaseNode {
     const testerEmail = config.tester_email || 'playwright@example.com';
     const testerPhone = config.tester_phone || '6281234567890';
     const greeting = config.greeting !== undefined ? config.greeting : 'Haloo';
+    const greeting2 = config.greeting_2 || '';
     const headless = config.headless !== undefined ? config.headless : true;
     const inputData = this.getInput(context, 'main');
     const testData = inputData?.results || [];
@@ -95,9 +103,17 @@ class PlaywrightWebchatNode extends BaseNode {
       await this.completePrechatForm(page, testerName, testerEmail, testerPhone);
 
       if (greeting && String(greeting).trim()) {
-        this.logTechnical(context, 'info', 'Sending greeting message...');
+        this.logTechnical(context, 'info', `Sending greeting message: "${greeting}"`);
         await this.sendMessage(page, greeting);
         await this.waitForReply(page, greeting, 10000);
+        this.logTechnical(context, 'info', 'Greeting message sent and handled');
+      }
+
+      if (greeting2 && String(greeting2).trim()) {
+        this.logTechnical(context, 'info', `Sending second greeting message: "${greeting2}"`);
+        await this.sendMessage(page, greeting2);
+        await this.waitForReply(page, greeting2, 10000);
+        this.logTechnical(context, 'info', 'Second greeting message sent and handled');
       }
 
       for (let i = 0; i < testData.length; i++) {
@@ -107,12 +123,15 @@ class PlaywrightWebchatNode extends BaseNode {
         const title = this.getField(testItem, ['title', 'topic']) || `Test ${i + 1}`;
         const no = this.getField(testItem, ['no', 'number']) || i + 1;
 
+        this.logTechnical(context, 'info', `[${i + 1}/${testData.length}] Testing question: "${question.substring(0, 50)}..."`);
         this.log('info', `[${i + 1}/${testData.length}] Testing: ${question.substring(0, 50)}...`);
         
         const startTime = Date.now();
         await this.sendMessage(page, question);
         const actual = await this.waitForReply(page, question, 30000);
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+        this.logTechnical(context, 'info', `[${i + 1}/${testData.length}] Received reply: "${actual.substring(0, 50)}..." (${duration}s)`);
 
         results.push({
           no,
@@ -125,7 +144,7 @@ class PlaywrightWebchatNode extends BaseNode {
           duration: `${duration}s`
         });
 
-        if (testData.length > 1) {
+        if (testData.length > 1 && i < testData.length - 1) {
           await new Promise(r => setTimeout(r, 1000));
         }
       }

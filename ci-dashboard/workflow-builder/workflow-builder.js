@@ -147,6 +147,39 @@ const WorkflowBuilder = {
     document.getElementById('wfShareBtn')?.addEventListener('click', () => {
       this.shareWorkflow();
     });
+
+    // Share Modal Options
+    document.querySelectorAll('.share-option-card').forEach(card => {
+        card.addEventListener('click', () => {
+            document.querySelectorAll('.share-option-card').forEach(c => {
+                c.classList.remove('active');
+                c.querySelector('.check-icon').style.opacity = '0';
+            });
+            card.classList.add('active');
+            card.querySelector('.check-icon').style.opacity = '1';
+            
+            // Update link based on selection (simulated)
+            const mode = card.dataset.mode;
+            const linkInput = document.getElementById('shareLinkInput');
+            if (linkInput && WorkflowManager.currentWorkflow) {
+                const baseUrl = window.location.origin;
+                linkInput.value = `${baseUrl}/share/${WorkflowManager.currentWorkflow.id}?mode=${mode}&key=${Math.random().toString(36).substring(7)}`;
+            }
+        });
+    });
+
+    document.getElementById('copyShareLinkBtn')?.addEventListener('click', () => {
+        const linkInput = document.getElementById('shareLinkInput');
+        if (linkInput) {
+            navigator.clipboard.writeText(linkInput.value).then(() => {
+                Toast.success('Copied', 'Share link copied to clipboard');
+                const btn = document.getElementById('copyShareLinkBtn');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
+            });
+        }
+    });
     
     // Zoom controls
     document.getElementById('wfZoomIn')?.addEventListener('click', () => {
@@ -164,6 +197,27 @@ const WorkflowBuilder = {
     document.getElementById('wfZoomFit')?.addEventListener('click', () => {
       this.fitToScreen();
     });
+
+    // Handle Workflow Name Editing
+    const nameEl = document.getElementById('wfCurrentName');
+    if (nameEl) {
+      nameEl.addEventListener('blur', () => {
+        const newName = nameEl.textContent.trim().replace(/\s\*$/, '');
+        if (newName && WorkflowManager.currentWorkflow) {
+          if (WorkflowManager.currentWorkflow.name !== newName) {
+            WorkflowManager.currentWorkflow.name = newName;
+            this.markAsModified();
+          }
+        }
+      });
+      
+      nameEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          nameEl.blur();
+        }
+      });
+    }
   },
   
   /**
@@ -278,33 +332,55 @@ const WorkflowBuilder = {
         <div class="workflow-dialog">
           <div class="workflow-dialog-header">
             <h3><i class="fas fa-folder-open"></i> Load Workflow</h3>
-            <button class="btn-close" onclick="this.closest('.workflow-dialog-overlay').remove()">
-              <i class="fas fa-times"></i>
-            </button>
+            <div class="header-actions">
+              <button class="btn btn-danger btn-sm hidden" id="wfBulkDeleteBtn">
+                <i class="fas fa-trash"></i> Delete Selected
+              </button>
+              <button class="btn-close" onclick="this.closest('.workflow-dialog-overlay').remove()">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
           </div>
           <div class="workflow-dialog-body">
+            ${workflows.length > 0 ? `
+              <div class="workflow-list-controls">
+                <label class="checkbox-container">
+                  <input type="checkbox" id="wfSelectAll">
+                  <span class="checkmark"></span>
+                  Select All
+                </label>
+              </div>
+            ` : ''}
             <div class="workflow-list">
               ${workflows.length > 0 ? workflows.map(wf => `
                 <div class="workflow-card" data-workflow-id="${wf.id}">
-                  <div class="workflow-card-header">
-                    <h4>${wf.name}</h4>
-                    <span class="workflow-card-date">${new Date(wf.updated_at).toLocaleDateString()}</span>
+                  <div class="workflow-card-checkbox">
+                    <label class="checkbox-container">
+                      <input type="checkbox" class="wf-item-checkbox" data-id="${wf.id}">
+                      <span class="checkmark"></span>
+                    </label>
                   </div>
-                  <p class="workflow-card-description">${wf.description || 'No description'}</p>
-                  <div class="workflow-card-meta">
-                    <span><i class="fas fa-cube"></i> ${wf.node_count || 0} nodes</span>
-                    <span><i class="fas fa-calendar"></i> ${new Date(wf.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <div class="workflow-card-actions">
-                    <button class="btn btn-primary btn-sm" onclick="WorkflowBuilder.loadWorkflowById(${wf.id})">
-                      <i class="fas fa-folder-open"></i> Load
-                    </button>
-                    <button class="btn btn-secondary btn-sm" onclick="WorkflowBuilder.duplicateWorkflow(${wf.id})">
-                      <i class="fas fa-copy"></i> Duplicate
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="WorkflowBuilder.deleteWorkflowById(${wf.id})">
-                      <i class="fas fa-trash"></i> Delete
-                    </button>
+                  <div class="workflow-card-content">
+                    <div class="workflow-card-header">
+                      <h4>${wf.name}</h4>
+                      <span class="workflow-card-date">${new Date(wf.updated_at).toLocaleDateString()}</span>
+                    </div>
+                    <p class="workflow-card-description">${wf.description || 'No description'}</p>
+                    <div class="workflow-card-meta">
+                      <span><i class="fas fa-cube"></i> ${wf.node_count || 0} nodes</span>
+                      <span><i class="fas fa-calendar"></i> ${new Date(wf.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div class="workflow-card-actions">
+                      <button class="btn btn-primary btn-sm" onclick="WorkflowBuilder.loadWorkflowById(${wf.id})">
+                        <i class="fas fa-folder-open"></i> Load
+                      </button>
+                      <button class="btn btn-secondary btn-sm" onclick="WorkflowBuilder.duplicateWorkflow(${wf.id})">
+                        <i class="fas fa-copy"></i> Duplicate
+                      </button>
+                      <button class="btn btn-danger btn-sm" onclick="WorkflowBuilder.deleteWorkflowById(${wf.id})">
+                        <i class="fas fa-trash"></i> Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               `).join('') : '<div class="text-center text-muted p-6">No saved workflows found</div>'}
@@ -315,6 +391,59 @@ const WorkflowBuilder = {
       
       document.body.appendChild(dialog);
       
+      // Setup selection logic
+      const selectAllCb = dialog.querySelector('#wfSelectAll');
+      const itemCbs = dialog.querySelectorAll('.wf-item-checkbox');
+      const bulkDeleteBtn = dialog.querySelector('#wfBulkDeleteBtn');
+      
+      const updateBulkDeleteVisibility = () => {
+        const checkedCount = Array.from(itemCbs).filter(cb => cb.checked).length;
+        if (checkedCount > 0) {
+          bulkDeleteBtn.classList.remove('hidden');
+          bulkDeleteBtn.innerHTML = `<i class="fas fa-trash"></i> Delete Selected (${checkedCount})`;
+        } else {
+          bulkDeleteBtn.classList.add('hidden');
+        }
+      };
+      
+      if (selectAllCb) {
+        selectAllCb.addEventListener('change', () => {
+          itemCbs.forEach(cb => cb.checked = selectAllCb.checked);
+          updateBulkDeleteVisibility();
+        });
+      }
+      
+      itemCbs.forEach(cb => {
+        cb.addEventListener('change', () => {
+          updateBulkDeleteVisibility();
+          if (selectAllCb) {
+            selectAllCb.checked = Array.from(itemCbs).every(c => c.checked);
+          }
+        });
+      });
+      
+      bulkDeleteBtn?.addEventListener('click', async () => {
+        const selectedIds = Array.from(itemCbs)
+          .filter(cb => cb.checked)
+          .map(cb => parseInt(cb.getAttribute('data-id')));
+          
+        if (selectedIds.length === 0) return;
+        
+        if (confirm(`Are you sure you want to delete ${selectedIds.length} selected workflows?`)) {
+          try {
+            for (const id of selectedIds) {
+              await WorkflowManager.deleteWorkflow(id);
+            }
+            Toast.success('Deleted', `${selectedIds.length} workflows deleted successfully`);
+            dialog.remove();
+            this.showLoadDialog(); // Refresh
+          } catch (error) {
+            console.error('[WorkflowBuilder] Bulk delete error:', error);
+            Toast.error('Delete Failed', 'Failed to delete some workflows');
+          }
+        }
+      });
+
       // Close on overlay click
       dialog.addEventListener('click', (e) => {
         if (e.target === dialog) dialog.remove();
@@ -398,6 +527,12 @@ const WorkflowBuilder = {
    */
   async runWorkflow() {
     try {
+      // NEW: Automatically save open config panel before running
+      if (typeof NodeConfigPanel !== 'undefined' && NodeConfigPanel.currentNode) {
+        console.log('[WorkflowBuilder] Saving open config panel before execution...');
+        NodeConfigPanel.saveConfig();
+      }
+
       // Reset statuses first
       if (typeof WorkflowCanvas !== 'undefined') {
         WorkflowCanvas.resetNodeStatuses();
@@ -604,18 +739,27 @@ const WorkflowBuilder = {
       return;
     }
 
-    try {
-      const response = await BackendAPI.post(`/workflows/${WorkflowManager.currentWorkflow.id}/share`, { is_public: true });
-      if (response && response.share_link) {
-        const link = response.share_link;
-        navigator.clipboard.writeText(link).then(() => {
-          Toast.success('Shared', 'Public share link copied to clipboard');
-        });
-      }
-    } catch (error) {
-      console.error('[WorkflowBuilder] Share error:', error);
-      Toast.error('Share Failed', 'Failed to generate share link');
+    // Initialize the link input with a default "view" link
+    const linkInput = document.getElementById('shareLinkInput');
+    if (linkInput) {
+        const baseUrl = window.location.origin;
+        linkInput.value = `${baseUrl}/share/${WorkflowManager.currentWorkflow.id}?mode=view&key=${Math.random().toString(36).substring(7)}`;
     }
+
+    // Default to view mode
+    document.querySelectorAll('.share-option-card').forEach(c => {
+        c.classList.remove('active');
+        const check = c.querySelector('.check-icon');
+        if (check) check.style.opacity = '0';
+    });
+    const viewBtn = document.getElementById('shareViewBtn');
+    if (viewBtn) {
+        viewBtn.classList.add('active');
+        const check = viewBtn.querySelector('.check-icon');
+        if (check) check.style.opacity = '1';
+    }
+
+    openModal('shareWorkflowModal');
   },
   
   /**

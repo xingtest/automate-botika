@@ -89,9 +89,7 @@ FORMAT OUTPUT (Wajib JSON):
     const errors = [];
     const provider = config.provider || 'gemini';
     
-    // Check if API key is provided in config
-    const apiKey = config.apiKey || config.api_key;
-    
+    const apiKey = this.resolveApiKey(config, provider);
     if (!apiKey) {
       errors.push({
         field: 'apiKey',
@@ -99,12 +97,8 @@ FORMAT OUTPUT (Wajib JSON):
       });
     }
 
-    // Check pass threshold (handle scoring_threshold or threshold fallback)
-    // If it's missing (undefined), it's fine because the executor will use the default 0.7.
-    // We only error if it's explicitly set to an empty string.
     const threshold = config.scoring_threshold !== undefined ? config.scoring_threshold : 
                      (config.threshold !== undefined ? config.threshold : undefined);
-    
     if (threshold === '') {
       errors.push({
         field: 'scoring_threshold',
@@ -122,15 +116,8 @@ FORMAT OUTPUT (Wajib JSON):
   async execute(context, config, node) {
     const input = this.getInput(context, 'main');
     const provider = config.provider || config.ai_provider;
+    const apiKey = this.resolveApiKey(config, provider);
 
-    const apiKeyMap = {
-      'gemini': config.apiKey || config.api_key || process.env.GEMINI_API_KEY || process.env.API_KEY_GEMINI,
-      'groq': config.apiKey || config.api_key || process.env.GROQ_API_KEY,
-      'openai': config.apiKey || config.api_key || process.env.OPENAI_API_KEY,
-      'cerebras': config.apiKey || config.api_key || process.env.CEREBRAS_API_KEY
-    };
-
-    const apiKey = apiKeyMap[provider];
     if (!apiKey) {
       this.log('warn', `API key for ${provider} is not configured, using mock evaluation results`);
     }
@@ -138,7 +125,7 @@ FORMAT OUTPUT (Wajib JSON):
     this.log('info', `Evaluating with AI provider: ${provider}`);
 
     const results = input?.results || [];
-    const threshold = config.scoring_threshold !== undefined ? config.scoring_threshold : (config.threshold || 0.7);
+    const threshold = this.resolveConfigValue(config, 'scoring_threshold', null, 0.7);
     const model = config.model || (provider === 'groq' ? config.model_groq : (provider === 'gemini' ? config.model_gemini : null));
 
     const evaluations = [];

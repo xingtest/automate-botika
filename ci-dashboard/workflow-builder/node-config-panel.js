@@ -185,7 +185,7 @@ const NodeConfigPanel = {
         <!-- Header -->
         <div class="node-config-header">
           <div class="node-config-icon" style="background: ${nodeType.color}">
-            <i class="fas ${nodeType.icon}"></i>
+            <i class="${nodeType.icon && nodeType.icon.includes(' ') ? nodeType.icon : 'fas ' + nodeType.icon}"></i>
           </div>
           <div class="node-config-info">
             <h4>${this.tempData.label || nodeType.displayName}</h4>
@@ -268,68 +268,83 @@ const NodeConfigPanel = {
     const placeholder = prop.placeholder ? `placeholder="${prop.placeholder}"` : '';
     const errorClass = isError ? 'border-red-500 bg-red-50' : '';
 
+    let fieldHtml = '';
     switch (prop.type) {
       case 'options':
-        return `
+        fieldHtml = `
           <select id="${id}" class="form-control text-sm ${errorClass}" onchange="NodeConfigPanel.onFieldChange()">
             ${prop.options.map(opt => `<option value="${opt.value}" ${val === opt.value ? 'selected' : ''}>${opt.name}</option>`).join('')}
           </select>
         `;
+        break;
       case 'boolean':
-        return `
+        fieldHtml = `
           <div class="flex items-center">
              <input type="checkbox" id="${id}" ${val ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" onchange="NodeConfigPanel.onFieldChange()">
              <span class="ml-2 text-xs text-gray-600">Enabled</span>
           </div>
         `;
+        break;
       case 'number':
-        return `<input type="number" id="${id}" class="form-control text-sm ${errorClass}" value="${val}" ${placeholder} ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''} oninput="NodeConfigPanel.onFieldChange()">`;
+        fieldHtml = `<input type="number" id="${id}" class="form-control text-sm ${errorClass}" value="${val}" ${placeholder} ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''} oninput="NodeConfigPanel.onFieldChange()">`;
+        break;
       case 'textarea':
-        return `<textarea id="${id}" class="form-control text-sm font-mono" rows="4" ${placeholder} oninput="NodeConfigPanel.onFieldChange()">${val}</textarea>`;
+        fieldHtml = `<textarea id="${id}" class="form-control text-sm font-mono" rows="4" ${placeholder} oninput="NodeConfigPanel.onFieldChange()">${val}</textarea>`;
+        break;
       case 'json':
-        return `<textarea id="${id}" class="form-control text-sm font-mono" rows="6" ${placeholder} oninput="NodeConfigPanel.onFieldChange()">${typeof val === 'object' ? JSON.stringify(val, null, 2) : val}</textarea>`;
+        fieldHtml = `<textarea id="${id}" class="form-control text-sm font-mono" rows="6" ${placeholder} oninput="NodeConfigPanel.onFieldChange()">${typeof val === 'object' ? JSON.stringify(val, null, 2) : val}</textarea>`;
+        break;
       default:
-        let inputHtml = `<input type="text" id="${id}" class="form-control text-sm ${errorClass}" value="${val || ''}" ${placeholder} oninput="NodeConfigPanel.onFieldChange()">`;
-        
-        // Add custom button for Instagram session extraction
-        if (prop.name === 'sessionid' && this.currentNode?.type === 'playwright-instagram') {
-          inputHtml += `
-            <button onclick="NodeConfigPanel.extractInstagramSession()" type="button" class="mt-2 w-full btn btn-sm" style="background-color: #E1306C; color: white;">
-              <i class="fas fa-magic mr-1"></i> Auto-Get Cookie dari Browser
-            </button>
-            <div id="ig_auth_status" class="text-xs mt-1 hidden"></div>
-          `;
-        }
-        return inputHtml;
+        fieldHtml = `<input type="text" id="${id}" class="form-control text-sm ${errorClass}" value="${val || ''}" ${placeholder} oninput="NodeConfigPanel.onFieldChange()">`;
+        break;
     }
-  },
 
-  async extractInstagramSession() {
-    const statusEl = document.getElementById('ig_auth_status');
-    const inputEl = document.getElementById('prop_sessionid');
-    
-    if (!statusEl || !inputEl) return;
-    
-    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500 mr-1"></i> Sedang membuka browser. Silakan login ke Instagram...';
-    statusEl.classList.remove('hidden');
-    statusEl.className = 'text-xs mt-2 text-blue-500';
-    
-    try {
-      // Panggil backend API untuk launch playwright GUI
-      const response = await BackendAPI.post('/workflows/instagram-auth', {});
-      
-      if (response && response.success && response.sessionid) {
-        inputEl.value = response.sessionid;
-        this.onFieldChange();
-        statusEl.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Berhasil mendapatkan Cookie!';
-        statusEl.className = 'text-xs mt-2 text-green-600 font-bold';
-      } else {
-        throw new Error(response.error || 'Gagal mendapatkan sessionid');
-      }
-    } catch (error) {
-      statusEl.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i> ${error.message}`;
-      statusEl.className = 'text-xs mt-2 text-red-500 font-bold';
+    // Add custom button for Instagram session extraction
+    if (prop.name === 'sessionid' && this.currentNode?.type === 'playwright-instagram') {
+      fieldHtml += `
+        <button onclick="NodeConfigPanel.extractInstagramSession()" type="button" class="mt-2 w-full btn btn-sm" style="background-color: #E1306C; color: white;">
+          <i class="fas fa-magic mr-1"></i> Auto-Get Cookie dari Browser
+        </button>
+        <div id="ig_auth_status" class="text-xs mt-1 hidden"></div>
+      `;
     }
+
+    // Add custom button for Facebook session extraction
+    if ((prop.name === 'c_user' || prop.name === 'xs') && this.currentNode?.type === 'playwright-facebook') {
+      if (prop.name === 'c_user') {
+        fieldHtml += `
+          <button onclick="NodeConfigPanel.extractFacebookSession()" type="button" class="mt-2 w-full btn btn-sm" style="background-color: #1877F2; color: white;">
+            <i class="fas fa-magic mr-1"></i> Auto-Get Cookie dari Browser
+          </button>
+          <div id="fb_auth_status" class="text-xs mt-1 hidden"></div>
+        `;
+      }
+    }
+
+    // Add custom button for Excel/CSV upload
+    if (prop.name === 'filePath' && this.currentNode?.type === 'read-excel') {
+      fieldHtml += `
+        <div class="flex gap-2 mt-2">
+          <input type="file" id="excel_upload_input" class="hidden" accept=".xlsx,.xls,.csv,.json" onchange="NodeConfigPanel.handleExcelUpload(this)">
+          <button onclick="document.getElementById('excel_upload_input').click()" type="button" class="flex-1 btn btn-sm" style="background-color: #1d6f42; color: white;">
+            <i class="fas fa-upload mr-1"></i> Upload File Baru
+          </button>
+        </div>
+        <div id="excel_upload_status" class="text-xs mt-1 hidden"></div>
+      `;
+    }
+
+    // Add custom button for Telegram session generation
+    if (prop.name === 'session_string' && this.currentNode?.type === 'telegram-client') {
+      fieldHtml += `
+        <button onclick="NodeConfigPanel.generateTelegramSession()" type="button" class="mt-2 w-full btn btn-sm" style="background-color: #0088cc; color: white;">
+          <i class="fas fa-key mr-1"></i> Generate Session via API
+        </button>
+        <div id="tg_auth_status" class="text-xs mt-1 hidden"></div>
+      `;
+    }
+
+    return fieldHtml;
   },
 
   renderTooltipIcon(description) {
@@ -428,8 +443,32 @@ const NodeConfigPanel = {
 
   onFieldChange() {
     this.syncCurrentTabToTemp();
+    
+    // Clear highlights when user starts typing to provide immediate feedback
+    if (this.highlightFields && this.highlightFields.length > 0) {
+      this.highlightFields = [];
+    }
+
+    // Save focus to prevent cursor jumping
+    const activeId = document.activeElement?.id;
+    const selectionStart = document.activeElement?.selectionStart;
+    const selectionEnd = document.activeElement?.selectionEnd;
+
     // Re-render to handle displayOptions
     this.render();
+
+    // Restore focus
+    if (activeId) {
+      const el = document.getElementById(activeId);
+      if (el) {
+        el.focus();
+        if (selectionStart !== undefined && el.setSelectionRange && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+          try {
+            el.setSelectionRange(selectionStart, selectionEnd);
+          } catch (e) { /* ignore if not support */ }
+        }
+      }
+    }
   },
 
   setupEventListeners() {
@@ -467,5 +506,207 @@ const NodeConfigPanel = {
       WorkflowCanvas.deleteNode(this.currentNode.id);
       this.hide();
     }
+  },
+
+  async extractInstagramSession() {
+    const statusEl = document.getElementById('ig_auth_status');
+    statusEl.classList.remove('hidden', 'text-red-500', 'text-green-500');
+    statusEl.classList.add('text-blue-500');
+    statusEl.innerText = 'Membuka browser... silakan login di jendela baru.';
+    
+    try {
+      const response = await BackendAPI.post('/workflows/instagram-auth', {});
+      if (response && response.success) {
+        document.getElementById('prop_sessionid').value = response.sessionid;
+        this.tempData.config.sessionid = response.sessionid;
+        statusEl.classList.replace('text-blue-500', 'text-green-500');
+        statusEl.innerText = 'Berhasil! Session ID telah diisi otomatis.';
+        this.saveConfig();
+      } else {
+        statusEl.classList.replace('text-blue-500', 'text-red-500');
+        statusEl.innerText = response.error || 'Gagal mengambil session.';
+      }
+    } catch (e) {
+      statusEl.classList.replace('text-blue-500', 'text-red-500');
+      statusEl.innerText = 'Error: ' + e.message;
+    }
+  },
+
+  async extractFacebookSession() {
+    const statusEl = document.getElementById('fb_auth_status');
+    statusEl.classList.remove('hidden', 'text-red-500', 'text-green-500');
+    statusEl.classList.add('text-blue-500');
+    statusEl.innerText = 'Membuka browser... silakan login di jendela baru.';
+    
+    try {
+      const response = await BackendAPI.post('/workflows/facebook-auth', {});
+      if (response && response.success) {
+        document.getElementById('prop_c_user').value = response.c_user;
+        document.getElementById('prop_xs').value = response.xs;
+        this.tempData.config.c_user = response.c_user;
+        this.tempData.config.xs = response.xs;
+        statusEl.classList.replace('text-blue-500', 'text-green-500');
+        statusEl.innerText = 'Berhasil! Cookies c_user & xs telah diisi otomatis.';
+        this.saveConfig();
+      } else {
+        statusEl.classList.replace('text-blue-500', 'text-red-500');
+        statusEl.innerText = response.error || 'Gagal mengambil session.';
+      }
+    } catch (e) {
+      statusEl.classList.replace('text-blue-500', 'text-red-500');
+      statusEl.innerText = 'Error: ' + e.message;
+    }
+  },
+
+  async handleExcelUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('excel_upload_status');
+    const pathInput = document.getElementById('prop_filePath');
+    
+    if (!statusEl || !pathInput) return;
+    
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500 mr-1"></i> Mengunggah...';
+    statusEl.classList.remove('hidden');
+    statusEl.className = 'text-xs mt-1 text-blue-500';
+    
+    try {
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(',')[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+
+      const response = await BackendAPI.post('/test-data/upload', {
+        filename: file.name,
+        file_data: b64
+      });
+
+      if (response && response.success) {
+        pathInput.value = response.path;
+        this.tempData.config.filePath = response.path;
+        this.onFieldChange();
+        statusEl.innerHTML = `<i class="fas fa-check-circle mr-1"></i> File "${file.name}" berhasil diunggah!`;
+        statusEl.className = 'text-xs mt-1 text-green-600 font-bold';
+        // Auto save to workflow
+        this.saveConfig();
+      } else {
+        throw new Error(response.error || 'Gagal mengunggah file');
+      }
+    } catch (error) {
+      statusEl.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i> ${error.message}`;
+      statusEl.className = 'text-xs mt-1 text-red-500 font-bold';
+    } finally {
+      input.value = ''; // Reset input so same file can be uploaded again if needed
+    }
+  },
+
+  // Telegram Session Generation Logic
+  generateTelegramSession() {
+    const apiId = this.tempData.config.api_id;
+    const apiHash = this.tempData.config.api_hash;
+    
+    if (!apiId || !apiHash) {
+        Toast.warning('Missing Credentials', 'Please fill API ID and API Hash first');
+        return;
+    }
+    
+    document.getElementById('tgStep1').classList.remove('hidden');
+    document.getElementById('tgStep2').classList.add('hidden');
+    document.getElementById('tgLoading').classList.add('hidden');
+    openModal('telegramLoginModal');
+  },
+
+  async tgRequestCode() {
+    const phone = document.getElementById('tgPhoneInput').value;
+    if (!phone) {
+        Toast.warning('Required', 'Phone number is required');
+        return;
+    }
+    
+    this.showTgLoading('Requesting code...');
+    
+    try {
+        const response = await BackendAPI.post('/workflows/telegram-auth/request-code', {
+            apiId: this.tempData.config.api_id,
+            apiHash: this.tempData.config.api_hash,
+            phone: phone
+        });
+        
+        if (response && response.success) {
+            this.tgSessionToken = response.token; // Store token for step 2
+            document.getElementById('tgStep1').classList.add('hidden');
+            document.getElementById('tgStep2').classList.remove('hidden');
+            document.getElementById('tgLoading').classList.add('hidden');
+        } else {
+            throw new Error(response.error || 'Failed to request code');
+        }
+    } catch (error) {
+        this.hideTgLoading();
+        Toast.error('Error', error.message);
+    }
+  },
+
+  async tgFinalizeLogin() {
+    const code = document.getElementById('tgCodeInput').value;
+    const password = document.getElementById('tgPasswordInput').value;
+    
+    if (!code) {
+        Toast.warning('Required', 'Verification code is required');
+        return;
+    }
+    
+    this.showTgLoading('Generating session string...');
+    
+    try {
+        const response = await BackendAPI.post('/workflows/telegram-auth/finalize', {
+            token: this.tgSessionToken,
+            code: code,
+            password: password
+        });
+        
+        if (response && response.success && response.sessionString) {
+            document.getElementById('prop_session_string').value = response.sessionString;
+            this.tempData.config.session_string = response.sessionString;
+            this.onFieldChange();
+            this.saveConfig();
+            closeModal('telegramLoginModal');
+            Toast.success('Success', 'Telegram session generated and saved!');
+        } else {
+            throw new Error(response.error || 'Failed to finalize login');
+        }
+    } catch (error) {
+        this.hideTgLoading();
+        Toast.error('Error', error.message);
+    }
+  },
+
+  tgBackToStep1() {
+    document.getElementById('tgStep2').classList.add('hidden');
+    document.getElementById('tgStep1').classList.remove('hidden');
+  },
+
+  showTgLoading(text) {
+    document.getElementById('tgStep1').classList.add('hidden');
+    document.getElementById('tgStep2').classList.add('hidden');
+    document.getElementById('tgLoading').classList.remove('hidden');
+    document.getElementById('tgLoadingText').innerText = text;
+  },
+
+  hideTgLoading() {
+    document.getElementById('tgLoading').classList.add('hidden');
+    // Logic to return to current step would be better, but for now:
+    if (this.tgSessionToken) {
+        document.getElementById('tgStep2').classList.remove('hidden');
+    } else {
+        document.getElementById('tgStep1').classList.remove('hidden');
+    }
+  },
+
+  cancelTelegramLogin() {
+    this.tgSessionToken = null;
+    closeModal('telegramLoginModal');
   }
 };

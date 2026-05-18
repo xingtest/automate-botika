@@ -74,28 +74,6 @@ class ConditionNode extends BaseNode {
     };
   }
 
-  resolveTemplate(value, input, context) {
-    if (typeof value !== 'string') return value;
-    return value.replace(/\{\{\s*([a-zA-Z0-9_$.]+)\s*\}\}/g, (_, path) => {
-      // If starts with $json, use current input
-      if (path.startsWith('$json.')) {
-        const subPath = path.substring(6);
-        return subPath.split('.').reduce((obj, key) => obj?.[key], input);
-      }
-      
-      // Otherwise, check if it's a node reference (e.g., node_ai_eval.avg_ai_score)
-      const parts = path.split('.');
-      const nodeId = parts[0];
-      const nodeOutput = context.getNodeOutput(nodeId);
-      
-      if (nodeOutput) {
-        return parts.slice(1).reduce((obj, key) => obj?.[key], nodeOutput);
-      }
-      
-      return value;
-    });
-  }
-
   compare(v1, operator, v2) {
     const n1 = parseFloat(v1);
     const n2 = parseFloat(v2);

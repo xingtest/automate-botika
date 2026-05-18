@@ -3,6 +3,9 @@
  * Base class for all node executors
  */
 
+const { resolveConfigValue, resolveApiKey } = require('../utils/config-resolver');
+const { resolveTemplate } = require('../utils/template-engine');
+
 class BaseNode {
   constructor(schema) {
     this.schema = schema;
@@ -52,12 +55,12 @@ class BaseNode {
    * @param {string} portName - Input port name
    * @returns {any} - Input data
    */
-  getInput(context, portName = 'input') {
+  getInput(context, portName = 'main') {
     const data = context.getInput(portName);
     this.log('info', `getInput called for port: ${portName}, found data: ${data ? 'yes' : 'no'}`);
     if (!data) {
-      this.log('warn', `No data found for port: ${portName} on node ${context.current_node_id}`);
-      this.log('warn', `Available connections: ${JSON.stringify(context.connections)}`);
+      this.log('warn', `No data found for port: ${portName} on node ${context?.current_node_id}`);
+      this.log('warn', `Available connections: ${JSON.stringify(context?.connections || [])}`);
     }
     return data;
   }
@@ -70,6 +73,27 @@ class BaseNode {
    */
   setOutput(context, data, portName = 'output') {
     context.setOutput(portName, data);
+  }
+
+  /**
+   * Resolve a configuration value using config, environment, or default.
+   */
+  resolveConfigValue(config, key, envVar, defaultValue = undefined) {
+    return resolveConfigValue(config, key, envVar, defaultValue);
+  }
+
+  /**
+   * Resolve API key for provider shortcuts and env fallback.
+   */
+  resolveApiKey(config, provider) {
+    return resolveApiKey(config, provider);
+  }
+
+  /**
+   * Resolve template expressions in text using runtime context.
+   */
+  resolveTemplate(template, input = {}, context = null) {
+    return resolveTemplate(template, input, context);
   }
   
   /**

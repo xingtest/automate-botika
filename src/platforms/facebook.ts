@@ -144,9 +144,12 @@ export class FacebookPlatform {
     }
 
     // Get ALL messages including user and bot
-    // Try to get message containers first
+    // Focus on the main chat area to avoid sidebar noise
     const containerSelectors = [
-      'div[role="row"]',
+      'div[role="main"] div[role="row"]',
+      'div[aria-label^="Messages"] div[role="row"]',
+      'div[role="grid"] div[role="row"]',
+      'div[role="row"]', // Fallback
       'div[data-scope="messages_table"]'
     ];
 
@@ -210,43 +213,34 @@ export class FacebookPlatform {
     for (let i = 0; i < allMessages.length; i++) {
       const text = await allMessages[i].textContent();
       if (text && text.trim()) {
-        messageTexts.push(text.trim());
-        if (i < 5) {
-          console.log(`  [${i}] "${text.trim().substring(0, 50)}..."`);
+        const cleanText = text.trim();
+        // Skip common Facebook system text if it's purely system text
+        if (cleanText === 'Sent' || cleanText === 'Delivered' || cleanText === 'Seen') {
+          continue;
         }
+        messageTexts.push(cleanText);
       }
     }
 
     console.log(`📋 Total message texts: ${messageTexts.length}`);
 
+    // Normalize user message for better matching
+    const normalizedUserMsg = userMessage.trim().toLowerCase();
+
     // Find ALL occurrences of the question
     const questionIndices: number[] = [];
     for (let i = 0; i < messageTexts.length; i++) {
-      if (messageTexts[i].toLowerCase().includes(userMessage.toLowerCase())) {
+      const text = messageTexts[i].toLowerCase();
+      // Look for the question itself or the "You: [question]" variation
+      if (text === normalizedUserMsg || 
+          text.includes('you: ' + normalizedUserMsg) || 
+          (text.includes(normalizedUserMsg) && (text.includes('you') || text.includes('sent')))) {
         questionIndices.push(i);
       }
     }
 
     if (questionIndices.length === 0) {
-      console.log('⚠️ Question not found');
-      console.log(`💡 Looking for: "${userMessage}"`);
-      console.log(`💡 Available messages: ${messageTexts.length}`);
-
-      // Show all messages for debugging
-      messageTexts.forEach((msg, idx) => {
-        console.log(`  [${idx}] "${msg.substring(0, 60)}..."`);
-      });
-
-      // Fallback: return last 5 messages
-      const recentMessages = messageTexts.slice(-5).filter(msg =>
-        !msg.toLowerCase().includes(userMessage.toLowerCase())
-      );
-
-      if (recentMessages.length > 0) {
-        console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
-        return recentMessages.join('\n');
-      }
-
+      console.log(`⚠️ Question not found in chat history: "${userMessage}"`);
       return 'Tidak ada balasan dari bot';
     }
 
@@ -306,6 +300,9 @@ export class FacebookPlatform {
       /^Active \d+[mh] ago$/i,
       /^[0-9]+$/,  // Just numbers
       /^Press Enter to send$/i,
+      /^Seen by .*$/i,
+      /^Replied to .*$/i,
+      /^[A-Z][a-z]+ \d+:[0-9]+ [AP]M$/i, // Timestamp pattern
     ];
 
     // Collect ALL bot responses between current question and next user message
@@ -322,6 +319,19 @@ export class FacebookPlatform {
       const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(text));
       if (isExactNoise) {
         console.log(`  ⏭️ Skipping UI noise at ${i}: "${text}"`);
+        continue;
+      }
+
+      // Skip common self-message indicators
+      if (text.includes('You: ') || text.includes('You sent')) {
+        console.log(`  ⏭️ Skipping self-message indicator at ${i}: "${text}"`);
+        continue;
+      }
+
+      // NEW: Skip if it looks like a "Sent" metadata that includes the question
+      // This handles the "NameYou: Question" cases in Facebook Messenger
+      if (text.toLowerCase().includes(normalizedUserMsg)) {
+        console.log(`  ⏭️ Skipping element containing question at ${i} (likely self-message/metadata)`);
         continue;
       }
 

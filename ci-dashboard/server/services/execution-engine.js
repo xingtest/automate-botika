@@ -78,75 +78,119 @@ class ExecutionEngine {
       const nodes = workflow.definition.nodes || [];
       const connections = workflow.definition.connections || [];
       
-      // Topological sort to get execution order
-      const executionOrder = this.topologicalSort(nodes, connections);
+      // NEW: Only execute nodes reachable from triggers
+      const { getActiveNodeIds } = require('./graph-utils');
+      const activeNodeIds = getActiveNodeIds(nodes, connections);
+      const activeNodes = nodes.filter(n => activeNodeIds.has(n.id));
+      const activeConnections = connections.filter(c => 
+        activeNodeIds.has(c.source_node_id) && activeNodeIds.has(c.target_node_id)
+      );
       
-      // Execute nodes in order
-      for (const nodeId of executionOrder) {
-        const node = nodes.find(n => n.id === nodeId);
-        
-        if (!node) {
-          console.error(`Node ${nodeId} not found in workflow`);
-          continue;
-        }
-        
-        // Check if all dependencies completed successfully
-        const dependencies = this.getUpstreamNodes(nodeId, connections);
-        const allCompleted = dependencies.every(depId => 
-          context.getNodeStatus(depId) === 'success'
+      console.log(`[ExecutionEngine] Active nodes: ${activeNodes.length}/${nodes.length}, active connections: ${activeConnections.length}/${connections.length}`);
+      
+      // Topological sort to get execution order (using only active nodes and connections)
+      const executionOrder = this.topologicalSort(activeNodes, activeConnections);
+      
+      // NEW: Parallel execution logic
+      const nodesToRun = new Set(activeNodeIds);
+      const runningNodes = new Map(); // nodeId -> promise
+      const completedNodes = new Set();
+      const inDegree = this.calculateInDegree(this.buildAdjacencyList(activeNodes, activeConnections), activeNodes);
+      
+      console.log(`[ExecutionEngine] Starting parallel execution loop for ${activeNodeIds.size} nodes...`);
+
+      while (nodesToRun.size > 0 || runningNodes.size > 0) {
+        // Find nodes ready to run (inDegree 0 and not already running/completed)
+        const readyToStart = Array.from(nodesToRun).filter(id => 
+          inDegree[id] === 0 && !runningNodes.has(id)
         );
         
-        if (!allCompleted) {
-          context.setNodeStatus(nodeId, 'skipped');
-          await this.logNodeExecution(executionId, node, 'skipped', null, null, 'Dependencies not met');
-          continue;
+        // Start as many ready nodes as possible within concurrency limit
+        const limit = this.maxConcurrentNodes - runningNodes.size;
+        const nodesToStartNow = readyToStart.slice(0, Math.max(0, limit));
+
+        for (const nodeId of nodesToStartNow) {
+          const node = nodes.find(n => n.id === nodeId);
+          if (!node) continue;
+
+          console.log(`[ExecutionEngine] Starting node in parallel: ${nodeId} (${node.type})`);
+          
+          // Mark as running in tracking set
+          runningNodes.set(nodeId, (async () => {
+            try {
+              // Check if all dependencies completed successfully (double check)
+              const dependencies = this.getUpstreamNodes(nodeId, activeConnections);
+              const allSuccess = dependencies.every(depId => context.getNodeStatus(depId) === 'success');
+              
+              if (!allSuccess) {
+                context.setNodeStatus(nodeId, 'skipped');
+                await this.logNodeExecution(executionId, node, 'skipped', null, null, 'Upstream dependency failed or skipped');
+                return;
+              }
+
+              // Create node-scoped context to avoid shared state issues
+              const scopedContext = Object.create(context);
+              scopedContext.current_node_id = nodeId;
+
+              context.setNodeStatus(nodeId, 'running');
+              await this.logNodeExecution(executionId, node, 'running');
+              
+              const startTime = Date.now();
+              const executor = nodeRegistry.getNodeExecutor(node.type);
+              
+              if (!executor) {
+                throw new Error(`No executor found for node type: ${node.type}`);
+              }
+              
+              // Execute node
+              const result = await executor.execute(scopedContext, node.config, node);
+              const duration = Date.now() - startTime;
+              
+              context.setNodeOutput(nodeId, result);
+              context.setNodeDuration(nodeId, duration);
+              context.setNodeStatus(nodeId, 'success');
+              await this.logNodeExecution(executionId, node, 'success', result, null, null, duration);
+              
+            } catch (error) {
+              console.error(`[ExecutionEngine] Node ${nodeId} failed:`, error.message);
+              context.setNodeStatus(nodeId, 'failed');
+              await this.logNodeExecution(executionId, node, 'failed', null, null, error.message);
+              
+              // We don't throw here anymore so other parallel nodes can continue
+              // Only downstream nodes will be affected because their inDegree won't be satisfied
+              // or they will be caught by the allSuccess check.
+            } finally {
+              // Node finished (success/fail/skipped)
+              completedNodes.add(nodeId);
+              
+              // Decrement in-degree for all children
+              const children = activeConnections.filter(c => c.source_node_id === nodeId).map(c => c.target_node_id);
+              for (const childId of children) {
+                inDegree[childId] = Math.max(0, (inDegree[childId] || 0) - 1);
+              }
+            }
+          })());
+          
+          // Remove from the "to run" pool
+          nodesToRun.delete(nodeId);
         }
-        
-        // Execute node
-        try {
-          context.setNodeStatus(nodeId, 'running');
-          context.current_node_id = nodeId;
+
+        if (runningNodes.size === 0 && nodesToRun.size > 0) {
+          // Deadlock or cycles (should have been caught by validation)
+          throw new Error('Workflow execution stalled - possible circular dependency or validation error');
+        }
+
+        // Wait for any of the running nodes to finish
+        if (runningNodes.size > 0) {
+          const promises = Array.from(runningNodes.entries()).map(([id, p]) => 
+            p.then(() => id)
+          );
           
-          // Log start of execution
-          await this.logNodeExecution(executionId, node, 'running');
-          
-          const startTime = Date.now();
-          
-          // Get node executor
-          console.log(`[ExecutionEngine] Executing node: ${node.id} (type: "${node.type}")`);
-          const executor = nodeRegistry.getNodeExecutor(node.type);
-          if (!executor) {
-            const registeredTypes = Array.from(nodeRegistry.nodeExecutors.keys()).join(', ');
-            console.error(`[ExecutionEngine] NO EXECUTOR for type: "${node.type}". Registered types: [${registeredTypes}]`);
-            throw new Error(`No executor found for node type: ${node.type}`);
-          }
-          
-          // Execute node
-          const result = await executor.execute(context, node.config, node);
-          
-          const duration = Date.now() - startTime;
-          
-          // Store result
-          context.setNodeOutput(nodeId, result);
-          context.setNodeDuration(nodeId, duration);
-          context.setNodeStatus(nodeId, 'success');
-          
-          // Log execution
-          await this.logNodeExecution(executionId, node, 'success', result, null, null, duration);
-          
-        } catch (error) {
-          console.error(`Node ${nodeId} execution failed:`, error);
-          
-          const duration = Date.now() - context.start_time.getTime();
-          context.setNodeStatus(nodeId, 'failed');
-          
-          await this.logNodeExecution(executionId, node, 'failed', null, null, error.message, duration);
-          
-          // Check if we should continue on error
-          if (!node.config?.continueOnError) {
-            // Halt execution
-            throw error;
-          }
+          const finishedNodeId = await Promise.race(promises);
+          runningNodes.delete(finishedNodeId);
+        } else {
+          // Small delay if we're waiting for something
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
       

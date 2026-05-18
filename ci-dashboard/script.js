@@ -272,7 +272,25 @@ const Router = {
     show(page) {
         document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
         const t = document.getElementById(`page-${page}`);
-        if (t) { void t.offsetWidth; t.classList.add('active'); }
+        if (t) { 
+            void t.offsetWidth; 
+            t.classList.add('active'); 
+        }
+        
+        // Clear Workflow Canvas state if navigating away from builder
+        if (page !== 'workflow-builder' && typeof WorkflowCanvas !== 'undefined') {
+            WorkflowCanvas.selectedNode = null;
+            WorkflowCanvas.selectedConnection = null;
+            document.body.classList.remove('canvas-interacting');
+            if (WorkflowCanvas.render) WorkflowCanvas.render();
+        } else if (page === 'workflow-builder' && typeof WorkflowCanvas !== 'undefined') {
+            // Re-render and resize the canvas once the builder page is fully active/visible
+            setTimeout(() => {
+                WorkflowCanvas.resize();
+                WorkflowCanvas.render();
+            }, 60);
+        }
+
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         document.querySelector(`.nav-link[data-page="${page}"]`)?.classList.add('active');
         const pt = document.getElementById('pageTitle'), bc = document.getElementById('breadcrumbPage');
@@ -2910,48 +2928,95 @@ async function triggerWorkflow() {
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
-    Toast.init(); ThemeManager.init(); TerminalLog.init(); PresetManager.render(); NotifCenter.updateDot(); Scheduler.startAll(); Settings.updateStorageUsed();
+    // Basic init
+    AuthManager.init();
     await BackendAPI.init();
+    Toast.init();
+    ThemeManager.init();
     Router.init();
+    TerminalLog.init();
+    NotifCenter.updateDot();
+    ActivityFeed.render();
+    PresetManager.render(); 
+    Scheduler.startAll(); 
+    Settings.updateStorageUsed();
 
-    // Sidebar
-    document.getElementById('sidebarToggle')?.addEventListener('click', () => document.getElementById('sidebar')?.classList.toggle('collapsed'));
-    document.getElementById('mobileMenuBtn')?.addEventListener('click', () => { document.getElementById('sidebar')?.classList.toggle('mobile-open'); document.getElementById('mobileOverlay')?.classList.toggle('show'); });
-    document.getElementById('mobileOverlay')?.addEventListener('click', () => { document.getElementById('sidebar')?.classList.remove('mobile-open'); document.getElementById('mobileOverlay')?.classList.remove('show'); });
+    // Sidebar Toggle & Persistence
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    if (sidebar && sidebarToggle) {
+        // Restore state
+        if (localStorage.getItem('acc_sidebar_collapsed') === 'true') {
+            sidebar.classList.add('collapsed');
+        }
 
-    // Theme
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('acc_sidebar_collapsed', sidebar.classList.contains('collapsed'));
+        });
+    }
+
+    // Mobile Menu
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileOverlay = document.getElementById('mobileOverlay');
+    if (mobileMenuBtn && sidebar && mobileOverlay) {
+        mobileMenuBtn.addEventListener('click', () => {
+            sidebar.classList.add('mobile-open');
+            mobileOverlay.classList.add('show');
+        });
+        mobileOverlay.addEventListener('click', () => {
+            sidebar.classList.remove('mobile-open');
+            mobileOverlay.classList.remove('show');
+        });
+    }
+
+    // Theme Toggle
     document.getElementById('themeToggle')?.addEventListener('click', () => ThemeManager.toggle());
 
-    // Platform
+    // Platform Fields
     document.getElementById('platformSelect')?.addEventListener('change', e => switchPlatformFields(e.target.value));
     document.querySelectorAll('.platform-check').forEach(card => {
         const cb = card.querySelector('input');
-        // No click listener needed on the card because it's a <label>
-        // Clicking the label automatically toggles the checkbox.
         cb.addEventListener('change', () => {
             card.classList.toggle('checked', cb.checked);
-            if (runMode === 'batch') updateBatchPlatformFields();
+            if (typeof runMode !== 'undefined' && runMode === 'batch') updateBatchPlatformFields();
         });
     });
 
-    // Token
-    document.getElementById('toggleTokenBtn')?.addEventListener('click', () => { const i = document.getElementById('tokenInput'), b = document.getElementById('toggleTokenBtn'); if (i.type === 'password') { i.type = 'text'; b.innerHTML = '<i class="fas fa-eye-slash"></i>'; } else { i.type = 'password'; b.innerHTML = '<i class="fas fa-eye"></i>'; } });
+    // Token Management
+    document.getElementById('toggleTokenBtn')?.addEventListener('click', () => { 
+        const i = document.getElementById('tokenInput'), b = document.getElementById('toggleTokenBtn'); 
+        if (i.type === 'password') { i.type = 'text'; b.innerHTML = '<i class="fas fa-eye-slash"></i>'; } 
+        else { i.type = 'password'; b.innerHTML = '<i class="fas fa-eye"></i>'; } 
+    });
     let tokenDebounce;
-    document.getElementById('tokenInput')?.addEventListener('input', () => { clearTimeout(tokenDebounce); tokenDebounce = setTimeout(() => GitHubAPI.checkConnection(), 800); });
+    document.getElementById('tokenInput')?.addEventListener('input', () => { 
+        clearTimeout(tokenDebounce); 
+        tokenDebounce = setTimeout(() => GitHubAPI.checkConnection(), 800); 
+    });
 
     // File upload
     const dz = document.getElementById('fileDropZone'), fi = document.getElementById('fileUpload');
     dz?.addEventListener('click', () => fi?.click());
     dz?.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
     dz?.addEventListener('dragleave', () => dz.classList.remove('dragover'));
-    dz?.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files.length) { fi.files = e.dataTransfer.files; handleFile(e.dataTransfer.files[0]); } });
+    dz?.addEventListener('drop', e => { 
+        e.preventDefault(); 
+        dz.classList.remove('dragover'); 
+        if (e.dataTransfer.files.length) { fi.files = e.dataTransfer.files; handleFile(e.dataTransfer.files[0]); } 
+    });
     fi?.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 
     function handleFile(file) {
         uploadedFile = file; const sz = (file.size / 1024).toFixed(1);
-        document.getElementById('fileDropText').textContent = `${file.name} (${sz} KB)`;
-        dz.classList.add('has-file'); document.getElementById('fileClearBtn').classList.remove('hidden');
-        document.getElementById('filenameGroup').style.display = 'none'; Toast.info('File', file.name);
+        const dropText = document.getElementById('fileDropText');
+        if (dropText) dropText.textContent = `${file.name} (${sz} KB)`;
+        dz.classList.add('has-file'); 
+        document.getElementById('fileClearBtn')?.classList.remove('hidden');
+        const filenameGroup = document.getElementById('filenameGroup');
+        if (filenameGroup) filenameGroup.style.display = 'none'; 
+        Toast.info('File', file.name);
+        
         // CSV preview
         if (file.name.endsWith('.csv')) {
             const reader = new FileReader(); reader.onload = ev => {
@@ -2959,35 +3024,50 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (lines.length < 2) return;
                 const headers = lines[0].split(','); const rows = lines.slice(1);
                 const tbl = document.getElementById('dataPreviewTable');
-                tbl.querySelector('thead').innerHTML = `<tr>${headers.map(h => `<th>${h.trim()}</th>`).join('')}</tr>`;
-                tbl.querySelector('tbody').innerHTML = rows.map(r => `<tr>${r.split(',').map(c => `<td>${c.trim()}</td>`).join('')}</tr>`).join('');
-                document.getElementById('dataPreviewCount').textContent = `${rows.length} rows`;
+                if (tbl) {
+                    tbl.querySelector('thead').innerHTML = `<tr>${headers.map(h => `<th>${h.trim()}</th>`).join('')}</tr>`;
+                    tbl.querySelector('tbody').innerHTML = rows.map(r => `<tr>${r.split(',').map(c => `<td>${c.trim()}</td>`).join('')}</tr>`).join('');
+                }
+                const previewCount = document.getElementById('dataPreviewCount');
+                if (previewCount) previewCount.textContent = `${rows.length} rows`;
                 document.getElementById('dataPreviewGroup')?.classList.remove('hidden');
             }; reader.readAsText(file);
         }
     }
 
-    // Buttons
+    // Main Buttons
     document.getElementById('runBtn')?.addEventListener('click', triggerWorkflow);
     document.getElementById('clearBtn')?.addEventListener('click', resetForm);
 
-    // Save Preset
+    // Preset Modal
     document.getElementById('savePresetBtn')?.addEventListener('click', () => openModal('savePresetModal'));
-    document.querySelectorAll('.color-dot').forEach(dot => dot.addEventListener('click', () => { document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); dot.classList.add('active'); }));
+    document.querySelectorAll('.color-dot').forEach(dot => dot.addEventListener('click', () => { 
+        document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); 
+        dot.classList.add('active'); 
+    }));
     document.getElementById('confirmSavePresetBtn')?.addEventListener('click', () => {
         const name = document.getElementById('presetNameInput')?.value?.trim(); if (!name) { Toast.warning('Name', 'Enter a name'); return; }
         const color = document.querySelector('.color-dot.active')?.dataset.color || '#6366f1';
         PresetManager.save(name, color); document.getElementById('presetNameInput').value = ''; closeModal('savePresetModal');
     });
 
-    // Presets import/export
+    // Import/Export
     document.getElementById('exportPresetsBtn')?.addEventListener('click', () => PresetManager.exportAll());
     document.getElementById('importPresetBtn')?.addEventListener('click', () => PresetManager.importFromFile());
 
-    // Report
+    // Reports
     document.getElementById('loadReportBtn')?.addEventListener('click', () => openModal('loadReportModal'));
-    document.getElementById('confirmLoadReportBtn')?.addEventListener('click', () => { const url = document.getElementById('reportUrlInput')?.value?.trim(); if (!url) { Toast.warning('URL', 'Enter a URL'); return; } document.getElementById('reportContent').innerHTML = `<iframe class="report-iframe" src="${url}"></iframe>`; closeModal('loadReportModal'); Toast.success('Loaded', 'Report embedded'); });
-    document.getElementById('downloadArtifactBtn')?.addEventListener('click', () => { Toast.info('Artifacts', 'Download from GitHub Actions page'); window.open(`https://github.com/${CONFIG.owner}/${CONFIG.repo}/actions`, '_blank'); });
+    document.getElementById('confirmLoadReportBtn')?.addEventListener('click', () => { 
+        const url = document.getElementById('reportUrlInput')?.value?.trim(); 
+        if (!url) { Toast.warning('URL', 'Enter a URL'); return; } 
+        const content = document.getElementById('reportContent');
+        if (content) content.innerHTML = `<iframe class="report-iframe" src="${url}"></iframe>`; 
+        closeModal('loadReportModal'); Toast.success('Loaded', 'Report embedded'); 
+    });
+    document.getElementById('downloadArtifactBtn')?.addEventListener('click', () => { 
+        Toast.info('Artifacts', 'Download from GitHub Actions page'); 
+        window.open(`https://github.com/${CONFIG.owner}/${CONFIG.repo}/actions`, '_blank'); 
+    });
 
     // Notifications
     document.getElementById('notifBtn')?.addEventListener('click', () => NotifCenter.toggle());
@@ -3025,84 +3105,132 @@ document.addEventListener('DOMContentLoaded', async () => {
         CONFIG.token = document.getElementById('tokenInput').value.trim();
         const backendUrl = document.getElementById('settingBackendUrl').value.trim();
         if (backendUrl) localStorage.setItem('acc_backend_url', backendUrl);
-        else localStorage.removeItem('acc_backend_url'); // Clear if empty
+        else localStorage.removeItem('acc_backend_url');
 
         localStorage.setItem('acc_config', JSON.stringify(CONFIG));
-        document.getElementById('envInfo').innerHTML = `<span class="env-tag"><i class="fas fa-code-branch"></i> ${CONFIG.ref}</span><span class="env-tag"><i class="fas fa-file-code"></i> ${CONFIG.workflow_id}</span><span class="env-tag"><i class="fab fa-github"></i> ${CONFIG.owner}/${CONFIG.repo}</span>`;
+        const envInfoEl = document.getElementById('envInfo');
+        if (envInfoEl) envInfoEl.innerHTML = `<span class="env-tag"><i class="fas fa-code-branch"></i> ${CONFIG.ref}</span><span class="env-tag"><i class="fas fa-file-code"></i> ${CONFIG.workflow_id}</span><span class="env-tag"><i class="fab fa-github"></i> ${CONFIG.owner}/${CONFIG.repo}</span>`;
         Toast.success('Saved', 'Settings updated');
         ActivityFeed.add('Settings Updated', `${CONFIG.owner}/${CONFIG.repo}`, 'config');
         Settings.updateStorageUsed();
-        GitHubAPI.checkConnection(); // Update connection status after saving
+        GitHubAPI.checkConnection();
     });
+    
     document.getElementById('exportSettingsBtn')?.addEventListener('click', () => {
         const data = { config: CONFIG, presets: PresetManager.getAll(), theme: ThemeManager.get(), activity: ActivityFeed.getAll(), schedules: Scheduler.getAll() };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `acc-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); Toast.success('Exported', 'All data exported');
     });
+    
     document.getElementById('importSettingsBtn')?.addEventListener('click', () => {
         const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
-        inp.onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => { try { const d = JSON.parse(ev.target.result); if (d.config) localStorage.setItem('acc_config', JSON.stringify(d.config)); if (d.presets) localStorage.setItem('acc_presets', JSON.stringify(d.presets)); if (d.theme) localStorage.setItem('acc_theme', d.theme); Toast.success('Imported', 'Data imported. Reloading...'); setTimeout(() => location.reload(), 1000); } catch { Toast.error('Error', 'Invalid file'); } }; r.readAsText(f); }; inp.click();
+        inp.onchange = e => { 
+            const f = e.target.files[0]; if (!f) return; 
+            const r = new FileReader(); r.onload = ev => { 
+                try { 
+                    const d = JSON.parse(ev.target.result); 
+                    if (d.config) localStorage.setItem('acc_config', JSON.stringify(d.config)); 
+                    if (d.presets) localStorage.setItem('acc_presets', JSON.stringify(d.presets)); 
+                    if (d.theme) localStorage.setItem('acc_theme', d.theme); 
+                    Toast.success('Imported', 'Data imported. Reloading...'); 
+                    setTimeout(() => location.reload(), 1000); 
+                } catch { Toast.error('Error', 'Invalid file'); } 
+            }; r.readAsText(f); 
+        }; inp.click();
     });
-    document.getElementById('clearAllDataBtn')?.addEventListener('click', () => { if (confirm('Clear ALL saved data?')) { localStorage.removeItem('acc_config'); localStorage.removeItem('acc_presets'); localStorage.removeItem('acc_theme'); localStorage.removeItem('acc_activity'); localStorage.removeItem('acc_notifs'); localStorage.removeItem('acc_schedules'); localStorage.removeItem('acc_pinned'); Toast.warning('Cleared', 'All data removed'); location.reload(); } });
+    
+    document.getElementById('clearAllDataBtn')?.addEventListener('click', () => { 
+        if (confirm('Clear ALL saved data?')) { 
+            localStorage.clear(); 
+            Toast.warning('Cleared', 'All data removed'); 
+            location.reload(); 
+        } 
+    });
 
-    // Shortcuts & Conn
+    // Misc Buttons
     document.getElementById('shortcutsBtn')?.addEventListener('click', () => openModal('shortcutsModal'));
-    document.getElementById('connStatusBtn')?.addEventListener('click', () => { Toast.info('Checking...', 'Testing connection'); GitHubAPI.checkConnection().then(ok => { if (ok) Toast.success('Connected', 'GitHub API reachable'); else Toast.error('Disconnected', 'Check your token'); }); });
+    document.getElementById('connStatusBtn')?.addEventListener('click', () => { 
+        Toast.info('Checking...', 'Testing connection'); 
+        GitHubAPI.checkConnection().then(ok => { 
+            if (ok) Toast.success('Connected', 'GitHub API reachable'); 
+            else Toast.error('Disconnected', 'Check your token'); 
+        }); 
+    });
     document.getElementById('refreshDashboardBtn')?.addEventListener('click', () => { DashboardStats.refresh(); Toast.info('Refreshing', 'Loading data...'); });
     document.getElementById('refreshHistoryBtn')?.addEventListener('click', () => { GitHubAPI.loadHistory(); Toast.info('Refreshing', 'Loading runs...'); });
     document.getElementById('refreshReportsBtn')?.addEventListener('click', () => { ReportManager.render(); Toast.info('Refreshing', 'Loading reports...'); });
+    
     document.getElementById('historyFilterStatus')?.addEventListener('change', () => { GitHubAPI.historyPage = 1; GitHubAPI.loadHistory(); });
     document.getElementById('historyFilterTime')?.addEventListener('change', () => { GitHubAPI.historyPage = 1; GitHubAPI.loadHistory(); });
     document.getElementById('historyPrevBtn')?.addEventListener('click', () => { if (GitHubAPI.historyPage > 1) { GitHubAPI.historyPage--; GitHubAPI.loadHistory(); document.getElementById('page-history')?.scrollIntoView({ behavior: 'smooth' }); } });
     document.getElementById('historyNextBtn')?.addEventListener('click', () => { GitHubAPI.historyPage++; GitHubAPI.loadHistory(); document.getElementById('page-history')?.scrollIntoView({ behavior: 'smooth' }); });
 
-    document.getElementById('reportPrevBtn')?.addEventListener('click', () => { if (ReportManager.reportPage > 1) { ReportManager.reportPage--; if (ReportManager.allRuns[0]?.html_url) { ReportManager.renderGitHubTable(); } else { ReportManager.renderTable(); } document.getElementById('page-reports')?.scrollIntoView({ behavior: 'smooth' }); } });
-    document.getElementById('reportNextBtn')?.addEventListener('click', () => { if ((ReportManager.reportPage * ReportManager.perPage) < ReportManager.filteredRuns.length) { ReportManager.reportPage++; if (ReportManager.allRuns[0]?.html_url) { ReportManager.renderGitHubTable(); } else { ReportManager.renderTable(); } document.getElementById('page-reports')?.scrollIntoView({ behavior: 'smooth' }); } });
+    document.getElementById('reportPrevBtn')?.addEventListener('click', () => { 
+        if (ReportManager.reportPage > 1) { 
+            ReportManager.reportPage--; 
+            if (ReportManager.allRuns[0]?.html_url) { ReportManager.renderGitHubTable(); } 
+            else { ReportManager.renderTable(); } 
+            document.getElementById('page-reports')?.scrollIntoView({ behavior: 'smooth' }); 
+        } 
+    });
+    document.getElementById('reportNextBtn')?.addEventListener('click', () => { 
+        if ((ReportManager.reportPage * ReportManager.perPage) < ReportManager.filteredRuns.length) { 
+            ReportManager.reportPage++; 
+            if (ReportManager.allRuns[0]?.html_url) { ReportManager.renderGitHubTable(); } 
+            else { ReportManager.renderTable(); } 
+            document.getElementById('page-reports')?.scrollIntoView({ behavior: 'smooth' }); 
+        } 
+    });
+    
     document.getElementById('historyFilterActor')?.addEventListener('input', () => {
         clearTimeout(window.historyActorDebounce);
         window.historyActorDebounce = setTimeout(() => { GitHubAPI.historyPage = 1; GitHubAPI.loadHistory(); }, 500);
     });
 
-
-    // Terminal search
-    document.getElementById('terminalSearchInput')?.addEventListener('input', e => { const q = e.target.value.toLowerCase(); TerminalLog.body.querySelectorAll('div').forEach(l => { l.style.display = l.textContent.toLowerCase().includes(q) || !q ? '' : 'none'; }); });
+    document.getElementById('terminalSearchInput')?.addEventListener('input', e => { 
+        const q = e.target.value.toLowerCase(); 
+        TerminalLog.body.querySelectorAll('div').forEach(l => { 
+            l.style.display = l.textContent.toLowerCase().includes(q) || !q ? '' : 'none'; 
+        }); 
+    });
 
     // Keyboard shortcuts
     document.addEventListener('keydown', e => {
-        const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
-        if (e.key === 'Escape') { document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')); CmdPalette.close(); document.getElementById('notifPanel')?.classList.remove('open'); return; }
+        const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.contentEditable === 'true';
+        if (e.key === 'Escape') { 
+            document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')); 
+            CmdPalette.close(); 
+            document.getElementById('notifPanel')?.classList.remove('open'); 
+            return; 
+        }
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); CmdPalette.open(); return; }
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); triggerWorkflow(); return; }
         if ((e.ctrlKey || e.metaKey) && e.key === 'r') { e.preventDefault(); resetForm(); return; }
         if (isInput) return;
         const keys = { 1: 'dashboard', 2: 'run-tests', 3: 'history', 4: 'reports', 5: 'presets', 6: 'activity', 7: 'scheduler', 8: 'settings' };
-        if (keys[e.key]) { e.preventDefault(); Router.navigate(keys[e.key]); return; }
+        if (!e.ctrlKey && !e.metaKey && !e.altKey && keys[e.key]) { 
+            e.preventDefault(); 
+            Router.navigate(keys[e.key]); 
+            return; 
+        }
         if (e.key === '?') { e.preventDefault(); openModal('shortcutsModal'); }
         if (e.key === 'n' || e.key === 'N') { e.preventDefault(); NotifCenter.toggle(); }
-        if (e.key === 'L' && e.shiftKey && e.ctrlKey) { e.preventDefault(); AuthManager.logout(); }
     });
 
-    // Initialize Auth
-    AuthManager.init();
-
-    // Init fields
+    // Sync Fields
     switchPlatformFields('webchat');
-    const sOwner = document.getElementById('settingOwner');
-    if (sOwner) sOwner.value = CONFIG.owner;
-    const sRepo = document.getElementById('settingRepo');
-    if (sRepo) sRepo.value = CONFIG.repo;
-    const sWorkflow = document.getElementById('settingWorkflow');
-    if (sWorkflow) sWorkflow.value = CONFIG.workflow_id;
-    const sBranch = document.getElementById('settingBranch');
-    if (sBranch) sBranch.value = CONFIG.ref;
-    const sBackend = document.getElementById('settingBackendUrl');
-    if (sBackend) sBackend.value = localStorage.getItem('acc_backend_url') || '';
-    const sToken = document.getElementById('tokenInput');
-    if (sToken) sToken.value = CONFIG.token;
+    const syncMap = {
+        'settingOwner': CONFIG.owner,
+        'settingRepo': CONFIG.repo,
+        'settingWorkflow': CONFIG.workflow_id,
+        'settingBranch': CONFIG.ref,
+        'settingBackendUrl': localStorage.getItem('acc_backend_url') || '',
+        'tokenInput': CONFIG.token
+    };
+    Object.entries(syncMap).forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.value = val; });
+
+    // Environment Tag
     const envInfo = document.getElementById('envInfo');
     if (envInfo) envInfo.innerHTML = `<span class="env-tag"><i class="fas fa-code-branch"></i> ${CONFIG.ref}</span><span class="env-tag"><i class="fas fa-file-code"></i> ${CONFIG.workflow_id}</span><span class="env-tag"><i class="fab fa-github"></i> ${CONFIG.owner}/${CONFIG.repo}</span>`;
-    // Sound init
-    document.getElementById('soundOnBtn')?.classList.toggle('active', Settings.soundEnabled);
-    document.getElementById('soundOffBtn')?.classList.toggle('active', !Settings.soundEnabled);
 
     // Judge init
     JudgeManager.setupEventListeners();

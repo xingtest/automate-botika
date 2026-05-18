@@ -31,8 +31,15 @@ const WorkflowValidator = {
       errors.push({ message: 'Workflow must have at least one trigger node', severity: 'error' });
     }
     
-    // 4. Isolated nodes check
+    // 4. Active nodes check
+    const activeNodeIds = this.getActiveNodeIds(definition);
+    
     definition.nodes.forEach(node => {
+      const isActive = activeNodeIds.has(node.id);
+      
+      // If node is not active (not reachable from trigger), skip isolation and config warnings
+      if (!isActive) return;
+
       const isConnected = definition.connections.some(c => 
         c.source_node_id === node.id || c.target_node_id === node.id
       );
@@ -44,14 +51,11 @@ const WorkflowValidator = {
           severity: 'warning' 
         });
       }
-      
-      // 5. Required config check (shallow check)
-      // Full validation is done on the backend or in NodeConfigPanel
     });
     
-    // 6. Circular dependency check
-    if (this.hasCycles(definition)) {
-      errors.push({ message: 'Circular dependency detected', severity: 'error' });
+    // 6. Circular dependency check (Active path only)
+    if (this.hasCycles(definition, activeNodeIds)) {
+      errors.push({ message: 'Circular dependency detected in active path', severity: 'error' });
     }
     
     // 7. Backend validation (optional, for deep schema checks)
@@ -106,8 +110,14 @@ const WorkflowValidator = {
   /**
    * Check for cycles using Kahn's algorithm or DFS
    */
-  hasCycles(definition) {
-    const { nodes, connections } = definition;
+  hasCycles(definition, activeNodeIds = null) {
+    let { nodes, connections } = definition;
+    
+    // Filter nodes if activeNodeIds provided
+    if (activeNodeIds) {
+      nodes = nodes.filter(n => activeNodeIds.has(n.id));
+    }
+    
     const adj = {};
     const inDegree = {};
     
@@ -117,7 +127,7 @@ const WorkflowValidator = {
     });
     
     connections.forEach(c => {
-      if (adj[c.source_node_id]) {
+      if (adj[c.source_node_id] && adj[c.target_node_id]) {
         adj[c.source_node_id].push(c.target_node_id);
         inDegree[c.target_node_id]++;
       }
@@ -140,6 +150,41 @@ const WorkflowValidator = {
     }
     
     return count !== nodes.length;
+  },
+
+  /**
+   * Get all node IDs reachable from trigger nodes
+   */
+  getActiveNodeIds(definition) {
+    const { nodes, connections } = definition;
+    const activeIds = new Set();
+    const adj = {};
+    
+    nodes.forEach(n => adj[n.id] = []);
+    connections.forEach(c => {
+      if (adj[c.source_node_id]) {
+        adj[c.source_node_id].push(c.target_node_id);
+      }
+    });
+    
+    const triggers = nodes.filter(n => 
+      n.type.includes('trigger') || n.category === 'Triggers'
+    );
+    
+    const queue = triggers.map(t => t.id);
+    triggers.forEach(t => activeIds.add(t.id));
+    
+    while (queue.length > 0) {
+      const u = queue.shift();
+      (adj[u] || []).forEach(v => {
+        if (!activeIds.has(v)) {
+          activeIds.add(v);
+          queue.push(v);
+        }
+      });
+    }
+    
+    return activeIds;
   },
   
   /**

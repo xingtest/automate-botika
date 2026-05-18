@@ -43,11 +43,20 @@ class WorkflowValidator {
       });
     }
     
-    // Validate all non-trigger nodes have incoming connections
+    // Filter active nodes for further validation
+    const { getActiveNodeIds } = require('./graph-utils');
+    const activeNodeIds = getActiveNodeIds(nodes, connections);
+    const activeNodes = nodes.filter(n => activeNodeIds.has(n.id));
+
+    const activeConnections = connections.filter(c => 
+      activeNodeIds.has(c.source_node_id) && activeNodeIds.has(c.target_node_id)
+    );
+
+    // Validate all non-trigger nodes have incoming connections (Active path only)
     const nodeIds = new Set(nodes.map(n => n.id));
-    const nodesWithIncoming = new Set(connections.map(c => c.target_node_id));
+    const nodesWithIncoming = new Set(activeConnections.map(c => c.target_node_id));
     
-    const orphanedNodes = nodes.filter(n => {
+    const orphanedNodes = activeNodes.filter(n => {
       const isTrigger = n.type && n.type.includes('trigger');
       return !isTrigger && !nodesWithIncoming.has(n.id);
     });
@@ -55,18 +64,18 @@ class WorkflowValidator {
     if (orphanedNodes.length > 0) {
       errors.push({
         code: 'ORPHANED_NODES',
-        message: 'Some nodes have no incoming connections and will not be executed',
+        message: 'Some active nodes have no incoming connections and will not be executed',
         severity: 'warning',
         nodes: orphanedNodes.map(n => ({ id: n.id, label: n.label }))
       });
     }
     
-    // Validate no circular dependencies
-    const cycleCheck = this.detectCycles(nodes, connections);
+    // Validate no circular dependencies (Active path only)
+    const cycleCheck = this.detectCycles(activeNodes, activeConnections);
     if (cycleCheck.hasCycle) {
       errors.push({
         code: 'CIRCULAR_DEPENDENCY',
-        message: 'Workflow contains circular dependencies',
+        message: 'Active workflow contains circular dependencies',
         severity: 'error',
         cycle: cycleCheck.cycle
       });
@@ -74,6 +83,11 @@ class WorkflowValidator {
     
     // Validate all connections reference valid nodes
     for (const conn of connections) {
+      // Only care about connections involving active nodes
+      if (!activeNodeIds.has(conn.source_node_id) && !activeNodeIds.has(conn.target_node_id)) {
+        continue;
+      }
+
       if (!nodeIds.has(conn.source_node_id)) {
         errors.push({
           code: 'INVALID_CONNECTION',
@@ -92,14 +106,14 @@ class WorkflowValidator {
       }
     }
     
-    // Validate required node parameters
-    for (const node of nodes) {
+    // Validate required node parameters (Active nodes only)
+    for (const node of activeNodes) {
       const configErrors = this.validateNodeConfig(node);
       errors.push(...configErrors);
     }
     
-    // Validate expression syntax in condition nodes
-    for (const node of nodes) {
+    // Validate expression syntax in condition nodes (Active nodes only)
+    for (const node of activeNodes) {
       if (node.type === 'condition') {
         const exprErrors = this.validateExpression(node);
         errors.push(...exprErrors);

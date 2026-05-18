@@ -40,4 +40,14 @@ error_*.png
 
 # OS
 Thumbs.db
-.DS_Store
+.DS_Store
+
+# Git
+.github/
+
+# Sessions
+session/*.json
+
+# Excel Temp Files
+~$*.xlsx
+~$*.xls

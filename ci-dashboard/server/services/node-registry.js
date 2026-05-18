@@ -211,11 +211,22 @@ class NodeRegistry {
    * @returns {Object} Validation result
    */
   validateWorkflow(workflowDefinition) {
+    const { getActiveNodeIds } = require('./graph-utils');
     const validationErrors = [];
     const availableNodes = [];
 
     const nodes = workflowDefinition.nodes || [];
+    const connections = workflowDefinition.connections || [];
+    
+    // NEW: Only validate nodes reachable from triggers
+    const activeNodeIds = getActiveNodeIds(nodes, connections);
+    
     for (const node of nodes) {
+      // Skip validation for inactive nodes
+      if (!activeNodeIds.has(node.id)) {
+        continue;
+      }
+      
       const nodeType = node.type;
       
       if (this.isNodeAvailable(nodeType)) {
@@ -249,7 +260,8 @@ class NodeRegistry {
       valid: validationErrors.length === 0,
       errors: validationErrors,
       availableNodes,
-      totalNodes: nodes.length
+      totalNodes: nodes.length,
+      activeNodesCount: activeNodeIds.size
     };
   }
 }
