@@ -299,11 +299,24 @@ export class WebchatV3Platform {
     const start = Modul.startTime();
     console.log('\n🚀 Starting Webchat V3 Actions');
 
-    // Jeda stabilisasi pesan sambutan awal dari bot (misalnya akibat "chat started")
-    const waitSeconds = parseInt(process.env.WELCOME_MESSAGE_WAIT_SECONDS || '3', 10);
-    if (waitSeconds > 0) {
-        console.log(`⏳ Waiting ${waitSeconds} seconds for initial bot greeting to stabilize...`);
-        await Modul.waitTime(waitSeconds);
+    // Tunggu pesan sambutan bahasa muncul di layar (maksimal 20 detik)
+    const welcomeText = process.env.WELCOME_MESSAGE_TEXT || "Silakan pilih bahasa|Please choose the language";
+    const isEnabled = welcomeText && welcomeText.trim() !== '' && welcomeText.toLowerCase() !== 'false' && welcomeText.toLowerCase() !== 'none';
+
+    if (isEnabled) {
+      const welcomeRegex = new RegExp(welcomeText, 'i');
+      console.log(`⏳ Waiting for welcome message ("${welcomeText}") to appear in V3...`);
+      try {
+        const welcomeMessage = page.locator('.chat-messages, .v-card-text, .v-sheet, .v-list-item-title')
+                                   .filter({ hasText: welcomeRegex })
+                                   .first();
+        await welcomeMessage.waitFor({ state: 'visible', timeout: 20000 });
+        console.log('✅ Welcome message detected!');
+      } catch (error) {
+        console.log('⚠️ Timeout waiting for welcome message in V3, proceeding anyway');
+      }
+    } else {
+      console.log('skip waiting for initial welcome message in V3, proceeding directly.');
     }
 
     // Handle initial greetings for V3

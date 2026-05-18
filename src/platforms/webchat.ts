@@ -303,11 +303,24 @@ export class WebchatPlatform {
       log.warn('❌ Pre-chat form not available or no fields found');
       log.info('🔄 Using direct message input instead');
 
-      // Jeda stabilisasi pesan sambutan awal dari bot (misalnya akibat "chat started")
-      const waitSeconds = parseInt(process.env.WELCOME_MESSAGE_WAIT_SECONDS || '3', 10);
-      if (waitSeconds > 0) {
-        log.info(`⏳ Waiting ${waitSeconds} seconds for initial bot greeting to stabilize...`);
-        await Modul.waitTime(waitSeconds);
+      // Tunggu pesan sambutan bahasa muncul di layar (maksimal 20 detik)
+      const welcomeText = process.env.WELCOME_MESSAGE_TEXT || "Silakan pilih bahasa|Please choose the language";
+      const isEnabled = welcomeText && welcomeText.trim() !== '' && welcomeText.toLowerCase() !== 'false' && welcomeText.toLowerCase() !== 'none';
+
+      if (isEnabled) {
+        const welcomeRegex = new RegExp(welcomeText, 'i');
+        log.info(`⏳ Waiting for bot welcome message ("${welcomeText}") to appear...`);
+        try {
+          const welcomeMessage = page.locator('.message-content-wrapper .content')
+                                     .filter({ hasText: welcomeRegex })
+                                     .first();
+          await welcomeMessage.waitFor({ state: 'visible', timeout: 20000 });
+          log.info('✅ Welcome message detected!');
+        } catch (error) {
+          log.warn('⚠️ Timeout waiting for welcome message, proceeding anyway');
+        }
+      } else {
+        log.info('skip waiting for initial welcome message, proceeding directly.');
       }
 
       try {
