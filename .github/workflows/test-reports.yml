@@ -1,0 +1,389 @@
+name: Automation Testing Judges
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing Luna webchat Re Testing 3' }}
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      SELECTED_PLATFORM:
+        description: 'Platform to test'
+        required: false
+        default: ''
+      RUN_NAME:
+        description: 'Custom Run Name (displayed in Actions)'
+        required: false
+        default: 'Manual Test Run'
+      FILENAME:
+        description: 'Test file name'
+        required: false
+        default: ''
+      TESTER_NAME:
+        description: 'Tester name'
+        required: false
+        default: ''
+      GREETING:
+        description: 'Greeting message'
+        required: false
+        default: ''
+      GREETING_2:
+        description: 'Second greeting message (optional)'
+        required: false
+        default: ''
+      WEBCHAT_URL:
+        description: 'WebChat URL (V2)'
+        required: false
+        default: ''
+      WEBCHAT_V3_URL:
+        description: 'WebChat V3 URL'
+        required: false
+        default: ''
+      WEBCHAT_NAME:
+        description: 'Webchat Pre-chat Name'
+        required: false
+        default: ''
+      WEBCHAT_EMAIL:
+        description: 'Webchat Pre-chat Email'
+        required: false
+        default: ''
+      WEBCHAT_PHONE:
+        description: 'Webchat Pre-chat Phone/Member ID'
+        required: false
+        default: ''
+      INSTAGRAM_USERNAME:
+        description: 'Instagram username'
+        required: false
+        default: ''
+      FACEBOOK_FANPAGE_ID:
+        description: 'Facebook Fanpage ID'
+        required: false
+        default: ''
+      TELEGRAM_BOT_USERNAME:
+        description: 'Telegram Bot Username'
+        required: false
+        default: ''
+      DHAI_TARGET_URL:
+        description: 'DHAI Target URL'
+        required: false
+        default: ''
+      DHAI_WAKE_WORD:
+        description: 'DHAI Wake Word'
+        required: false
+        default: ''
+      BACKEND_URL:
+        description: 'Backend API URL for data sync'
+        required: false
+        default: ''
+      USER_ID:
+        description: 'User ID for data isolation'
+        required: false
+        default: ''
+      GEMINI_API_KEY:
+        description: 'Gemini API Key (if different from secrets)'
+        required: false
+        default: ''
+      AI_PROVIDER:
+        description: 'AI Provider for evaluation (gemini/groq/cerebras)'
+        required: false
+        default: 'cerebras'
+      GROQ_API_KEY:
+        description: 'Groq API Key (if using Groq)'
+        required: false
+        default: ''
+      CEREBRAS_API_KEY:
+        description: 'Cerebras API Key (if using Cerebras)'
+        required: false
+        default: ''
+
+jobs:
+  test-single-platform:
+    runs-on: ubuntu-latest
+
+    # =====================================================
+    # 🔥 GANTI PLATFORM DI SINI SAJA (untuk push/PR)
+    # pilihan: webchat | webchat-v3 | dhai | instagram | facebook | telegram
+    # =====================================================
+    env:
+      SELECTED_PLATFORM: webchat-v3
+      DEFAULT_AI_PROVIDER: multi
+      GEMINI_MODEL: gemini-3.1-flash-lite-preview
+      GROQ_MODEL: llama-3.1-8b-instant
+      CEREBRAS_MODEL: llama3.1-8b
+      DEFAULT_FILENAME: Re Testing.xlsx
+      DEFAULT_TESTER_NAME: Cik test webchat v3
+      DEFAULT_GREETING: Haloo
+      DEFAULT_GREETING_2: Indonesia
+
+      # -----------------------------
+      # TARGET URL / ID / USERNAME / KREDENSIAL
+      # -----------------------------
+      WEBCHAT_URL: "https://chat.botika.online/EJUnkrW"
+      WEBCHAT_V3_URL: "https://chat.botika.online/v3/mk6YoYD"
+      DEFAULT_WEBCHAT_NAME: "Cik luna testing bot"
+      DEFAULT_WEBCHAT_EMAIL: "tester@botika.online"
+      DEFAULT_WEBCHAT_PHONE: "081234567890"
+      DHAI_TARGET_URL: "https://client.botika.online/virtual-avatar-pln-icon/?mode=wake-word"
+      DHAI_WAKE_WORD: "halo luna"
+      INSTAGRAM_USERNAME: "ahmadnurbrasta2.2"
+      FACEBOOK_FANPAGE_ID: "114552848299710"
+      TELEGRAM_BOT_USERNAME: "TestingNewIntegrasiBot"
+
+      # -----------------------------
+      # AI EVALUATION CONFIG (Mengambil dari Secrets)
+      # -----------------------------
+      API_KEY_GEMINI: ${{ secrets.API_KEY_GEMINI }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: |
+          echo "📦 Installing Node.js dependencies..."
+          npm install
+
+      - name: Install Google Chrome
+        run: |
+          echo "🔄 Installing Google Chrome..."
+          sudo apt-get update
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          echo "CHROME_BIN=/usr/bin/google-chrome" >> $GITHUB_ENV
+          google-chrome --version
+
+      # =====================================================
+      # 🧹 SETUP ENVIRONMENT (.env)
+      # Dashboard inputs override env defaults if provided
+      # =====================================================
+      - name: Setup fresh environment
+        run: |
+          echo "🧹 Setting up fresh environment..."
+
+          rm -rf report/ temp_audio/ log/ 2>/dev/null || true
+          mkdir -p report/html report/json temp_audio
+
+          # Use inputs if provided (non-empty), otherwise use env defaults
+          INPUT_PLATFORM="${{ github.event.inputs.SELECTED_PLATFORM }}"
+          INPUT_FILENAME="${{ github.event.inputs.FILENAME }}"
+          INPUT_TESTER="${{ github.event.inputs.TESTER_NAME }}"
+          INPUT_GREETING="${{ github.event.inputs.GREETING }}"
+
+          # Set PLATFORM (use input if not empty, otherwise env default)
+          if [ -n "$INPUT_PLATFORM" ] && [ "$INPUT_PLATFORM" != "" ]; then
+            PLATFORM="$INPUT_PLATFORM"
+          else
+            PLATFORM="${SELECTED_PLATFORM}"
+          fi
+
+          # Set FILENAME
+          if [ -n "$INPUT_FILENAME" ] && [ "$INPUT_FILENAME" != "" ]; then
+            FILENAME="$INPUT_FILENAME"
+          else
+            FILENAME="${DEFAULT_FILENAME}"
+          fi
+
+          # Set TESTER
+          if [ -n "$INPUT_TESTER" ] && [ "$INPUT_TESTER" != "" ]; then
+            TESTER="$INPUT_TESTER"
+          else
+            TESTER="${DEFAULT_TESTER_NAME}"
+          fi
+
+          # Set GREETING
+          if [ -n "$INPUT_GREETING" ] && [ "$INPUT_GREETING" != "" ]; then
+            GREET="$INPUT_GREETING"
+          else
+            GREET="${DEFAULT_GREETING}"
+          fi
+
+          # Set GREETING_2
+          INPUT_GREETING_2="${{ github.event.inputs.GREETING_2 }}"
+          if [ -n "$INPUT_GREETING_2" ] && [ "$INPUT_GREETING_2" != "" ]; then
+            GREET_2="$INPUT_GREETING_2"
+          else
+            GREET_2="${DEFAULT_GREETING_2}"
+          fi
+
+          echo "📋 Using: PLATFORM=$PLATFORM, FILENAME=$FILENAME"
+
+          # buat file .env baru
+          touch .env
+
+          echo "PLATFORM=${PLATFORM}" >> .env
+          echo "FILENAME=${FILENAME}" >> .env
+          echo "TESTER_NAME=${TESTER}" >> .env
+          echo "GREETING=\"${GREET}\"" >> .env
+          echo "GREETING_2=\"${GREET_2}\"" >> .env
+          echo "RUN_NAME=\"${{ github.event.inputs.RUN_NAME }}\"" >> .env
+          GEMINI_K="${{ github.event.inputs.GEMINI_API_KEY }}"
+          [ -z "$GEMINI_K" ] && GEMINI_K="${API_KEY_GEMINI}"
+          echo "API_KEY_GEMINI=${GEMINI_K}" >> .env
+          echo "BACKEND_URL=\"${{ github.event.inputs.BACKEND_URL }}\"" >> .env
+          echo "USER_ID=\"${{ github.event.inputs.USER_ID }}\"" >> .env
+
+          # AI Provider setup
+          AI_P="${{ github.event.inputs.AI_PROVIDER }}"
+          [ -z "$AI_P" ] && AI_P="${DEFAULT_AI_PROVIDER}"
+          echo "AI_PROVIDER=$AI_P" >> .env
+          echo "ENABLE_GEMINI_EVALUATION=true" >> .env
+          echo "ENABLE_GROQ_EVALUATION=true" >> .env
+          echo "ENABLE_CEREBRAS_EVALUATION=true" >> .env
+          echo "GEMINI_MODEL=${GEMINI_MODEL}" >> .env
+          
+          GROQ_K="${{ github.event.inputs.GROQ_API_KEY }}"
+          [ -z "$GROQ_K" ] && GROQ_K="${GROQ_API_KEY}"
+          echo "GROQ_API_KEY=$GROQ_K" >> .env
+          echo "GROQ_MODEL=${GROQ_MODEL}" >> .env
+
+          CEREBRAS_K="${{ github.event.inputs.CEREBRAS_API_KEY }}"
+          [ -z "$CEREBRAS_K" ] && CEREBRAS_K="${CEREBRAS_API_KEY}"
+          echo "CEREBRAS_API_KEY=$CEREBRAS_K" >> .env
+          echo "CEREBRAS_MODEL=${CEREBRAS_MODEL}" >> .env
+
+          # =====================================================
+          # PLATFORM-SPECIFIC TARGET CONFIG (inputs override env)
+          # =====================================================
+          case "${PLATFORM}" in
+            webchat)
+              URL="${{ github.event.inputs.WEBCHAT_URL }}"
+              [ -z "$URL" ] && URL="${WEBCHAT_URL}"
+              echo "TARGET_URL=${URL}" >> .env
+              
+              W_NAME="${{ github.event.inputs.WEBCHAT_NAME }}"
+              [ -z "$W_NAME" ] && W_NAME="${DEFAULT_WEBCHAT_NAME}"
+              echo "WEBCHAT_NAME=\"${W_NAME}\"" >> .env
+              
+              W_EMAIL="${{ github.event.inputs.WEBCHAT_EMAIL }}"
+              [ -z "$W_EMAIL" ] && W_EMAIL="${DEFAULT_WEBCHAT_EMAIL}"
+              echo "WEBCHAT_EMAIL=\"${W_EMAIL}\"" >> .env
+              
+              W_PHONE="${{ github.event.inputs.WEBCHAT_PHONE }}"
+              [ -z "$W_PHONE" ] && W_PHONE="${DEFAULT_WEBCHAT_PHONE}"
+              echo "WEBCHAT_PHONE=\"${W_PHONE}\"" >> .env
+              ;;
+            webchat-v3)
+              URL="${{ github.event.inputs.WEBCHAT_V3_URL }}"
+              [ -z "$URL" ] && URL="${WEBCHAT_V3_URL}"
+              echo "WEBCHAT_V3_TARGET_URL=${URL}" >> .env
+              
+              W_NAME="${{ github.event.inputs.WEBCHAT_NAME }}"
+              [ -z "$W_NAME" ] && W_NAME="${DEFAULT_WEBCHAT_NAME}"
+              echo "WEBCHAT_NAME=\"${W_NAME}\"" >> .env
+              
+              W_EMAIL="${{ github.event.inputs.WEBCHAT_EMAIL }}"
+              [ -z "$W_EMAIL" ] && W_EMAIL="${DEFAULT_WEBCHAT_EMAIL}"
+              echo "WEBCHAT_EMAIL=\"${W_EMAIL}\"" >> .env
+              
+              W_PHONE="${{ github.event.inputs.WEBCHAT_PHONE }}"
+              [ -z "$W_PHONE" ] && W_PHONE="${DEFAULT_WEBCHAT_PHONE}"
+              echo "WEBCHAT_PHONE=\"${W_PHONE}\"" >> .env
+              ;;
+            dhai)
+              URL="${{ github.event.inputs.DHAI_TARGET_URL }}"
+              [ -z "$URL" ] && URL="${DHAI_TARGET_URL}"
+              WAKE="${{ github.event.inputs.DHAI_WAKE_WORD }}"
+              [ -z "$WAKE" ] && WAKE="${DHAI_WAKE_WORD}"
+              echo "DHAI_TARGET_URL=${URL}" >> .env
+              echo "DHAI_WAKE_WORD=${WAKE}" >> .env
+              ;;
+            instagram)
+              USER="${{ github.event.inputs.INSTAGRAM_USERNAME }}"
+              [ -z "$USER" ] && USER="${INSTAGRAM_USERNAME}"
+              echo "TARGET_USERNAME=${USER}" >> .env
+              ;;
+            facebook)
+              FANPAGE="${{ github.event.inputs.FACEBOOK_FANPAGE_ID }}"
+              [ -z "$FANPAGE" ] && FANPAGE="${FACEBOOK_FANPAGE_ID}"
+              echo "TARGET_FANPAGE_ID=${FANPAGE}" >> .env
+              ;;
+            telegram)
+              BOT="${{ github.event.inputs.TELEGRAM_BOT_USERNAME }}"
+              [ -z "$BOT" ] && BOT="${TELEGRAM_BOT_USERNAME}"
+              echo "TARGET_BOT_USERNAME=${BOT}" >> .env
+              ;;
+            *)
+              echo "❌ Unknown platform: ${PLATFORM}"
+              exit 1
+              ;;
+          esac
+
+          # Export SELECTED_PLATFORM for later steps
+          echo "SELECTED_PLATFORM=${PLATFORM}" >> $GITHUB_ENV
+
+          echo "✅ Environment ready"
+          echo "🔍 Final .env:"
+          cat .env
+
+      # =====================================================
+      # 📋 ENSURE TEST DATA
+      # =====================================================
+      - name: Create test data if needed
+        run: |
+          echo "📋 Ensuring test data exists..."
+          if [ ! -f "assets/xlsx/${DEFAULT_FILENAME}" ] && [ ! -f "assets/json/testing.json" ]; then
+            mkdir -p assets/json
+            node -e "
+              const data = [
+                { no: 1, title: 'Apa itu asuransi jiwa', pertanyaan: 'Apa itu asuransi jiwa', context: 'Perlindungan finansial terhadap risiko kehidupan.' },
+                { no: 2, title: 'Apa itu asuransi kesehatan', pertanyaan: 'Apa itu asuransi kesehatan', context: 'Perlindungan finansial ketika sakit.' }
+              ];
+              require('fs').writeFileSync('assets/json/testing.json', JSON.stringify(data, null, 2));
+            "
+            sed -i 's/FILENAME=.*/FILENAME=testing.json/' .env
+            echo "⚠️ Excel not found, fallback to JSON"
+          fi
+
+      # =====================================================
+      # 🧪 RUN TEST
+      # =====================================================
+      - name: Run complete test
+        continue-on-error: true
+        run: |
+          echo "🧪 Running test for ${SELECTED_PLATFORM}..."
+
+          npm run build
+
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed"
+            exit 1
+          fi
+
+          node dist/main.js ${SELECTED_PLATFORM}
+
+          sleep 3
+          node dist/report-cli.js
+
+      # =====================================================
+      # 🔍 VERIFY REPORT
+      # =====================================================
+      - name: Verify dashboard.html
+        run: |
+          echo "🔍 Verifying dashboard.html..."
+          if ! find report/html -name "dashboard.html" | grep -q .; then
+            echo "❌ dashboard.html not found"
+            exit 1
+          fi
+          echo "✅ dashboard.html found"
+
+      # =====================================================
+      # 📦 UPLOAD ARTIFACT
+      # =====================================================
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports-${{ github.run_number }}
+          path: report/html/
+          retention-days: 2
