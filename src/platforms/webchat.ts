@@ -304,11 +304,16 @@ export class WebchatPlatform {
       log.info('🔄 Using direct message input instead');
 
       // Tunggu pesan sambutan bahasa muncul di layar (maksimal 20 detik)
-      const welcomeText = process.env.WELCOME_MESSAGE_TEXT || "Silakan pilih bahasa|Please choose the language";
-      const isEnabled = welcomeText && welcomeText.trim() !== '' && welcomeText.toLowerCase() !== 'false' && welcomeText.toLowerCase() !== 'none';
+      // Default: disabled (hidden) unless explicitly configured via env var.
+      const welcomeText = process.env.WELCOME_MESSAGE_TEXT;
+      const isEnabled =
+        typeof welcomeText === 'string' &&
+        welcomeText.trim() !== '' &&
+        welcomeText.toLowerCase() !== 'false' &&
+        welcomeText.toLowerCase() !== 'none';
 
       if (isEnabled) {
-        const welcomeRegex = new RegExp(welcomeText, 'i');
+        const welcomeRegex = new RegExp(welcomeText!, 'i');
         log.info(`⏳ Waiting for bot welcome message ("${welcomeText}") to appear...`);
         try {
           const welcomeMessage = page.locator('.message-content-wrapper .content')
@@ -320,7 +325,7 @@ export class WebchatPlatform {
           log.warn('⚠️ Timeout waiting for welcome message, proceeding anyway');
         }
       } else {
-        log.info('skip waiting for initial welcome message, proceeding directly.');
+        log.info('Skip waiting for initial welcome message (WELCOME_MESSAGE_TEXT not set), proceeding directly.');
       }
 
       try {

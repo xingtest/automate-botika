@@ -300,11 +300,16 @@ export class WebchatV3Platform {
     console.log('\n🚀 Starting Webchat V3 Actions');
 
     // Tunggu pesan sambutan bahasa muncul di layar (maksimal 20 detik)
-    const welcomeText = process.env.WELCOME_MESSAGE_TEXT || "Silakan pilih bahasa|Please choose the language";
-    const isEnabled = welcomeText && welcomeText.trim() !== '' && welcomeText.toLowerCase() !== 'false' && welcomeText.toLowerCase() !== 'none';
+    // Default: disabled (hidden) unless explicitly configured via env var.
+    const welcomeText = process.env.WELCOME_MESSAGE_TEXT;
+    const isEnabled =
+      typeof welcomeText === 'string' &&
+      welcomeText.trim() !== '' &&
+      welcomeText.toLowerCase() !== 'false' &&
+      welcomeText.toLowerCase() !== 'none';
 
     if (isEnabled) {
-      const welcomeRegex = new RegExp(welcomeText, 'i');
+      const welcomeRegex = new RegExp(welcomeText!, 'i');
       console.log(`⏳ Waiting for welcome message ("${welcomeText}") to appear in V3...`);
       try {
         const welcomeMessage = page.locator('.chat-messages, .v-card-text, .v-sheet, .v-list-item-title')
@@ -316,7 +321,7 @@ export class WebchatV3Platform {
         console.log('⚠️ Timeout waiting for welcome message in V3, proceeding anyway');
       }
     } else {
-      console.log('skip waiting for initial welcome message in V3, proceeding directly.');
+      console.log('Skip waiting for initial welcome message in V3 (WELCOME_MESSAGE_TEXT not set), proceeding directly.');
     }
 
     // Handle initial greetings for V3
