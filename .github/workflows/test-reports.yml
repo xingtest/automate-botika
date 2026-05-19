@@ -232,7 +232,7 @@ jobs:
           echo "GREETING_2=\"${GREET_2}\"" >> .env
 
           WELCOME_TXT="${{ github.event.inputs.WELCOME_MESSAGE_TEXT }}"
-          [ -z "$WELCOME_TXT" ] && WELCOME_TXT="Silakan pilih bahasa|Please choose the language"
+          [ -z "$WELCOME_TXT" ] && WELCOME_TXT="false"
           echo "WELCOME_MESSAGE_TEXT=\"${WELCOME_TXT}\"" >> .env
 
           echo "RUN_NAME=\"${{ github.event.inputs.RUN_NAME }}\"" >> .env
