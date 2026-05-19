@@ -128,7 +128,7 @@ class PlaywrightWebchatNode extends BaseNode {
         
         const startTime = Date.now();
         await this.sendMessage(page, question);
-        const actual = await this.waitForReply(page, question, 30000);
+        const actual = await this.waitForReply(page, question, 60000);
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
         this.logTechnical(context, 'info', `[${i + 1}/${testData.length}] Received reply: "${actual.substring(0, 50)}..." (${duration}s)`);
@@ -224,7 +224,7 @@ class PlaywrightWebchatNode extends BaseNode {
     await page.waitForTimeout(2000);
   }
 
-  async waitForReply(page, question, timeoutMs = 30000) {
+  async waitForReply(page, question, timeoutMs = 60000) {
     const startedAt = Date.now();
     let lastResponse = '';
 

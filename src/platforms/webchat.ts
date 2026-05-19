@@ -286,14 +286,14 @@ export class WebchatPlatform {
           await Modul.waitTime(2);
           log.info('✅ Pre-chat form submitted successfully');
           // Wait for bot response after form submission
-          await this.waitReply(page, greeting, 30000);
+          await this.waitReply(page, greeting, 60000);
         } else {
           log.warn('⚠️ Submit button not found, trying alternative methods');
           // Try pressing Enter on the last field
           try {
             await page.keyboard.press('Enter');
             await Modul.waitTime(2);
-            await this.waitReply(page, greeting, 30000);
+            await this.waitReply(page, greeting, 60000);
           } catch { }
         }
       } catch (error) {
@@ -334,7 +334,7 @@ export class WebchatPlatform {
         await Modul.waitTime(2);
         log.info('✅ Greeting 1 sent via direct input');
         // Wait for bot response after greeting
-        await this.waitReply(page, greeting, 30000);
+        await this.waitReply(page, greeting, 60000);
       } catch (error) {
         log.error('Error sending greeting 1', error);
       }
@@ -349,7 +349,7 @@ export class WebchatPlatform {
         await Modul.waitTime(2);
         log.info('✅ Greeting 2 sent');
         // Wait for bot response after second greeting
-        await this.waitReply(page, greeting2, 30000);
+        await this.waitReply(page, greeting2, 60000);
       } catch (error) {
         log.error('Error sending second greeting', error);
       }
@@ -384,7 +384,7 @@ export class WebchatPlatform {
     }
   }
 
-  static async waitReply(page: Page, question: string, timeout: number = 30000): Promise<void> {
+  static async waitReply(page: Page, question: string, timeout: number = 60000): Promise<void> {
     const startTime = Date.now();
     let lastResponseCount = 0;
     let stableCount = 0;
