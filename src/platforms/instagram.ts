@@ -211,7 +211,7 @@ export class InstagramPlatform {
       const response = await this.extractBotResponse(username, userMessage, afterTimestamp);
 
       // Count number of response bubbles (split by newline)
-      const currentResponseCount = response && response !== 'Tidak ada balasan dari bot.'
+      const currentResponseCount = response && response !== 'No response captured'
         ? response.split('\n').filter(r => r.trim()).length
         : 0;
 
@@ -246,12 +246,12 @@ export class InstagramPlatform {
     }
 
     // Return whatever we got
-    if (finalResponse && finalResponse !== 'Tidak ada balasan dari bot.') {
+    if (finalResponse && finalResponse !== 'No response captured') {
       console.log(`⚠️ Timeout reached, returning ${previousResponseCount} bubble(s)`);
       return finalResponse;
     }
 
-    return 'Tidak ada balasan dari bot.';
+    return 'No response captured';
   }
 
   private async extractBotResponse(username: string, userMessage: string, afterTimestamp: number): Promise<string> {
@@ -283,7 +283,7 @@ export class InstagramPlatform {
 
       if (messages.length === 0) {
         console.log('⚠️ No messages found');
-        return 'Tidak ada balasan dari bot.';
+        return 'No response captured';
       }
 
       // Find ALL occurrences of the question
@@ -317,7 +317,7 @@ export class InstagramPlatform {
           return recentMessages.join('\n');
         }
 
-        return 'Tidak ada balasan dari bot.';
+        return 'No response captured';
       }
 
       // Use the LAST occurrence (most recent)
@@ -434,7 +434,7 @@ export class InstagramPlatform {
 
       if (botResponses.length === 0) {
         console.log('⚠️ No bot responses captured after filtering');
-        return 'Tidak ada balasan dari bot.';
+        return 'No response captured';
       }
 
       console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
@@ -523,7 +523,7 @@ export class InstagramPlatform {
 
           let respondBot = await this.getAllBotResponses(targetUsername, question, sentTimestamp);
           if (!respondBot) {
-            respondBot = 'Error: Tidak ada balasan dari bot setelah menunggu.';
+            respondBot = 'No response captured';
           }
 
           // Take screenshot

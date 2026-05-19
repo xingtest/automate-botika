@@ -327,7 +327,7 @@ export class DhaiPlatform {
             let respondBot = respondBotList.join('\n').trim();
 
             if (!respondBot) {
-              respondBot = 'Error: Tidak ada balasan dari bot.';
+              respondBot = 'No response captured';
             }
 
             // Take screenshot AFTER bot responds

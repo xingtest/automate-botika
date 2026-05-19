@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing MRTJ error' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing LGI' }}
 
 on:
   push:
@@ -32,10 +32,10 @@ on:
         description: 'Second greeting message (optional)'
         required: false
         default: ''
-      # WELCOME_MESSAGE_TEXT:
-      #   description: 'Welcome message keywords/wording to wait for (use | to separate multiple keywords)'
-      #   required: false
-      #   default: 'Silakan pilih bahasa|Please choose the language'
+      WELCOME_MESSAGE_TEXT:
+        description: 'Welcome message keywords/wording to wait for (use | to separate multiple keywords)'
+        required: false
+        default: 'Silakan pilih bahasa|Please choose the language'
       WEBCHAT_URL:
         description: 'WebChat URL (V2)'
         required: false
@@ -115,15 +115,15 @@ jobs:
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama3.1-8b
-      DEFAULT_FILENAME: Testing MRTJ 2.xlsx
-      DEFAULT_TESTER_NAME: Cik test Testing MRTJ
-      DEFAULT_GREETING: Halo
-      DEFAULT_GREETING_2: Cik Dirga
+      DEFAULT_FILENAME: Testing LGI 2.xlsx
+      DEFAULT_TESTER_NAME: Cik test LGI
+      DEFAULT_GREETING: B. Indonesia
+      DEFAULT_GREETING_2: 
 
       # -----------------------------
       # TARGET URL / ID / USERNAME / KREDENSIAL
       # -----------------------------
-      WEBCHAT_URL: "https://chat.botika.online/poeVIvK"
+      WEBCHAT_URL: "https://chat.botika.online/IpTW41B?newMessage=chat%20started&attachment=false&auth=JiQSg8PEZ%2FLCT964dTazyOuehjLUbzKxJUmXjMk9AJgB2tKyrbEy2IfktoPYa4BpTDryrmQb%2BtVE9sX0NlfpDmcVu48%3D&header=hidden&history=false"
       WEBCHAT_V3_URL: "https://chat.botika.online/v3/mk6YoYD"
       DEFAULT_WEBCHAT_NAME: "Cik luna testing bot"
       DEFAULT_WEBCHAT_EMAIL: "tester@botika.online"
@@ -246,9 +246,9 @@ jobs:
           AI_P="${{ github.event.inputs.AI_PROVIDER }}"
           [ -z "$AI_P" ] && AI_P="${DEFAULT_AI_PROVIDER}"
           echo "AI_PROVIDER=$AI_P" >> .env
-          echo "ENABLE_GEMINI_EVALUATION=true" >> .env
-          echo "ENABLE_GROQ_EVALUATION=true" >> .env
-          echo "ENABLE_CEREBRAS_EVALUATION=true" >> .env
+          echo "ENABLE_GEMINI_EVALUATION=false" >> .env
+          echo "ENABLE_GROQ_EVALUATION=false" >> .env
+          echo "ENABLE_CEREBRAS_EVALUATION=false" >> .env
           echo "GEMINI_MODEL=${GEMINI_MODEL}" >> .env
           
           GROQ_K="${{ github.event.inputs.GROQ_API_KEY }}"

@@ -539,8 +539,8 @@ export class WebchatPlatform {
           console.log(`📝 Final response: "${respondBot ? respondBot.substring(0, 80) + '...' : 'NO RESPONSE'}"`);
 
           if (!respondBot) {
-            console.log('⚠️ No bot response captured, using fallback message');
-            respondBot = 'Bot tidak memberikan response atau response tidak tertangkap';
+            console.log('⚠️ No bot response captured');
+            respondBot = 'No response captured';
           }
 
           // Reload page every 5 questions to prevent memory issues

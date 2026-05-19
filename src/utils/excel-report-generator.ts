@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as XLSX from 'xlsx';
+// @ts-ignore
+import * as XLSX from 'xlsx-js-style';
 
 interface TestData {
   title: string;
@@ -114,7 +115,26 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
     ];
 
     const ws1 = XLSX.utils.aoa_to_sheet(summarySheet);
-    ws1['!cols'] = [{ wch: 20 }, { wch: 50 }];
+    ws1['!cols'] = [{ wch: 25 }, { wch: 50 }];
+
+    // Style Sheet 1
+    if (ws1['A1']) {
+      ws1['A1'].s = {
+        font: { size: 16, bold: true, color: { rgb: '1F497D' } }
+      };
+    }
+    for (let r = 3; r <= 11; r++) {
+      if (ws1[`A${r}`]) ws1[`A${r}`].s = { font: { bold: true } };
+    }
+    if (ws1['A13']) {
+      ws1['A13'].s = {
+        font: { size: 13, bold: true, color: { rgb: '1F497D' } }
+      };
+    }
+    for (let r = 14; r <= 19; r++) {
+      if (ws1[`A${r}`]) ws1[`A${r}`].s = { font: { bold: true } };
+    }
+
     XLSX.utils.book_append_sheet(workbook, ws1, 'Summary');
 
     // Sheet 2: Test Results
@@ -137,6 +157,50 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
       { wch: 40 }, { wch: 50 }, { wch: 10 }, { wch: 10 }, 
       { wch: 12 }, { wch: 30 }
     ];
+
+    // Style Sheet 2 Headers
+    const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    for (const col of cols) {
+      const headerCell = ws2[`${col}1`];
+      if (headerCell) {
+        headerCell.s = {
+          fill: { patternType: 'solid', fgColor: { rgb: '1F497D' } },
+          font: { color: { rgb: 'FFFFFF' }, bold: true },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+      }
+    }
+
+    // Style Sheet 2 Rows
+    for (let r = 2; r <= testResultsData.length + 1; r++) {
+      // Style Column E (Actual Response) if "No response captured"
+      const cellKey = `E${r}`;
+      const cell = ws2[cellKey];
+      if (cell && cell.v === 'No response captured') {
+        cell.s = {
+          fill: { patternType: 'solid', fgColor: { rgb: 'FFC7CE' } }, // Soft red background
+          font: { color: { rgb: '9C0006' }, bold: true } // Dark red bold text
+        };
+      }
+
+      // Style Column H (Status) for pass/failed status
+      const statusKey = `H${r}`;
+      const statusCell = ws2[statusKey];
+      if (statusCell) {
+        if (statusCell.v === 'failed') {
+          statusCell.s = {
+            fill: { patternType: 'solid', fgColor: { rgb: 'FFC7CE' } },
+            font: { color: { rgb: '9C0006' }, bold: true }
+          };
+        } else if (statusCell.v === 'pass') {
+          statusCell.s = {
+            fill: { patternType: 'solid', fgColor: { rgb: 'C6EFCE' } }, // Soft green background
+            font: { color: { rgb: '006100' }, bold: true } // Dark green bold text
+          };
+        }
+      }
+    }
+
     XLSX.utils.book_append_sheet(workbook, ws2, 'Test Results');
 
     // Sheet 3: Statistics
@@ -148,6 +212,25 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
 
     const ws3 = XLSX.utils.json_to_sheet(statsData);
     ws3['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 15 }];
+
+    // Style Sheet 3 Headers
+    const statCols = ['A', 'B', 'C'];
+    for (const col of statCols) {
+      const headerCell = ws3[`${col}1`];
+      if (headerCell) {
+        headerCell.s = {
+          fill: { patternType: 'solid', fgColor: { rgb: '1F497D' } },
+          font: { color: { rgb: 'FFFFFF' }, bold: true },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+      }
+    }
+
+    // Style Sheet 3 Rows
+    if (ws3['A2']) ws3['A2'].s = { font: { color: { rgb: '006100' }, bold: true } };
+    if (ws3['A3']) ws3['A3'].s = { font: { color: { rgb: '9C0006' }, bold: true } };
+    if (ws3['A4']) ws3['A4'].s = { font: { bold: true } };
+
     XLSX.utils.book_append_sheet(workbook, ws3, 'Statistics');
 
     // Save to report/html folder (same as HTML report)

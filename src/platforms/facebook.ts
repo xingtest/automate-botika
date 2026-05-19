@@ -95,7 +95,7 @@ export class FacebookPlatform {
       const response = await this.extractBotResponse(userMessage);
 
       // Count number of response bubbles (split by newline)
-      const currentResponseCount = response && response !== 'Tidak ada balasan dari bot'
+      const currentResponseCount = response && response !== 'No response captured'
         ? response.split('\n').filter(r => r.trim()).length
         : 0;
 
@@ -130,12 +130,12 @@ export class FacebookPlatform {
     }
 
     // Return whatever we got
-    if (finalResponse && finalResponse !== 'Tidak ada balasan dari bot') {
+    if (finalResponse && finalResponse !== 'No response captured') {
       console.log(`⚠️ Timeout reached, returning ${previousResponseCount} bubble(s)`);
       return finalResponse;
     }
 
-    return 'Tidak ada balasan dari bot';
+    return 'No response captured';
   }
 
   private async extractBotResponse(userMessage: string): Promise<string> {
@@ -205,7 +205,7 @@ export class FacebookPlatform {
 
     if (allMessages.length === 0) {
       console.log('⚠️ No messages found with any selector');
-      return 'Tidak ada balasan dari bot';
+      return 'No response captured';
     }
 
     // Extract message texts and show first few for debugging
@@ -241,7 +241,7 @@ export class FacebookPlatform {
 
     if (questionIndices.length === 0) {
       console.log(`⚠️ Question not found in chat history: "${userMessage}"`);
-      return 'Tidak ada balasan dari bot';
+      return 'No response captured';
     }
 
     // Use the LAST occurrence (most recent)
@@ -356,7 +356,7 @@ export class FacebookPlatform {
 
     if (botResponses.length === 0) {
       console.log('⚠️ No bot responses after question');
-      return 'Tidak ada balasan dari bot';
+      return 'No response captured';
     }
 
     console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
@@ -441,7 +441,7 @@ export class FacebookPlatform {
             await Modul.waitTime(2);
             respondBot = await this.getChatbotResponse(question);
           } else {
-            respondBot = 'Error: Gagal mengirim pesan ke chatbot.';
+            respondBot = 'No response captured';
           }
 
           const imageCapture = await this.takeScreenshot(idTest, key, question, screenshotsFolder);

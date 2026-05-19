@@ -270,7 +270,7 @@ export class TelegramPlatform {
           console.log(`📋 Using ${botResponses.length} recent bot messages as fallback`);
         } else {
           console.error('❌ No bot messages found even in fallback mode');
-          return 'Tidak ada balasan dari bot.';
+          return 'No response captured';
         }
       }
 
@@ -365,7 +365,7 @@ export class TelegramPlatform {
 
           let respondBot = await this.getAllBotResponses(targetBotUsername, question, 20);
           if (!respondBot || respondBot.trim() === '') {
-            respondBot = 'Error: Tidak ada balasan dari bot setelah menunggu.';
+            respondBot = 'No response captured';
           }
 
           const titleLoading = `${key} : ${question}`;
