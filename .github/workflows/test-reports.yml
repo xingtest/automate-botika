@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing LGI' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'hapus' }}
 
 on:
   push:
@@ -32,10 +32,10 @@ on:
         description: 'Second greeting message (optional)'
         required: false
         default: ''
-      WELCOME_MESSAGE_TEXT:
-        description: 'Welcome message keywords/wording to wait for (use | to separate multiple keywords)'
-        required: false
-        default: 'Silakan pilih bahasa|Please choose the language'
+      # WELCOME_MESSAGE_TEXT:
+      #   description: 'Welcome message keywords/wording to wait for (use | to separate multiple keywords)'
+      #   required: false
+      #   default: 'Silakan pilih bahasa|Please choose the language'
       WEBCHAT_URL:
         description: 'WebChat URL (V2)'
         required: false
@@ -246,9 +246,9 @@ jobs:
           AI_P="${{ github.event.inputs.AI_PROVIDER }}"
           [ -z "$AI_P" ] && AI_P="${DEFAULT_AI_PROVIDER}"
           echo "AI_PROVIDER=$AI_P" >> .env
-          echo "ENABLE_GEMINI_EVALUATION=false" >> .env
-          echo "ENABLE_GROQ_EVALUATION=false" >> .env
-          echo "ENABLE_CEREBRAS_EVALUATION=false" >> .env
+          echo "ENABLE_GEMINI_EVALUATION=true" >> .env
+          echo "ENABLE_GROQ_EVALUATION=true" >> .env
+          echo "ENABLE_CEREBRAS_EVALUATION=true" >> .env
           echo "GEMINI_MODEL=${GEMINI_MODEL}" >> .env
           
           GROQ_K="${{ github.event.inputs.GROQ_API_KEY }}"
