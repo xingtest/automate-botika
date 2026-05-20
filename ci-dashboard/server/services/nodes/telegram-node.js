@@ -4,10 +4,28 @@ const { StringSession } = require('telegram/sessions');
 
 class TelegramNode extends BaseNode {
   constructor() {
-    super('telegram', 'Telegram Client', 'action');
-    this.description = 'Interact with Telegram bots using GramJS';
-    this.icon = 'fa-paper-plane';
-    this.color = '#0088cc';
+    super({
+      type: 'telegram',
+      category: 'action',
+      label: 'Telegram Client',
+      description: 'Interact with Telegram bots using GramJS',
+      icon: 'fa-paper-plane',
+      color: '#0088cc',
+      inputs: [
+        { id: 'main', name: 'Test Data', dataType: 'object', required: false }
+      ],
+      outputs: [
+        { id: 'main', name: 'Test Results', dataType: 'object', required: true }
+      ],
+      config_schema: [
+        { key: 'bot_username', label: 'Bot Username', type: 'text', required: true },
+        { key: 'api_id', label: 'API ID', type: 'text', required: true },
+        { key: 'api_hash', label: 'API Hash', type: 'text', required: true },
+        { key: 'session_string', label: 'Session String', type: 'textarea', required: true },
+        { key: 'greeting', label: 'Greeting Message', type: 'text', required: false },
+        { key: 'max_wait', label: 'Max Wait (s)', type: 'number', default: 20 }
+      ]
+    });
   }
 
   async execute(context, inputData) {

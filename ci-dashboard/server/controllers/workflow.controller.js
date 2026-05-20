@@ -102,6 +102,9 @@ exports.listWorkflows = async (req, res) => {
     if (is_template !== undefined) {
       params.push(is_template === 'true');
       query += ` AND is_template = $${params.length}`;
+    } else {
+      // By default, do not return templates in the regular workflow list
+      query += ` AND is_template = false`;
     }
     
     if (search) {
@@ -260,6 +263,12 @@ exports.deleteWorkflow = async (req, res) => {
     const access = await checkWorkflowAccess(id, userId);
     if (!access.isOwner) {
       return res.status(403).json({ error: 'Only owner can delete workflow' });
+    }
+    
+    // Prevent deleting templates from Load Workflow UI or any standard delete request
+    const wfCheck = await db.queryOriginal('SELECT is_template FROM workflows WHERE id = $1', [id]);
+    if (wfCheck.rows.length > 0 && wfCheck.rows[0].is_template) {
+      return res.status(400).json({ error: 'Cannot delete a template workflow' });
     }
     
     await db.queryOriginal('DELETE FROM workflows WHERE id = $1', [id]);

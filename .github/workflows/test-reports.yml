@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'hapus' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing MRTJ 3' }}
 
 on:
   push:
@@ -115,15 +115,15 @@ jobs:
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama3.1-8b
-      DEFAULT_FILENAME: Testing LGI 2.xlsx
+      DEFAULT_FILENAME: Testing MRTJ 3.xlsx
       DEFAULT_TESTER_NAME: Cik test LGI
-      DEFAULT_GREETING: B. Indonesia
-      DEFAULT_GREETING_2: 
+      DEFAULT_GREETING: Hai
+      DEFAULT_GREETING_2: Leo
 
       # -----------------------------
       # TARGET URL / ID / USERNAME / KREDENSIAL
       # -----------------------------
-      WEBCHAT_URL: "https://chat.botika.online/IpTW41B?newMessage=chat%20started&attachment=false&auth=JiQSg8PEZ%2FLCT964dTazyOuehjLUbzKxJUmXjMk9AJgB2tKyrbEy2IfktoPYa4BpTDryrmQb%2BtVE9sX0NlfpDmcVu48%3D&header=hidden&history=false"
+      WEBCHAT_URL: "https://chat.botika.online/poeVIvK"
       WEBCHAT_V3_URL: "https://chat.botika.online/v3/mk6YoYD"
       DEFAULT_WEBCHAT_NAME: "Cik luna testing bot"
       DEFAULT_WEBCHAT_EMAIL: "tester@botika.online"
