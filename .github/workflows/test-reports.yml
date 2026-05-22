@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testing MRTJ Live' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testing MRTJ Live 2' }}
 
 on:
   push:
@@ -118,7 +118,7 @@ jobs:
       DEFAULT_FILENAME: Testing MRTJ 3.xlsx
       DEFAULT_TESTER_NAME: Cik test LGI
       DEFAULT_GREETING: Hai
-      DEFAULT_GREETING_2: Sandra
+      DEFAULT_GREETING_2: Alex
 
       # -----------------------------
       # TARGET URL / ID / USERNAME / KREDENSIAL
