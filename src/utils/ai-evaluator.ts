@@ -10,6 +10,7 @@ export interface EvaluationResult {
   explanation: string;
   success: boolean;
   provider: string;
+  details?: any; // Untuk menyimpan detail reasoning dari AI
 }
 
 export interface AIEvaluator {
@@ -34,35 +35,44 @@ export const EVAL_CONFIG = {
     bad: 0.20         // Buruk
   },
 
-  // 📝 Template Prompt untuk AI (Digunakan oleh Gemini & Groq)
+  // 📝 Template Prompt Tingkat Lanjut (Chain of Thought + Multi-Dimensi)
   prompts: {
-    systemRole: 'Anda adalah QA Engineer Senior dan Linguist Specialist. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot dengan metodologi "Chain of Thought".',
+    systemRole: 'Anda adalah QA Engineer Senior dan AI Auditor yang ketat. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot dengan metodologi "Chain of Thought" secara objektif dan teliti.',
 
     contextTemplate: (title: string, question: string, expectedAnswer: string, actualAnswer: string) => `
 KONTEKS PENGUJIAN:
-- Topik: ${title}
+- Topik / Skenario: ${title}
 - Pertanyaan User: "${question}"
 - Referensi Kebenaran (Knowledge Base): "${expectedAnswer}"
 - Jawaban Chatbot (Yang dievaluasi): "${actualAnswer}"`,
 
     instructions: `
 INSTRUKSI EVALUASI:
-Lakukan analisa langkah demi langkah sebelum memberikan skor akhir. WAJIB JELASKAN SEMUA LANGKAH:
+Lakukan analisa multi-dimensi langkah demi langkah. Analisis harus ketat terhadap 4 kriteria ini:
 
-• LANGKAH 1: ANALISA KEBENARAN FAKTUAL. Bandingkan fakta di jawaban chatbot dengan referensi.
-• LANGKAH 2: ANALISA RELEVANSI. Apakah langsung menjawab pertanyaan user?
-• LANGKAH 3: CEK HALUSINASI. Apakah ada info mengarang?
+1. Faktual (Factual Accuracy): Apakah jawaban chatbot akurat dan sepenuhnya selaras dengan referensi? Adakah klaim palsu?
+2. Relevansi (Relevance): Apakah jawaban benar-benar menjawab apa yang ditanyakan secara langsung?
+3. Kelengkapan (Completeness): Apakah semua bagian esensial dari referensi disampaikan tanpa ada yang tertinggal?
+4. Halusinasi (Hallucination): Apakah ada informasi karangan tambahan (fabricated) yang tidak ada di referensi? Jika ada, berikan penalti besar.
 
-ATURAN SCORING:
-- 1.00: Sempurna
-- 0.70 - 0.99: Pass (kebenaran faktual benar)
-- 0.00 - 0.69: Fail`,
+PEDOMAN SKOR AKHIR (0.0 - 1.0):
+- 1.00: Sempurna, 100% akurat, sangat relevan, lengkap, tidak ada informasi tambahan/halusinasi.
+- 0.80 - 0.99: Baik, fakta benar tapi mungkin bahasa kurang rapi atau kurang sedikit detail.
+- 0.60 - 0.79: Cukup, menjawab sebagian besar inti tapi ada informasi penting yang terlewat.
+- 0.40 - 0.59: Kurang, melenceng sebagian, gagal menjawab inti, atau ada halusinasi minor.
+- 0.00 - 0.39: Buruk, halusinasi parah, informasi salah (kontradiktif), atau sama sekali tidak relevan.`,
 
     outputFormat: `
-OUTPUT FINAL (WAJIB JSON VALID):
+OUTPUT FINAL (WAJIB MENGEMBALIKAN JSON VALID SAJA, TANPA FORMAT MARKDOWN ATAU TEKS LAIN):
 {
+  "reasoning": {
+    "factual_analysis": "...",
+    "relevance_analysis": "...",
+    "completeness_analysis": "...",
+    "hallucination_check": "..."
+  },
   "score": [angka desimal 0.00 - 1.00],
-  "explanation": "[Status: ✓/⚠/✗] + Detail analisa singkat."
+  "explanation": "[Status: ✓/⚠/✗] + Kesimpulan evaluasi maksimal 2 kalimat."
 }`
   },
 
@@ -77,6 +87,13 @@ OUTPUT FINAL (WAJIB JSON VALID):
     apiKeyMissing: '⚠️ API Key AI belum dikonfigurasi',
     evaluationSuccess: '✅ AI evaluation successful',
     evaluationFailed: '⚠️ AI evaluation failed, menggunakan fallback:',
+  },
+  
+  // 🛡️ API Resiliency Config
+  api: {
+    timeoutMs: 35000,     // Maksimal nunggu 35 detik per request
+    maxRetries: 2,        // Maksimal coba ulang jika gagal (Rate Limit/Network Error)
+    retryDelayMs: 2000    // Delay awal sebelum coba ulang (akan dikali eksponensial)
   }
 };
 
@@ -97,8 +114,8 @@ export class BaseEvaluator {
     const fuzzyScore = fuzz.token_sort_ratio(normalizedExpected, normalizedActual) / 100;
 
     // 2. KEYWORD COVERAGE (Simple check)
-    const expectedWords = normalizedExpected.split(/\s+/).filter(w => w.length > 3);
-    const matchedCount = expectedWords.filter(w => normalizedActual.includes(w)).length;
+    const expectedWords = normalizedExpected.split(/\s+/).filter((w: string) => w.length > 3);
+    const matchedCount = expectedWords.filter((w: string) => normalizedActual.includes(w)).length;
     const keywordScore = expectedWords.length > 0 ? (matchedCount / expectedWords.length) : fuzzyScore;
 
     // 3. COMBINED SCORE
@@ -116,10 +133,82 @@ export class BaseEvaluator {
   }
 
   protected createPrompt(question: string, expectedAnswer: string, actualAnswer: string, title: string): string {
-    return `${EVAL_CONFIG.prompts.systemRole}
-${EVAL_CONFIG.prompts.contextTemplate(title, question, expectedAnswer, actualAnswer)}
-${EVAL_CONFIG.prompts.instructions}
-${EVAL_CONFIG.prompts.outputFormat}`;
+    return `${EVAL_CONFIG.prompts.systemRole}\n${EVAL_CONFIG.prompts.contextTemplate(title, question, expectedAnswer, actualAnswer)}\n${EVAL_CONFIG.prompts.instructions}\n${EVAL_CONFIG.prompts.outputFormat}`;
+  }
+
+  /**
+   * Ekstraktor JSON cerdas untuk menangani respon AI yang terkadang dibungkus markdown
+   */
+  protected extractJSON(text: string): any {
+    try {
+      return JSON.parse(text); // Coba parsing langsung dulu
+    } catch (e) {
+      let cleanText = text.trim();
+      // Cari blok JSON dalam markdown ```json ... ```
+      const jsonBlockMatch = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (jsonBlockMatch && jsonBlockMatch[1]) {
+        try {
+          return JSON.parse(jsonBlockMatch[1].trim());
+        } catch (err) {}
+      }
+      
+      // Jika gagal, cari fallback ke object { ... }
+      const objectMatch = cleanText.match(/\{[\s\S]*\}/);
+      if (objectMatch) {
+        try {
+          return JSON.parse(objectMatch[0]);
+        } catch (err) {}
+      }
+      
+      throw new Error("Gagal mendeteksi/memparsing JSON dari respon AI.");
+    }
+  }
+
+  /**
+   * Wrapper fetch dengan fitur Timeout dan Exponential Backoff Retry
+   */
+  protected async fetchWithRetry(url: string, options: any, providerName: string): Promise<Response> {
+    let lastError: any;
+    const maxAttempts = EVAL_CONFIG.api.maxRetries + 1;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), EVAL_CONFIG.api.timeoutMs);
+      
+      try {
+        const fetchOptions = { ...options, signal: controller.signal };
+        const response = await fetch(url, fetchOptions);
+        clearTimeout(timeout);
+        
+        if (response.ok) {
+          return response;
+        }
+        
+        // Cek jika error bersumber dari Rate Limit atau Error Internal Server (Bisa dicoba lagi)
+        if (response.status === 429 || response.status >= 500) {
+           const errText = await response.text();
+           throw new Error(`HTTP ${response.status} - ${errText}`);
+        } else {
+           // Bad request / Unauthorized (Tidak bisa dicoba lagi)
+           return response;
+        }
+      } catch (error: any) {
+        clearTimeout(timeout);
+        lastError = error;
+        
+        const isAbort = error.name === 'AbortError' || error.message.includes('abort');
+        const errorMsg = isAbort ? `Timeout setelah ${EVAL_CONFIG.api.timeoutMs}ms` : error.message;
+        
+        if (attempt < maxAttempts) {
+          const delay = EVAL_CONFIG.api.retryDelayMs * Math.pow(2, attempt - 1); // Exponential backoff: 2s, 4s, 8s...
+          console.warn(`⏳ [${providerName}] Percobaan ${attempt} gagal: ${errorMsg}. Retrying in ${delay}ms...`);
+          await new Promise(res => setTimeout(res, delay));
+        } else {
+          console.error(`❌ [${providerName}] Semua percobaan gagal (${maxAttempts}x). Error: ${errorMsg}`);
+        }
+      }
+    }
+    throw lastError;
   }
 }
 
@@ -128,7 +217,7 @@ ${EVAL_CONFIG.prompts.outputFormat}`;
 // ============================================
 export class GeminiEvaluator extends BaseEvaluator implements AIEvaluator {
   private apiKey: string = process.env.API_KEY_GEMINI || '';
-  private model: string = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
+  private model: string = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   async evaluateResponse(q: string, exp: string, act: string, t: string): Promise<EvaluationResult> {
     if (process.env.ENABLE_GEMINI_EVALUATION !== 'true' || !this.apiKey) {
@@ -139,14 +228,14 @@ export class GeminiEvaluator extends BaseEvaluator implements AIEvaluator {
       const baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
       const prompt = this.createPrompt(q, exp, act, t);
       
-      const resp = await fetch(`${baseUrl}?key=${this.apiKey}`, {
+      const resp = await this.fetchWithRetry(`${baseUrl}?key=${this.apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.1 }
         })
-      });
+      }, 'Gemini');
 
       if (!resp.ok) {
         const errData: any = await resp.json().catch(() => ({}));
@@ -155,21 +244,14 @@ export class GeminiEvaluator extends BaseEvaluator implements AIEvaluator {
       
       const data: any = await resp.json();
       const text = data.candidates[0].content.parts[0].text;
-      
-      // Clean and parse JSON - handle potential conversational text around JSON
-      let cleanText = text.trim();
-      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanText = jsonMatch[0];
-      }
-      
-      const result = JSON.parse(cleanText);
+      const result = this.extractJSON(text);
       
       return {
         score: parseFloat(parseFloat(result.score).toFixed(3)),
         explanation: result.explanation,
         success: true,
-        provider: `Gemini (${this.model})`
+        provider: `Gemini (${this.model})`,
+        details: result.reasoning
       };
     } catch (e: any) {
       console.error('⚠️ Gemini API error:', e.message);
@@ -187,14 +269,12 @@ export class GroqEvaluator extends BaseEvaluator implements AIEvaluator {
 
   async evaluateResponse(q: string, exp: string, act: string, t: string): Promise<EvaluationResult> {
     if (process.env.ENABLE_GROQ_EVALUATION !== 'true' || !this.apiKey) {
-      console.log(`⚠️ Groq evaluation disabled or API key missing. ENABLE_GROQ_EVALUATION: ${process.env.ENABLE_GROQ_EVALUATION}, API Key exists: ${!!this.apiKey}`);
       return this.simpleTextEvaluation(exp, act, 'Groq disabled or key missing');
     }
 
     try {
-      console.log(`🚀 Using Groq model: ${this.model}`);
       const prompt = this.createPrompt(q, exp, act, t);
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const resp = await this.fetchWithRetry('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -203,25 +283,26 @@ export class GroqEvaluator extends BaseEvaluator implements AIEvaluator {
         body: JSON.stringify({
           model: this.model,
           messages: [{ role: 'system', content: EVAL_CONFIG.prompts.systemRole }, { role: 'user', content: prompt }],
-          response_format: { type: 'json_object' }
+          response_format: { type: 'json_object' },
+          temperature: 0.1
         })
-      });
+      }, 'Groq');
 
       if (!resp.ok) {
         const errorText = await resp.text();
-        console.error(`❌ Groq API Error ${resp.status}: ${errorText}`);
         throw new Error(`API Error: ${resp.status} - ${errorText}`);
       }
       
       const data: any = await resp.json();
-      const result = JSON.parse(data.choices[0].message.content);
+      const text = data.choices[0].message.content;
+      const result = this.extractJSON(text);
 
-      console.log(`✅ Groq evaluation successful with model: ${this.model}`);
       return {
         score: parseFloat(result.score),
         explanation: result.explanation,
         success: true,
-        provider: `Groq (${this.model})`
+        provider: `Groq (${this.model})`,
+        details: result.reasoning
       };
     } catch (e: any) {
       console.error(`❌ Groq evaluation failed: ${e.message}`);
@@ -231,7 +312,7 @@ export class GroqEvaluator extends BaseEvaluator implements AIEvaluator {
 }
 
 // ============================================
-// 6. CEREBRAS IMPLEMENTATION (OpenAI-compatible)
+// 6. CEREBRAS IMPLEMENTATION
 // ============================================
 export class CerebrasEvaluator extends BaseEvaluator implements AIEvaluator {
   private apiKey: string = process.env.CEREBRAS_API_KEY || '';
@@ -244,7 +325,7 @@ export class CerebrasEvaluator extends BaseEvaluator implements AIEvaluator {
 
     try {
       const prompt = this.createPrompt(q, exp, act, t);
-      const resp = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+      const resp = await this.fetchWithRetry('https://api.cerebras.ai/v1/chat/completions', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -259,7 +340,7 @@ export class CerebrasEvaluator extends BaseEvaluator implements AIEvaluator {
           temperature: 0.1,
           response_format: { type: 'json_object' }
         })
-      });
+      }, 'Cerebras');
 
       if (!resp.ok) {
         const errorText = await resp.text();
@@ -267,13 +348,15 @@ export class CerebrasEvaluator extends BaseEvaluator implements AIEvaluator {
       }
       
       const data: any = await resp.json();
-      const result = JSON.parse(data.choices[0].message.content);
+      const text = data.choices[0].message.content;
+      const result = this.extractJSON(text);
 
       return {
         score: parseFloat(result.score),
         explanation: result.explanation,
         success: true,
-        provider: `Cerebras (${this.model})`
+        provider: `Cerebras (${this.model})`,
+        details: result.reasoning
       };
     } catch (e: any) {
       console.error(`❌ Cerebras evaluation failed: ${e.message}`);
@@ -283,7 +366,7 @@ export class CerebrasEvaluator extends BaseEvaluator implements AIEvaluator {
 }
 
 // ============================================
-// 7. MULTI-PROVIDER IMPLEMENTATION (Rotation + Failover)
+// 7. MULTI-PROVIDER IMPLEMENTATION
 // ============================================
 export class MultiProviderEvaluator implements AIEvaluator {
   private providers = ['gemini', 'groq', 'cerebras'];
@@ -335,10 +418,6 @@ export class EvaluatorFactory {
     return this.createSpecificEvaluator(provider);
   }
 
-  /**
-   * Helper untuk membuat instance evaluator tertentu
-   * @param silent Jika true, tidak akan log "Initializing..." (untuk failover)
-   */
   static createSpecificEvaluator(provider: string, silent: boolean = false): AIEvaluator {
     if (provider === 'groq') {
       if (!silent) console.log(`🚀 Initializing Groq evaluator with model: ${process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'}`);
@@ -347,7 +426,7 @@ export class EvaluatorFactory {
       if (!silent) console.log(`🚀 Initializing Cerebras evaluator with model: ${process.env.CEREBRAS_MODEL || 'llama-3.3-70b'}`);
       return new CerebrasEvaluator();
     } else {
-      if (!silent) console.log(`🚀 Initializing Gemini evaluator with model: ${process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest'}`);
+      if (!silent) console.log(`🚀 Initializing Gemini evaluator with model: ${process.env.GEMINI_MODEL || 'gemini-1.5-flash'}`);
       return new GeminiEvaluator();
     }
   }
