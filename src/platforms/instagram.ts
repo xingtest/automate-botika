@@ -6,6 +6,7 @@ import { TestData, BotData, SummaryData } from '../main';
 import { TestTracker } from '../utils/test-tracker';
 import * as fs from 'fs';
 import * as path from 'path';
+import { runTestLoop } from '../utils/test-runner';
 
 export class InstagramPlatform {
   private page: Page | null = null;
@@ -503,119 +504,22 @@ export class InstagramPlatform {
     Modul.showLoading(title);
     console.log();
 
-    const countPerElementTitle = jsonData.length;
-    const questionCount = jsonData.reduce((sum, item) => {
-      return sum + Object.keys(item).filter(key => key.startsWith('pertanyaan')).length;
-    }, 0);
-
-    for (const element of jsonData) {
-      const durationPerTitle = Modul.startTime();
-      Modul.showLoading(element.title || 'Untitled');
-      console.log();
-
-      for (const [key, value] of Object.entries(element)) {
-        if (key.startsWith('pertanyaan') && value && value.trim() !== '') {
-          const durationPerQuestion = Modul.startTime();
-          const question = value;
-
-          const sentTimestamp = Date.now();
-          await this.sendMessage(targetUsername, question);
-
-          let respondBot = await this.getAllBotResponses(targetUsername, question, sentTimestamp);
-          if (!respondBot) {
-            respondBot = 'No response captured';
-          }
-
-          // Take screenshot
-          const imageCapture = await this.takeScreenshot(idTest, key, question, screenshotsFolder);
-          console.log(`📸 Screenshot saved: ${imageCapture}`);
-
-          const titleLoading = `${key} : ${question}`;
-          Modul.showLoadingSampleText(titleLoading);
-
-          const respondCsv = (element.context || '').trim();
-          const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
-
-          // AI evaluation using selected provider
-          console.log(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
-          const aiEvaluator = EvaluatorFactory.getEvaluator();
-          const evaluationResult = await aiEvaluator.evaluateResponse(
-            question,
-            respondCsv,
-            respondBot,
-            element.title || 'Unknown Topic'
-          );
-
-          const skor = evaluationResult.score;
-          const explanation = evaluationResult.explanation;
-          const AI = evaluationResult.success ? `${evaluationResult.provider} + Playwright TypeScript` : `Playwright TypeScript (${evaluationResult.provider} fallback)`;
-
-          const status = InstagramPlatform.calculateStatus(skor);
-
-          const dataBotData: BotData = {
-            no: element.no || '',
-            title: element.title || '',
-            question,
-            response_kb: respondCsv,
-            response_llm: respondBot,
-            status,
-            duration: endDurationPerSampleText,
-            image_capture: imageCapture,
-            skor,
-            explanation
-          };
-
-          EnvFile.writeJsonDataBot(dataBotData, reportFilename, idTest);
-
-          // Add result to tracker
-          testTracker.addResult({
-            no: element.no || '',
-            title: element.title || '',
-            question,
-            response_kb: respondCsv,
-            response_llm: respondBot,
-            score: skor,
-            status: status as 'pass' | 'failed',
-            duration: endDurationPerSampleText,
-            image_capture: imageCapture,
-            explanation: explanation
-          });
-
-          const trackerSummary = testTracker.getSummary();
-
-          const dataSummary: SummaryData = {
-            id_test: idTest,
-            tester_name: testerName,
-            ai_evaluation: AI,
-            url: `Instagram DM (@${targetUsername})`,
-            page_name: 'Instagram Test',
-            browser_name: 'Playwright',
-            date_test: today,
-            start_time_test: timeStart,
-            total_title: countPerElementTitle,
-            total_question: questionCount,
-            success: trackerSummary.passed,
-            failed: trackerSummary.failed
-          };
-
-          EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
-        }
-      }
-
-      const endDurationPerTitle = Modul.endTime(durationPerTitle);
-      const chart = { [element.title || 'Untitled']: endDurationPerTitle };
-      EnvFile.writeJsonChart(chart, reportFilename, idTest);
-      console.log(`\n竢ｳ Total durasi Topik '${element.title || 'Untitled'}' : ${endDurationPerTitle}\n`);
-    }
-
-    console.log('識 Topik Terakhir \n');
-    
-    // Write end time and total duration
-    const endTime = new Date().toTimeString().split(' ')[0];
-    const totalDuration = Modul.endTime(start);
-    EnvFile.writeEndTimeSummary(endTime, totalDuration, reportFilename, idTest);
-    
-    console.log(`✅ Test completed at: ${endTime}`);
-    console.log(`⏱️ Total test duration: ${totalDuration}`);
+    await runTestLoop({
+      sendMessage: (q) => this.sendMessage(targetUsername, q),
+      getReply: (q) => this.getAllBotResponses(targetUsername, q, Date.now()),
+      takeScreenshot: (idTest, key, question, screenshotsFolder) => this.takeScreenshot(idTest, key, question, screenshotsFolder),
+      jsonData,
+      reportFilename,
+      idTest,
+      screenshotsFolder: screenshotsFolder || '',
+      testerName,
+      url: `Instagram DM (@${targetUsername})`,
+      pageName: 'Instagram Test',
+      browserName: 'Playwright',
+      today,
+      timeStart,
+      platformLabel: 'Playwright TypeScript',
+      testTracker
+    });
   }
 }

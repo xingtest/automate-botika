@@ -5,6 +5,7 @@ import { EvaluatorFactory } from '../utils/ai-evaluator';
 import { TestData, BotData, SummaryData } from '../main';
 import { log } from '../utils/logger';
 import { TestTracker } from '../utils/test-tracker';
+import { runTestLoop } from '../utils/test-runner';
 
 export class WebchatV3Platform {
   /**
@@ -336,94 +337,22 @@ export class WebchatV3Platform {
         await this.waitReply(page, greeting2);
     }
 
-    const countPerElementTitle = jsonData.length;
-    const questionCount = jsonData.reduce((sum, item) => {
-      return sum + Object.keys(item).filter(key => key.startsWith('pertanyaan')).length;
-    }, 0);
-
-    let globalCount = 0;
-    for (const element of jsonData) {
-      const durationPerTitle = Modul.startTime();
-      Modul.showLoading(element.title || 'Untitled');
-
-      for (const [key, value] of Object.entries(element)) {
-        if (key.startsWith('pertanyaan') && value && value.trim() !== '') {
-          globalCount++;
-          const durationPerQuestion = Modul.startTime();
-          const question = value;
-
-          console.log(`📤 Sending: "${question}"`);
-          await this.sendMessage(page, question);
-          await this.waitReply(page, question);
-
-          const imageCapture = await this.takeScreenshot(page, idTest, key, question, screenshotsFolder);
-          const respondBotArray = await this.getReplyChat(page, question);
-          let respondBot = respondBotArray.join('\n').trim() || 'No response captured';
-
-          console.log(`📝 Final response: "${respondBot.substring(0, 80)}..."`);
-
-          const respondCsv = (element.context || '').trim();
-          const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
-
-          console.log(`🤖 Evaluating response with AI...`);
-          const aiEvaluator = EvaluatorFactory.getEvaluator();
-          const evaluationResult = await aiEvaluator.evaluateResponse(
-            question,
-            respondCsv,
-            respondBot,
-            element.title || 'Unknown Topic'
-          );
-
-          const skor = evaluationResult.score;
-          const status = skor >= 0.7 ? 'pass' : 'failed';
-
-          const dataBotData: BotData = {
-            no: element.no || '',
-            title: element.title || '',
-            question,
-            response_kb: respondCsv,
-            response_llm: respondBot,
-            status,
-            duration: endDurationPerSampleText,
-            image_capture: imageCapture,
-            skor,
-            explanation: evaluationResult.explanation
-          };
-
-          EnvFile.writeJsonDataBot(dataBotData, reportFilename, idTest);
-          testTracker.addResult({
-            ...dataBotData,
-            score: skor,
-            status: status as 'pass' | 'failed',
-            explanation: evaluationResult.explanation,
-            image_capture: imageCapture || ''
-          });
-
-          const dataSummary: SummaryData = {
-            id_test: idTest,
-            tester_name: testerName,
-            ai_evaluation: `${evaluationResult.provider} + V3`,
-            url,
-            page_name: titlePage,
-            browser_name: browserName,
-            date_test: today,
-            start_time_test: timeStart,
-            total_title: countPerElementTitle,
-            total_question: questionCount,
-            success: testTracker.getSummary().passed,
-            failed: testTracker.getSummary().failed
-          };
-          EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
-
-
-        }
-      }
-      const endDurationPerTitle = Modul.endTime(durationPerTitle);
-      EnvFile.writeJsonChart({ [element.title || 'Untitled']: endDurationPerTitle }, reportFilename, idTest);
-    }
-
-    const endTime = new Date().toTimeString().split(' ')[0];
-    const totalDuration = Modul.endTime(start);
-    EnvFile.writeEndTimeSummary(endTime, totalDuration, reportFilename, idTest);
+    await runTestLoop({
+      sendMessage: (q) => this.sendMessage(page, q),
+      getReply: (q) => this.getReplyChat(page, q).then(res => res.join('\n').trim()),
+      takeScreenshot: (idTest, key, question, screenshotsFolder) => this.takeScreenshot(page, idTest, key, question, screenshotsFolder),
+      jsonData,
+      reportFilename,
+      idTest,
+      screenshotsFolder: screenshotsFolder || '',
+      testerName,
+      url,
+      pageName: titlePage,
+      browserName,
+      today,
+      timeStart,
+      platformLabel: 'V3',
+      testTracker
+    });
   }
 }

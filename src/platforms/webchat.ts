@@ -5,6 +5,7 @@ import { EvaluatorFactory } from '../utils/ai-evaluator';
 import { TestData, BotData, SummaryData } from '../main';
 import { log } from '../utils/logger';
 import { TestTracker } from '../utils/test-tracker';
+import { runTestLoop } from '../utils/test-runner';
 
 export class WebchatPlatform {
   /**
@@ -502,142 +503,29 @@ export class WebchatPlatform {
     Modul.showLoading(title);
     console.log();
 
-    const countPerElementTitle = jsonData.length;
-    const questionCount = jsonData.reduce((sum, item) => {
-      return sum + Object.keys(item).filter(key => key.startsWith('pertanyaan')).length;
-    }, 0);
-
-    for (const element of jsonData) {
-      const durationPerTitle = Modul.startTime();
-      Modul.showLoading(element.title || 'Untitled');
-      console.log();
-
-      let count = 0;
-      for (const [key, value] of Object.entries(element)) {
-        if (key.startsWith('pertanyaan') && value && value.trim() !== '') {
-          count++;
-          const durationPerQuestion = Modul.startTime();
-          const question = value;
-
-          console.log(`📤 Sending: "${question}"`);
-          await this.sendMessage(page, question);
-
-          console.log(`⏳ Waiting for response...`);
-          await this.waitReply(page, question);
-
-          // Wait a bit more to ensure all content is loaded
+    await runTestLoop({
+      sendMessage: (q) => this.sendMessage(page, q),
+      getReply: (q) => this.getReplyChat(page, q).then(res => res.join('\n').trim()),
+      takeScreenshot: (idTest, key, question, screenshotsFolder) => this.takeScreenshot(page, idTest, key, question, screenshotsFolder),
+      jsonData,
+      reportFilename,
+      idTest,
+      screenshotsFolder: screenshotsFolder || '',
+      testerName,
+      url,
+      pageName: titlePage,
+      browserName,
+      today,
+      timeStart,
+      platformLabel: 'Playwright TypeScript',
+      testTracker,
+      onBeforeQuestion: async (count) => {
+        if (count % 5 === 0) {
+          log.info('🔄 Reloading page in Webchat to prevent memory issues...');
+          await page.reload();
           await Modul.waitTime(2);
-
-          // Take screenshot first while page is stable
-          const imageCapture = await this.takeScreenshot(page, idTest, key, question, screenshotsFolder);
-          console.log(`📸 Screenshot saved: ${imageCapture}`);
-
-          // Then capture response using new strategy pattern
-          const respondBotArray = await this.getReplyChat(page, question);
-          let respondBot = respondBotArray.join('\n').trim();
-
-          console.log(`📝 Final response: "${respondBot ? respondBot.substring(0, 80) + '...' : 'NO RESPONSE'}"`);
-
-          if (!respondBot) {
-            console.log('⚠️ No bot response captured');
-            respondBot = 'No response captured';
-          }
-
-          // Reload page every 5 questions to prevent memory issues
-          if (count % 5 === 0) {
-            console.log('🔄 Reloading page...');
-            await page.reload();
-            await Modul.waitTime(2);
-          }
-
-          const titleLoading = `${key} : ${question}`;
-          Modul.showLoadingSampleText(titleLoading);
-
-          const respondCsv = (element.context || '').trim();
-          const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
-
-          // AI evaluation using selected provider
-          console.log(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
-          const aiEvaluator = EvaluatorFactory.getEvaluator();
-          const evaluationResult = await aiEvaluator.evaluateResponse(
-            question,
-            respondCsv,
-            respondBot,
-            element.title || 'Unknown Topic'
-          );
-
-          const skor = evaluationResult.score;
-          const explanation = evaluationResult.explanation;
-          const AI = evaluationResult.success 
-            ? `${evaluationResult.provider} + Playwright TypeScript` 
-            : `Playwright TypeScript (${evaluationResult.provider} fallback)`;
-
-          const status = this.calculateStatus(skor);
-
-          const dataBotData: BotData = {
-            no: element.no || '',
-            title: element.title || '',
-            question,
-            response_kb: respondCsv,
-            response_llm: respondBot,
-            status,
-            duration: endDurationPerSampleText,
-            image_capture: imageCapture,
-            skor,
-            explanation
-          };
-
-          EnvFile.writeJsonDataBot(dataBotData, reportFilename, idTest);
-
-          // Add result to tracker
-          testTracker.addResult({
-            no: element.no || '',
-            title: element.title || '',
-            question,
-            response_kb: respondCsv,
-            response_llm: respondBot,
-            score: skor,
-            status: status as 'pass' | 'failed',
-            duration: endDurationPerSampleText,
-            image_capture: imageCapture,
-            explanation: explanation
-          });
-
-          const trackerSummary = testTracker.getSummary();
-
-          const dataSummary: SummaryData = {
-            id_test: idTest,
-            tester_name: testerName,
-            ai_evaluation: AI,
-            url,
-            page_name: titlePage,
-            browser_name: browserName,
-            date_test: today,
-            start_time_test: timeStart,
-            total_title: countPerElementTitle,
-            total_question: questionCount,
-            success: trackerSummary.passed,
-            failed: trackerSummary.failed
-          };
-
-          EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
         }
       }
-
-      const endDurationPerTitle = Modul.endTime(durationPerTitle);
-      const chart = { [element.title || 'Untitled']: endDurationPerTitle };
-      EnvFile.writeJsonChart(chart, reportFilename, idTest);
-      console.log(`\n竢ｳ Total durasi Topik '${element.title || 'Untitled'}' : ${endDurationPerTitle}\n`);
-    }
-
-    console.log('識 Topik Terakhir \n');
-    
-    // Write end time and total duration
-    const endTime = new Date().toTimeString().split(' ')[0];
-    const totalDuration = Modul.endTime(start);
-    EnvFile.writeEndTimeSummary(endTime, totalDuration, reportFilename, idTest);
-    
-    console.log(`✅ Test completed at: ${endTime}`);
-    console.log(`⏱️ Total test duration: ${totalDuration}`);
+    });
   }
 }
