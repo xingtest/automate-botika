@@ -318,6 +318,59 @@ const NodeLibrary = {
         ]
       },
       {
+        displayName: 'WhatsApp',
+        name: 'playwright-whatsapp',
+        category: 'Actions',
+        description: 'Execute Playwright test via WhatsApp Web (web.whatsapp.com)',
+        icon: 'fab fa-whatsapp',
+        color: '#25D366',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'Target Phone Number',
+            name: 'target_number',
+            type: 'string',
+            required: true,
+            default: '628xxxxxxxxxx',
+            description: 'Nomor WhatsApp bot yang akan dites (format: 628xxxxxxxxxx, tanpa + atau spasi)'
+          },
+          {
+            displayName: 'Session File Path',
+            name: 'session_file',
+            type: 'string',
+            required: true,
+            default: 'session/session-whatsapp.json',
+            description: 'Path ke file JSON berisi cookies WhatsApp Web. Export dari DevTools → Application → Cookies → web.whatsapp.com'
+          },
+          {
+            displayName: 'Greeting Message',
+            name: 'greeting',
+            type: 'string',
+            default: 'Halo'
+          },
+          {
+            displayName: 'Greeting Message 2',
+            name: 'greeting_2',
+            type: 'string',
+            default: ''
+          },
+          {
+            displayName: 'Max Wait Reply (s)',
+            name: 'max_wait',
+            type: 'number',
+            default: 30,
+            description: 'Maksimum waktu tunggu balasan bot dalam detik'
+          },
+          {
+            displayName: 'Headless Mode',
+            name: 'headless',
+            type: 'boolean',
+            default: true
+          }
+        ]
+      },
+      {
         displayName: 'DHA Webchat',
         name: 'playwright-dha',
         category: 'Actions',

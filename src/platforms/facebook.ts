@@ -4,8 +4,11 @@ import { EnvFile } from '../utils/envfile';
 import { EvaluatorFactory } from '../utils/ai-evaluator';
 import { TestData, BotData, SummaryData } from '../main';
 import { TestTracker } from '../utils/test-tracker';
+import { log } from '../utils/logger';
+import { calculateStatus, EVAL_CONFIG } from '../utils/ai-evaluator';
 import * as fs from 'fs';
 import * as path from 'path';
+import { runTestLoop } from '../utils/test-runner';
 
 export class FacebookPlatform {
   private page: Page | null = null;
@@ -22,7 +25,7 @@ export class FacebookPlatform {
     const cookies = JSON.parse(fs.readFileSync(this.sessionFile, 'utf-8'));
     await page.context().addCookies(cookies);
 
-    console.log('Facebook session loaded');
+    log.info('Facebook session loaded');
   }
 
   async navigateToChatbot(fanpageId: string): Promise<void> {
@@ -36,16 +39,16 @@ export class FacebookPlatform {
       await this.page.goto(chatbotUrl, { waitUntil: 'networkidle', timeout: 60000 });
     } catch (error) {
       // Fallback to domcontentloaded if networkidle fails
-      console.log('Networkidle timeout, trying domcontentloaded...');
+      log.info('Networkidle timeout, trying domcontentloaded...');
       await this.page.goto(chatbotUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     }
     await Modul.waitTime(5);
-    console.log(`Navigated to chatbot: ${chatbotUrl}`);
+    log.info(`Navigated to chatbot: ${chatbotUrl}`);
   }
 
   async sendMessage(message: string): Promise<boolean> {
     if (!this.page) {
-      console.error('Facebook page not initialized');
+      log.error('Facebook page not initialized');
       return false;
     }
 
@@ -63,22 +66,22 @@ export class FacebookPlatform {
         await this.page.keyboard.press('Enter');
       }
 
-      console.log(`Pesan terkirim: ${message}`);
+      log.info(`Pesan terkirim: ${message}`);
       return true;
     } catch (error) {
-      console.error('Error sending message:', error);
+      log.error('Error sending message:', error);
       return false;
     }
   }
 
   async getChatbotResponse(userMessage: string): Promise<string> {
     if (!this.page) {
-      console.error('Facebook page not initialized');
+      log.error('Facebook page not initialized');
       return 'Error: Page not initialized';
     }
 
     // Wait for messages to stabilize - Facebook may send multiple bubbles
-    console.log(`⏳ Waiting for all message bubbles to load...`);
+    log.info(`⏳ Waiting for all message bubbles to load...`);
 
     let previousResponseCount = 0;
     let stableCount = 0;
@@ -90,7 +93,7 @@ export class FacebookPlatform {
       const waitTime = attempt === 1 ? 5 : 3; // First wait 5s, then 3s each
       await Modul.waitTime(waitTime);
 
-      console.log(`🔍 Checking for responses (attempt ${attempt}/${maxAttempts})...`);
+      log.info(`🔍 Checking for responses (attempt ${attempt}/${maxAttempts})...`);
 
       const response = await this.extractBotResponse(userMessage);
 
@@ -99,7 +102,7 @@ export class FacebookPlatform {
         ? response.split('\n').filter(r => r.trim()).length
         : 0;
 
-      console.log(`📊 Found ${currentResponseCount} response bubble(s)`);
+      log.info(`📊 Found ${currentResponseCount} response bubble(s)`);
 
       if (currentResponseCount > 0) {
         finalResponse = response;
@@ -107,31 +110,31 @@ export class FacebookPlatform {
         // Check if response count is stable (no new bubbles)
         if (currentResponseCount === previousResponseCount) {
           stableCount++;
-          console.log(`✅ Response stable (${stableCount}/2 checks)`);
+          log.info(`✅ Response stable (${stableCount}/2 checks)`);
 
           // If stable for 2 consecutive checks, we're done
           if (stableCount >= 2) {
-            console.log(`✅ All ${currentResponseCount} bubble(s) captured!`);
+            log.info(`✅ All ${currentResponseCount} bubble(s) captured!`);
             return finalResponse;
           }
         } else {
           // Response count changed, reset stable counter
           stableCount = 0;
-          console.log(`🔄 New bubble detected, continuing to wait...`);
+          log.info(`🔄 New bubble detected, continuing to wait...`);
         }
 
         previousResponseCount = currentResponseCount;
       } else {
         // No response yet
         if (attempt < maxAttempts) {
-          console.log(`⏳ No response yet, waiting...`);
+          log.info(`⏳ No response yet, waiting...`);
         }
       }
     }
 
     // Return whatever we got
     if (finalResponse && finalResponse !== 'No response captured') {
-      console.log(`⚠️ Timeout reached, returning ${previousResponseCount} bubble(s)`);
+      log.info(`⚠️ Timeout reached, returning ${previousResponseCount} bubble(s)`);
       return finalResponse;
     }
 
@@ -160,7 +163,7 @@ export class FacebookPlatform {
         const containers = await this.page.locator(selector).all();
         if (containers.length > 0) {
           messageContainers = containers;
-          console.log(`📊 Found ${containers.length} message containers`);
+          log.info(`📊 Found ${containers.length} message containers`);
           break;
         }
       } catch { }
@@ -179,7 +182,7 @@ export class FacebookPlatform {
           }
         } catch { }
       }
-      console.log(`📊 Extracted ${allMessages.length} text elements from containers`);
+      log.info(`📊 Extracted ${allMessages.length} text elements from containers`);
     } else {
       // Fallback: try direct text selectors
       const textSelectors = [
@@ -196,7 +199,7 @@ export class FacebookPlatform {
 
           if (messages.length > 0) {
             allMessages = messages;
-            console.log(`📊 Found ${messages.length} messages with selector: ${selector.substring(0, 50)}`);
+            log.info(`📊 Found ${messages.length} messages with selector: ${selector.substring(0, 50)}`);
             break;
           }
         } catch { }
@@ -204,7 +207,7 @@ export class FacebookPlatform {
     }
 
     if (allMessages.length === 0) {
-      console.log('⚠️ No messages found with any selector');
+      log.info('⚠️ No messages found with any selector');
       return 'No response captured';
     }
 
@@ -222,7 +225,7 @@ export class FacebookPlatform {
       }
     }
 
-    console.log(`📋 Total message texts: ${messageTexts.length}`);
+    log.info(`📋 Total message texts: ${messageTexts.length}`);
 
     // Normalize user message for better matching
     const normalizedUserMsg = userMessage.trim().toLowerCase();
@@ -240,19 +243,19 @@ export class FacebookPlatform {
     }
 
     if (questionIndices.length === 0) {
-      console.log(`⚠️ Question not found in chat history: "${userMessage}"`);
+      log.info(`⚠️ Question not found in chat history: "${userMessage}"`);
       return 'No response captured';
     }
 
     // Use the LAST occurrence (most recent)
     const questionIndex = questionIndices[questionIndices.length - 1];
-    console.log(`✅ Found ${questionIndices.length} occurrence(s) of question`);
-    console.log(`✅ Using LAST occurrence at index ${questionIndex}: "${messageTexts[questionIndex].substring(0, 50)}..."`)
+    log.info(`✅ Found ${questionIndices.length} occurrence(s) of question`);
+    log.info(`✅ Using LAST occurrence at index ${questionIndex}: "${messageTexts[questionIndex].substring(0, 50)}..."`)
 
     // Collect bot responses after question until next user message
     const botResponses: string[] = [];
 
-    console.log(`📝 Capturing from index ${questionIndex + 1}...`);
+    log.info(`📝 Capturing from index ${questionIndex + 1}...`);
 
     // Identify user messages more carefully
     // User messages typically start with "Apa" based on test data
@@ -271,18 +274,18 @@ export class FacebookPlatform {
         text.toLowerCase().startsWith('dimana ') ||
         text.toLowerCase().startsWith('berapa ')) {
         userMessageIndices.push(i);
-        console.log(`🔍 Detected user question at index ${i}: "${text.substring(0, 40)}..."`);
+        log.info(`🔍 Detected user question at index ${i}: "${text.substring(0, 40)}..."`);
       }
     }
 
-    console.log(`📋 Found ${userMessageIndices.length} user messages`);
+    log.info(`📋 Found ${userMessageIndices.length} user messages`);
 
     // Find next user message after current question
     let nextUserMessageIndex = messageTexts.length; // Default to end
     for (const idx of userMessageIndices) {
       if (idx > questionIndex) {
         nextUserMessageIndex = idx;
-        console.log(`🛑 Next user message at index ${idx}, stopping there`);
+        log.info(`🛑 Next user message at index ${idx}, stopping there`);
         break;
       }
     }
@@ -311,27 +314,27 @@ export class FacebookPlatform {
 
       // Skip empty or very short noise
       if (!text || text.length < 2) {
-        console.log(`  ⏭️ Skipping empty/short at ${i}`);
+        log.info(`  ⏭️ Skipping empty/short at ${i}`);
         continue;
       }
 
       // Check if ENTIRE text is just UI noise (skip only if exact match)
       const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(text));
       if (isExactNoise) {
-        console.log(`  ⏭️ Skipping UI noise at ${i}: "${text}"`);
+        log.info(`  ⏭️ Skipping UI noise at ${i}: "${text}"`);
         continue;
       }
 
       // Skip common self-message indicators
       if (text.includes('You: ') || text.includes('You sent')) {
-        console.log(`  ⏭️ Skipping self-message indicator at ${i}: "${text}"`);
+        log.info(`  ⏭️ Skipping self-message indicator at ${i}: "${text}"`);
         continue;
       }
 
       // NEW: Skip if it looks like a "Sent" metadata that includes the question
       // This handles the "NameYou: Question" cases in Facebook Messenger
       if (text.toLowerCase().includes(normalizedUserMsg)) {
-        console.log(`  ⏭️ Skipping element containing question at ${i} (likely self-message/metadata)`);
+        log.info(`  ⏭️ Skipping element containing question at ${i} (likely self-message/metadata)`);
         continue;
       }
 
@@ -340,26 +343,26 @@ export class FacebookPlatform {
 
       // Skip if cleaning removed everything
       if (!text || text.length < 2) {
-        console.log(`  ⏭️ Skipping empty after cleaning at ${i}`);
+        log.info(`  ⏭️ Skipping empty after cleaning at ${i}`);
         continue;
       }
 
       // Skip if this is a duplicate of the last message (Facebook DOM duplicates)
       if (botResponses.length > 0 && botResponses[botResponses.length - 1] === text) {
-        console.log(`  ⏭️ Skipping duplicate at ${i}: "${text.substring(0, 40)}..."`);
+        log.info(`  ⏭️ Skipping duplicate at ${i}: "${text.substring(0, 40)}..."`);
         continue;
       }
 
       botResponses.push(text);
-      console.log(`  ✅ Bot message ${botResponses.length}: "${text.substring(0, 80)}..."`);
+      log.info(`  ✅ Bot message ${botResponses.length}: "${text.substring(0, 80)}..."`);
     }
 
     if (botResponses.length === 0) {
-      console.log('⚠️ No bot responses after question');
+      log.info('⚠️ No bot responses after question');
       return 'No response captured';
     }
 
-    console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
+    log.info(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
     return botResponses.join('\n');
   }
 
@@ -381,10 +384,6 @@ export class FacebookPlatform {
     return filename;
   }
 
-  static calculateStatus(score: number): string {
-    return score >= 0.7 ? 'pass' : 'failed';
-  }
-
   async actions(
     targetFanpageId: string,
     greeting: string,
@@ -404,34 +403,39 @@ export class FacebookPlatform {
 
     // Send greetings
     if (greeting && greeting.trim() !== '') {
-      console.log(`📤 Sending greeting 1: "${greeting}"`);
+      log.info(`📤 Sending greeting 1: "${greeting}"`);
       await this.sendMessage(greeting);
       await Modul.waitTime(5);
     }
 
     if (greeting2 && greeting2.trim() !== '') {
-      console.log(`📤 Sending greeting 2: "${greeting2}"`);
+      log.info(`📤 Sending greeting 2: "${greeting2}"`);
       await this.sendMessage(greeting2);
       await Modul.waitTime(5);
     }
 
     const title = '当 Membaca pertanyaan dan mengirim ke Facebook';
     Modul.showLoading(title);
-    console.log();
+    log.info('');
 
     const countPerElementTitle = jsonData.length;
     const questionCount = jsonData.reduce((sum, item) => {
       return sum + Object.keys(item).filter(key => key.startsWith('pertanyaan')).length;
     }, 0);
 
+    let testAborted = false;
     for (const element of jsonData) {
+      if (testAborted) break;
       const durationPerTitle = Modul.startTime();
       Modul.showLoading(element.title || 'Untitled');
-      console.log();
+      log.info('');
 
       for (const [key, value] of Object.entries(element)) {
         if (key.startsWith('pertanyaan') && value && value.trim() !== '') {
           const durationPerQuestion = Modul.startTime();
+          let questionSuccess = false;
+          for (let _retry = 1; _retry <= EVAL_CONFIG.errorHandling.maxQuestionRetries; _retry++) {
+          try {
           const question = value;
 
           const sent = await this.sendMessage(question);
@@ -453,7 +457,7 @@ export class FacebookPlatform {
           const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
 
           // AI evaluation using selected provider
-          console.log(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
+          log.info(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
           const aiEvaluator = EvaluatorFactory.getEvaluator();
           const evaluationResult = await aiEvaluator.evaluateResponse(
             question,
@@ -466,7 +470,7 @@ export class FacebookPlatform {
           const explanation = evaluationResult.explanation;
           const AI = evaluationResult.success ? `${evaluationResult.provider} + Playwright TypeScript` : `Playwright TypeScript (${evaluationResult.provider} fallback)`;
 
-          const status = FacebookPlatform.calculateStatus(skor);
+          const status = calculateStatus(skor);
 
           const dataBotData: BotData = {
             no: element.no || '',
@@ -516,23 +520,37 @@ export class FacebookPlatform {
           };
 
           EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
+          questionSuccess = true;
+          break;
+          } catch (error) {
+            log.error(`Percobaan ${_retry}/${EVAL_CONFIG.errorHandling.maxQuestionRetries} gagal`, error);
+            if (_retry < EVAL_CONFIG.errorHandling.maxQuestionRetries) {
+              await Modul.waitTime(EVAL_CONFIG.errorHandling.retryDelayMs / 1000);
+            }
+          }
+          }
+          if (!questionSuccess) {
+            log.error(`Test dihentikan: pertanyaan gagal setelah ${EVAL_CONFIG.errorHandling.maxQuestionRetries} percobaan`);
+            testAborted = true;
+            break;
+          }
         }
       }
 
       const endDurationPerTitle = Modul.endTime(durationPerTitle);
       const chart = { [element.title || 'Untitled']: endDurationPerTitle };
       EnvFile.writeJsonChart(chart, reportFilename, idTest);
-      console.log(`\n竢ｳ Total durasi Topik '${element.title || 'Untitled'}' : ${endDurationPerTitle}\n`);
+      log.info(`\n竢ｳ Total durasi Topik '${element.title || 'Untitled'}' : ${endDurationPerTitle}\n`);
     }
 
-    console.log('識 Topik Terakhir \n');
+    log.info('識 Topik Terakhir \n');
     
     // Write end time and total duration
     const endTime = new Date().toTimeString().split(' ')[0];
     const totalDuration = Modul.endTime(start);
     EnvFile.writeEndTimeSummary(endTime, totalDuration, reportFilename, idTest);
     
-    console.log(`✅ Test completed at: ${endTime}`);
-    console.log(`⏱️ Total test duration: ${totalDuration}`);
+    log.info(`✅ Test completed at: ${endTime}`);
+    log.info(`⏱️ Total test duration: ${totalDuration}`);
   }
 }

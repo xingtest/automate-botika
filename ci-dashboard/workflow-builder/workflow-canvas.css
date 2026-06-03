@@ -80,8 +80,7 @@
   color: #fff;
   font-size: 1.4rem;
   height: 54px;
-  background: var(--accent);
-  border-bottom: var(--border-w) solid var(--border-color);
+  border-bottom: var(--border-w) solid rgba(0,0,0,0.15);
 }
 
 /* Node Body */

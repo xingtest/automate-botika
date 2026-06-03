@@ -1,4 +1,4 @@
-import { Page } from 'playwright';
+﻿import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
 import { EvaluatorFactory } from '../utils/ai-evaluator';
@@ -194,7 +194,7 @@ export class InstagramPlatform {
     }
 
     // Wait for messages to stabilize - Instagram may send multiple bubbles
-    console.log(`⏳ Waiting for all message bubbles to load...`);
+    console.log(`ΓÅ│ Waiting for all message bubbles to load...`);
 
     let previousResponseCount = 0;
     let stableCount = 0;
@@ -206,7 +206,7 @@ export class InstagramPlatform {
       const waitTime = attempt === 1 ? 5 : 3; // First wait 5s, then 3s each
       await Modul.waitTime(waitTime);
 
-      console.log(`🔍 Checking for responses (attempt ${attempt}/${maxAttempts})...`);
+      console.log(`≡ƒöì Checking for responses (attempt ${attempt}/${maxAttempts})...`);
 
       const response = await this.extractBotResponse(username, userMessage, afterTimestamp);
 
@@ -215,7 +215,7 @@ export class InstagramPlatform {
         ? response.split('\n').filter(r => r.trim()).length
         : 0;
 
-      console.log(`📊 Found ${currentResponseCount} response bubble(s)`);
+      console.log(`≡ƒôè Found ${currentResponseCount} response bubble(s)`);
 
       if (currentResponseCount > 0) {
         finalResponse = response;
@@ -223,31 +223,31 @@ export class InstagramPlatform {
         // Check if response count is stable (no new bubbles)
         if (currentResponseCount === previousResponseCount) {
           stableCount++;
-          console.log(`✅ Response stable (${stableCount}/2 checks)`);
+          console.log(`Γ£à Response stable (${stableCount}/2 checks)`);
 
           // If stable for 2 consecutive checks, we're done
           if (stableCount >= 2) {
-            console.log(`✅ All ${currentResponseCount} bubble(s) captured!`);
+            console.log(`Γ£à All ${currentResponseCount} bubble(s) captured!`);
             return finalResponse;
           }
         } else {
           // Response count changed, reset stable counter
           stableCount = 0;
-          console.log(`🔄 New bubble detected, continuing to wait...`);
+          console.log(`≡ƒöä New bubble detected, continuing to wait...`);
         }
 
         previousResponseCount = currentResponseCount;
       } else {
         // No response yet
         if (attempt < maxAttempts) {
-          console.log(`⏳ No response yet, waiting...`);
+          console.log(`ΓÅ│ No response yet, waiting...`);
         }
       }
     }
 
     // Return whatever we got
     if (finalResponse && finalResponse !== 'No response captured') {
-      console.log(`⚠️ Timeout reached, returning ${previousResponseCount} bubble(s)`);
+      console.log(`ΓÜá∩╕Å Timeout reached, returning ${previousResponseCount} bubble(s)`);
       return finalResponse;
     }
 
@@ -279,10 +279,10 @@ export class InstagramPlatform {
         } catch { }
       }
 
-      console.log(`📊 Total messages: ${messages.length}`);
+      console.log(`≡ƒôè Total messages: ${messages.length}`);
 
       if (messages.length === 0) {
-        console.log('⚠️ No messages found');
+        console.log('ΓÜá∩╕Å No messages found');
         return 'No response captured';
       }
 
@@ -298,8 +298,8 @@ export class InstagramPlatform {
       }
 
       if (questionIndices.length === 0) {
-        console.log('⚠️ Question not found in messages');
-        console.log(`💡 Looking for: "${userMessage}"`);
+        console.log('ΓÜá∩╕Å Question not found in messages');
+        console.log(`≡ƒÆí Looking for: "${userMessage}"`);
 
         // Fallback: return last 3 messages
         const recentMessages: string[] = [];
@@ -313,7 +313,7 @@ export class InstagramPlatform {
         }
 
         if (recentMessages.length > 0) {
-          console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
+          console.log(`≡ƒôè Using ${recentMessages.length} recent messages as fallback`);
           return recentMessages.join('\n');
         }
 
@@ -322,14 +322,14 @@ export class InstagramPlatform {
 
       // Use the LAST occurrence (most recent)
       const questionIndex = questionIndices[questionIndices.length - 1];
-      console.log(`✅ Found ${questionIndices.length} occurrence(s) of question`);
-      console.log(`✅ Using LAST occurrence at index ${questionIndex}`);
+      console.log(`Γ£à Found ${questionIndices.length} occurrence(s) of question`);
+      console.log(`Γ£à Using LAST occurrence at index ${questionIndex}`);
 
       // Collect bot responses after the question
       const botResponses: string[] = [];
       const startIndex = questionIndex + 1;
 
-      console.log(`📝 Capturing bot responses from index ${startIndex}...`);
+      console.log(`≡ƒô¥ Capturing bot responses from index ${startIndex}...`);
 
       // Identify next user message to know where to stop
       const userMessageIndices: number[] = [questionIndex];
@@ -348,7 +348,7 @@ export class InstagramPlatform {
               cleanText.toLowerCase().startsWith('dimana ') ||
               cleanText.toLowerCase().startsWith('berapa ')) {
               userMessageIndices.push(i);
-              console.log(`🔍 Detected user question at index ${i}`);
+              console.log(`≡ƒöì Detected user question at index ${i}`);
             }
           }
         } catch { }
@@ -359,7 +359,7 @@ export class InstagramPlatform {
       for (const idx of userMessageIndices) {
         if (idx > questionIndex) {
           nextUserMessageIndex = idx;
-          console.log(`🛑 Next user message at index ${idx}, stopping there`);
+          console.log(`≡ƒ¢æ Next user message at index ${idx}, stopping there`);
           break;
         }
       }
@@ -389,14 +389,14 @@ export class InstagramPlatform {
 
           // Skip if it's the user's message
           if (cleanText === userMessage.trim()) {
-            console.log(`  ⏭️ Skipping user message at ${i}`);
+            console.log(`  ΓÅ¡∩╕Å Skipping user message at ${i}`);
             continue;
           }
 
           // Check if ENTIRE text is just UI noise (skip only if exact match)
           const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(cleanText));
           if (isExactNoise) {
-            console.log(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
+            console.log(`  ΓÅ¡∩╕Å Skipping UI noise at ${i}: "${cleanText}"`);
             continue;
           }
 
@@ -414,30 +414,30 @@ export class InstagramPlatform {
 
           // Skip if cleaning removed everything
           if (!cleanText || cleanText.length < 2) {
-            console.log(`  ⏭️ Skipping empty after cleaning at ${i}`);
+            console.log(`  ΓÅ¡∩╕Å Skipping empty after cleaning at ${i}`);
             continue;
           }
 
           // Skip if this is a duplicate of the last message
           if (botResponses.length > 0 && botResponses[botResponses.length - 1] === cleanText) {
-            console.log(`  ⏭️ Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
+            console.log(`  ΓÅ¡∩╕Å Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
             continue;
           }
 
           // Accept messages with at least 2 characters (to catch "Hi", "Ok", etc)
           botResponses.push(cleanText);
-          console.log(`  ✅ Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
+          console.log(`  Γ£à Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
         } catch (err) {
-          console.log(`  ⚠️ Error reading message at ${i}`);
+          console.log(`  ΓÜá∩╕Å Error reading message at ${i}`);
         }
       }
 
       if (botResponses.length === 0) {
-        console.log('⚠️ No bot responses captured after filtering');
+        console.log('ΓÜá∩╕Å No bot responses captured after filtering');
         return 'No response captured';
       }
 
-      console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
+      console.log(`≡ƒôè Captured ${botResponses.length} bot responses (after deduplication)`);
       return botResponses.join('\n');
     } catch (error) {
       console.error('Error extracting bot response:', error);
@@ -499,7 +499,7 @@ export class InstagramPlatform {
     }
     console.log();
 
-    const title = `当 Membaca pertanyaan dan mengirim ke @${targetUsername}`;
+    const title = `σ╜ô Membaca pertanyaan dan mengirim ke @${targetUsername}`;
     Modul.showLoading(title);
     console.log();
 
@@ -528,7 +528,7 @@ export class InstagramPlatform {
 
           // Take screenshot
           const imageCapture = await this.takeScreenshot(idTest, key, question, screenshotsFolder);
-          console.log(`📸 Screenshot saved: ${imageCapture}`);
+          console.log(`≡ƒô╕ Screenshot saved: ${imageCapture}`);
 
           const titleLoading = `${key} : ${question}`;
           Modul.showLoadingSampleText(titleLoading);
@@ -537,7 +537,7 @@ export class InstagramPlatform {
           const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
 
           // AI evaluation using selected provider
-          console.log(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
+          console.log(`≡ƒñû Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
           const aiEvaluator = EvaluatorFactory.getEvaluator();
           const evaluationResult = await aiEvaluator.evaluateResponse(
             question,
@@ -605,17 +605,17 @@ export class InstagramPlatform {
       const endDurationPerTitle = Modul.endTime(durationPerTitle);
       const chart = { [element.title || 'Untitled']: endDurationPerTitle };
       EnvFile.writeJsonChart(chart, reportFilename, idTest);
-      console.log(`\n竢ｳ Total durasi Topik '${element.title || 'Untitled'}' : ${endDurationPerTitle}\n`);
+      console.log(`\nτ½ó∩╜│ Total durasi Topik '${element.title || 'Untitled'}' : ${endDurationPerTitle}\n`);
     }
 
-    console.log('識 Topik Terakhir \n');
+    console.log('Φ¡ÿ Topik Terakhir \n');
     
     // Write end time and total duration
     const endTime = new Date().toTimeString().split(' ')[0];
     const totalDuration = Modul.endTime(start);
     EnvFile.writeEndTimeSummary(endTime, totalDuration, reportFilename, idTest);
     
-    console.log(`✅ Test completed at: ${endTime}`);
-    console.log(`⏱️ Total test duration: ${totalDuration}`);
+    console.log(`Γ£à Test completed at: ${endTime}`);
+    console.log(`ΓÅ▒∩╕Å Total test duration: ${totalDuration}`);
   }
 }

@@ -1,10 +1,11 @@
 import { Page } from 'playwright';
 import { Modul } from '../utils/modul';
 import { EnvFile } from '../utils/envfile';
-import { EvaluatorFactory } from '../utils/ai-evaluator';
+import { EvaluatorFactory, calculateStatus, EVAL_CONFIG } from '../utils/ai-evaluator';
 import { TestData, BotData, SummaryData } from '../main';
 import { log } from '../utils/logger';
 import { TestTracker } from '../utils/test-tracker';
+import { runTestLoop } from '../utils/test-runner';
 
 export class WebchatV3Platform {
   /**
@@ -112,13 +113,13 @@ export class WebchatV3Platform {
 
       await Modul.waitTime(2);
     } catch (error) {
-      console.error('Error sending message in V3:', error);
+      log.error('Error sending message in V3:', error);
       throw error;
     }
   }
 
   static async waitReply(page: Page, question: string, timeout: number = 300000): Promise<void> {
-    console.log(`⏳ Waiting for bot reply in V3 to: "${question}" (with stabilization)`);
+    log.info(`⏳ Waiting for bot reply in V3 to: "${question}" (with stabilization)`);
     const startTime = Date.now();
     let lastTextLength = 0;
     let stableStartTime = 0;
@@ -143,7 +144,7 @@ export class WebchatV3Platform {
           // Panjang teks sama, cek sudah berapa lama stabil
           const elapsedStable = Date.now() - stableStartTime;
           if (elapsedStable >= requiredStabilityMs) {
-            console.log(`✅ Response stabilized after ${elapsedStable}ms`);
+            log.info(`✅ Response stabilized after ${elapsedStable}ms`);
             return;
           }
         }
@@ -154,9 +155,9 @@ export class WebchatV3Platform {
     }
     
     if (lastTextLength > 0) {
-      console.log(`⚠️ Stability timeout reached, but we have some response (${lastTextLength} chars)`);
+      log.info(`⚠️ Stability timeout reached, but we have some response (${lastTextLength} chars)`);
     } else {
-      console.log(`⚠️ Timeout: No reply found for: "${question}"`);
+      log.info(`⚠️ Timeout: No reply found for: "${question}"`);
     }
   }
 
@@ -182,7 +183,7 @@ export class WebchatV3Platform {
         await page.screenshot({ path: filepath, fullPage: true });
         return filename;
     } catch (error) {
-        console.error('Screenshot failed:', error);
+        log.error('Screenshot failed:', error);
         return 'error_screenshot.png';
     }
   }
@@ -297,7 +298,7 @@ export class WebchatV3Platform {
     testTracker: TestTracker
   ): Promise<void> {
     const start = Modul.startTime();
-    console.log('\n🚀 Starting Webchat V3 Actions');
+    log.info('\n🚀 Starting Webchat V3 Actions');
 
     // Tunggu pesan sambutan bahasa muncul di layar (maksimal 20 detik)
     // Default: disabled (hidden) unless explicitly configured via env var.
@@ -310,28 +311,28 @@ export class WebchatV3Platform {
 
     if (isEnabled) {
       const welcomeRegex = new RegExp(welcomeText!, 'i');
-      console.log(`⏳ Waiting for welcome message ("${welcomeText}") to appear in V3...`);
+      log.info(`⏳ Waiting for welcome message ("${welcomeText}") to appear in V3...`);
       try {
         const welcomeMessage = page.locator('.chat-messages, .v-card-text, .v-sheet, .v-list-item-title')
                                    .filter({ hasText: welcomeRegex })
                                    .first();
         await welcomeMessage.waitFor({ state: 'visible', timeout: 20000 });
-        console.log('✅ Welcome message detected!');
+        log.info('✅ Welcome message detected!');
       } catch (error) {
-        console.log('⚠️ Timeout waiting for welcome message in V3, proceeding anyway');
+        log.info('⚠️ Timeout waiting for welcome message in V3, proceeding anyway');
       }
     } else {
-      console.log('Skip waiting for initial welcome message in V3 (WELCOME_MESSAGE_TEXT not set), proceeding directly.');
+      log.info('Skip waiting for initial welcome message in V3 (WELCOME_MESSAGE_TEXT not set), proceeding directly.');
     }
 
     // Handle initial greetings for V3
     if (greeting) {
-        console.log(`📤 Sending Greeting 1: ${greeting}`);
+        log.info(`📤 Sending Greeting 1: ${greeting}`);
         await this.sendMessage(page, greeting);
         await this.waitReply(page, greeting);
     }
     if (greeting2) {
-        console.log(`📤 Sending Greeting 2: ${greeting2}`);
+        log.info(`📤 Sending Greeting 2: ${greeting2}`);
         await this.sendMessage(page, greeting2);
         await this.waitReply(page, greeting2);
     }
@@ -342,7 +343,9 @@ export class WebchatV3Platform {
     }, 0);
 
     let globalCount = 0;
+    let testAborted = false;
     for (const element of jsonData) {
+      if (testAborted) break;
       const durationPerTitle = Modul.startTime();
       Modul.showLoading(element.title || 'Untitled');
 
@@ -350,9 +353,12 @@ export class WebchatV3Platform {
         if (key.startsWith('pertanyaan') && value && value.trim() !== '') {
           globalCount++;
           const durationPerQuestion = Modul.startTime();
+          let questionSuccess = false;
+          for (let _retry = 1; _retry <= EVAL_CONFIG.errorHandling.maxQuestionRetries; _retry++) {
+          try {
           const question = value;
 
-          console.log(`📤 Sending: "${question}"`);
+          log.info(`📤 Sending: "${question}"`);
           await this.sendMessage(page, question);
           await this.waitReply(page, question);
 
@@ -360,12 +366,12 @@ export class WebchatV3Platform {
           const respondBotArray = await this.getReplyChat(page, question);
           let respondBot = respondBotArray.join('\n').trim() || 'No response captured';
 
-          console.log(`📝 Final response: "${respondBot.substring(0, 80)}..."`);
+          log.info(`📝 Final response: "${respondBot.substring(0, 80)}..."`);
 
           const respondCsv = (element.context || '').trim();
           const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
 
-          console.log(`🤖 Evaluating response with AI...`);
+          log.info(`🤖 Evaluating response with AI...`);
           const aiEvaluator = EvaluatorFactory.getEvaluator();
           const evaluationResult = await aiEvaluator.evaluateResponse(
             question,
@@ -375,7 +381,7 @@ export class WebchatV3Platform {
           );
 
           const skor = evaluationResult.score;
-          const status = skor >= 0.7 ? 'pass' : 'failed';
+          const status = calculateStatus(skor);
 
           const dataBotData: BotData = {
             no: element.no || '',
@@ -414,6 +420,20 @@ export class WebchatV3Platform {
             failed: testTracker.getSummary().failed
           };
           EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
+          questionSuccess = true;
+          break;
+          } catch (error) {
+            log.error(`Percobaan ${_retry}/${EVAL_CONFIG.errorHandling.maxQuestionRetries} gagal`, error);
+            if (_retry < EVAL_CONFIG.errorHandling.maxQuestionRetries) {
+              await Modul.waitTime(EVAL_CONFIG.errorHandling.retryDelayMs / 1000);
+            }
+          }
+          }
+          if (!questionSuccess) {
+            log.error(`Test dihentikan: pertanyaan gagal setelah ${EVAL_CONFIG.errorHandling.maxQuestionRetries} percobaan`);
+            testAborted = true;
+            break;
+          }
 
 
         }

@@ -4,6 +4,9 @@ import { EnvFile } from '../utils/envfile';
 import { EvaluatorFactory } from '../utils/ai-evaluator';
 import { TestData, BotData, SummaryData } from '../main';
 import { TestTracker } from '../utils/test-tracker';
+import { log } from '../utils/logger';
+import { calculateStatus, EVAL_CONFIG } from '../utils/ai-evaluator';
+import { runTestLoop } from '../utils/test-runner';
 
 export class DhaiPlatform {
   static async startChat(page: Page): Promise<void> {
@@ -11,19 +14,19 @@ export class DhaiPlatform {
       // Click "Tap to Start" button
       const tapToStartButton = page.locator('button:has-text("Tap to Start")');
       await tapToStartButton.click();
-      console.log('Tombol "Tap to Start" diklik.');
+      log.info('Tombol "Tap to Start" diklik.');
       await Modul.waitTime(2);
 
       // Click second interaction button
       const interactionButton = page.locator('#button-action-chat');
       await interactionButton.click();
-      console.log('Tombol interaksi kedua diklik.');
+      log.info('Tombol interaksi kedua diklik.');
 
       // Wait for textarea to appear
       await page.locator('textarea').waitFor({ state: 'visible', timeout: 30000 });
-      console.log('Antarmuka obrolan DHAI (Luna) siap.');
+      log.info('Antarmuka obrolan DHAI (Luna) siap.');
     } catch (error) {
-      console.error('Error saat memulai obrolan DHAI (Luna):', error);
+      log.error('Error saat memulai obrolan DHAI (Luna):', error);
       throw error;
     }
   }
@@ -35,9 +38,9 @@ export class DhaiPlatform {
       await textarea.fill(message);
       await Modul.waitTime(1);
       await page.keyboard.press('Enter');
-      console.log(`Pesan terkirim: ${message}`);
+      log.info(`Pesan terkirim: ${message}`);
     } catch (error) {
-      console.error('Error saat mengirim pesan di DHAI:', error);
+      log.error('Error saat mengirim pesan di DHAI:', error);
       throw error;
     }
   }
@@ -50,7 +53,7 @@ export class DhaiPlatform {
         const waitTime = attempt === 1 ? 5 : attempt * 3; // 5s, 6s, 9s
         await Modul.waitTime(waitTime);
 
-        console.log(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
+        log.info(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
 
         const responses = await this.extractBotResponse(page, userMessage);
 
@@ -59,10 +62,10 @@ export class DhaiPlatform {
         }
 
         if (attempt < maxRetries) {
-          console.log(`⏳ No response yet, retrying in ${(attempt + 1) * 3}s...`);
+          log.info(`⏳ No response yet, retrying in ${(attempt + 1) * 3}s...`);
         }
       } catch (error) {
-        console.error(`Error on attempt ${attempt}:`, error);
+        log.error(`Error on attempt ${attempt}:`, error);
         if (attempt === maxRetries) {
           return [];
         }
@@ -90,13 +93,13 @@ export class DhaiPlatform {
           const found = await page.locator(selector).all();
           if (found.length > 0) {
             chatMessages = found;
-            console.log(`📊 Found ${found.length} messages with selector: ${selector}`);
+            log.info(`📊 Found ${found.length} messages with selector: ${selector}`);
             break;
           }
         } catch { }
       }
 
-      console.log(`📊 Total messages: ${chatMessages.length}`);
+      log.info(`📊 Total messages: ${chatMessages.length}`);
 
       if (chatMessages.length > 0) {
         // Find ALL occurrences of the question
@@ -109,7 +112,7 @@ export class DhaiPlatform {
         }
 
         if (questionIndices.length === 0) {
-          console.log('⚠️ Question not found');
+          log.info('⚠️ Question not found');
 
           // Fallback: return last 3 messages
           const recentMessages: string[] = [];
@@ -121,7 +124,7 @@ export class DhaiPlatform {
           }
 
           if (recentMessages.length > 0) {
-            console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
+            log.info(`📊 Using ${recentMessages.length} recent messages as fallback`);
             return recentMessages;
           }
 
@@ -130,18 +133,18 @@ export class DhaiPlatform {
 
         // Use the LAST occurrence (most recent)
         const questionIndex = questionIndices[questionIndices.length - 1];
-        console.log(`✅ Found ${questionIndices.length} occurrence(s) of question`);
-        console.log(`✅ Using LAST occurrence at index ${questionIndex}`);
+        log.info(`✅ Found ${questionIndices.length} occurrence(s) of question`);
+        log.info(`✅ Using LAST occurrence at index ${questionIndex}`);
 
         // Collect bot responses after the question
         const botResponses: string[] = [];
         const startIndex = questionIndex + 1;
 
-        console.log(`📝 Capturing from index ${startIndex} to ${chatMessages.length}...`);
+        log.info(`📝 Capturing from index ${startIndex} to ${chatMessages.length}...`);
 
         // Check if there are messages after the question
         if (startIndex >= chatMessages.length) {
-          console.log('⚠️ No messages after question, question is at the end');
+          log.info('⚠️ No messages after question, question is at the end');
           return [];
         }
 
@@ -162,35 +165,35 @@ export class DhaiPlatform {
 
           // Skip if it's the user's message
           if (cleanText.includes(userMessage)) {
-            console.log(`  ⏭️ Skipping user message at ${i}`);
+            log.info(`  ⏭️ Skipping user message at ${i}`);
             continue;
           }
 
           // Check if ENTIRE text is just UI noise
           const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(cleanText));
           if (isExactNoise) {
-            console.log(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
+            log.info(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
             continue;
           }
 
           // Skip if this is a duplicate of the last message
           if (botResponses.length > 0 && botResponses[botResponses.length - 1] === cleanText) {
-            console.log(`  ⏭️ Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
+            log.info(`  ⏭️ Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
             continue;
           }
 
           botResponses.push(cleanText);
-          console.log(`  ✅ Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
+          log.info(`  ✅ Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
         }
 
         if (botResponses.length > 0) {
-          console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
+          log.info(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
           return botResponses;
         }
       }
 
       // Fallback: try to get all visible text
-      console.log('💡 Trying fallback: get all visible text');
+      log.info('💡 Trying fallback: get all visible text');
       try {
         // Try bubble-msg first
         const bubbleMsg = await page.locator('#bubble-msg').textContent();
@@ -201,7 +204,7 @@ export class DhaiPlatform {
           });
 
           if (lines.length > 0) {
-            console.log(`📊 Captured ${lines.length} lines from bubble-msg`);
+            log.info(`📊 Captured ${lines.length} lines from bubble-msg`);
             return lines.map(l => l.trim());
           }
         }
@@ -209,7 +212,7 @@ export class DhaiPlatform {
 
       // Last resort: get all text content from body
       try {
-        console.log('💡 Last resort: scanning all text in page');
+        log.info('💡 Last resort: scanning all text in page');
         const allText = await page.locator('body').allTextContents();
         if (allText.length > 0) {
           const fullText = allText.join('\n');
@@ -226,16 +229,16 @@ export class DhaiPlatform {
           if (lines.length > 0) {
             // Take last 3 lines as bot response
             const recentLines = lines.slice(-3);
-            console.log(`📊 Captured ${recentLines.length} lines from page scan`);
+            log.info(`📊 Captured ${recentLines.length} lines from page scan`);
             return recentLines.map(l => l.trim());
           }
         }
       } catch { }
 
-      console.log('⚠️ No bot responses captured');
+      log.info('⚠️ No bot responses captured');
       return [];
     } catch (error) {
-      console.error('❌ Error:', error);
+      log.error('❌ Error:', error);
       return [];
     }
   }
@@ -254,10 +257,6 @@ export class DhaiPlatform {
 
     await page.screenshot({ path: filepath, fullPage: true });
     return filename;
-  }
-
-  static calculateStatus(score: number): string {
-    return score >= 0.7 ? 'pass' : 'failed';
   }
 
   static async actions(
@@ -280,7 +279,7 @@ export class DhaiPlatform {
     
     const title = '当 Membaca pertanyaan dan mengirim ke DHAI';
     Modul.showLoading(title);
-    console.log();
+    log.info('');
 
     try {
       await this.startChat(page);
@@ -288,18 +287,18 @@ export class DhaiPlatform {
 
       // Send greetings
       if (greeting && greeting.trim() !== '') {
-        console.log(`📤 Sending greeting 1: "${greeting}"`);
+        log.info(`📤 Sending greeting 1: "${greeting}"`);
         await this.sendMessage(page, greeting);
         await Modul.waitTime(5);
       }
 
       if (greeting2 && greeting2.trim() !== '') {
-        console.log(`📤 Sending greeting 2: "${greeting2}"`);
+        log.info(`📤 Sending greeting 2: "${greeting2}"`);
         await this.sendMessage(page, greeting2);
         await Modul.waitTime(5);
       }
     } catch (error) {
-      console.error('Gagal memulai obrolan atau mengirim sapaan di DHAI:', error);
+      log.error('Gagal memulai obrolan atau mengirim sapaan di DHAI:', error);
       return;
     }
 
@@ -308,17 +307,21 @@ export class DhaiPlatform {
       return sum + Object.keys(item).filter(key => key.startsWith('pertanyaan')).length;
     }, 0);
 
+    let testAborted = false;
     for (const element of jsonData) {
+      if (testAborted) break;
       const durationPerTitle = Modul.startTime();
       Modul.showLoading(element.title || 'Untitled');
-      console.log();
+      log.info('');
 
       for (const [key, value] of Object.entries(element)) {
         if (key.startsWith('pertanyaan') && value && value.trim() !== '') {
           const durationPerQuestion = Modul.startTime();
+          let questionSuccess = false;
+          for (let _retry = 1; _retry <= EVAL_CONFIG.errorHandling.maxQuestionRetries; _retry++) {
+          try {
           const question = value;
 
-          try {
             await this.sendMessage(page, question);
             await Modul.waitTime(5);
 
@@ -340,7 +343,7 @@ export class DhaiPlatform {
             const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
 
             // AI evaluation using selected provider
-            console.log(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
+            log.info(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
             const aiEvaluator = EvaluatorFactory.getEvaluator();
             const evaluationResult = await aiEvaluator.evaluateResponse(
               question,
@@ -353,7 +356,7 @@ export class DhaiPlatform {
             const explanation = evaluationResult.explanation;
             const AI = evaluationResult.success ? `${evaluationResult.provider} + Playwright TypeScript` : `Playwright TypeScript (${evaluationResult.provider} fallback)`;
 
-            const status = this.calculateStatus(skor);
+            const status = calculateStatus(skor);
 
             const dataBotData: BotData = {
               no: element.no || '',
@@ -402,8 +405,19 @@ export class DhaiPlatform {
             };
 
             EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
+          questionSuccess = true;
+          break;
           } catch (error) {
-            console.error(`Error selama interaksi DHAI untuk pertanyaan '${question}':`, error);
+            log.error(`Percobaan ${_retry}/${EVAL_CONFIG.errorHandling.maxQuestionRetries} gagal`, error);
+            if (_retry < EVAL_CONFIG.errorHandling.maxQuestionRetries) {
+              await Modul.waitTime(EVAL_CONFIG.errorHandling.retryDelayMs / 1000);
+            }
+          }
+          }
+          if (!questionSuccess) {
+            log.error(`Test dihentikan: pertanyaan gagal setelah ${EVAL_CONFIG.errorHandling.maxQuestionRetries} percobaan`);
+            testAborted = true;
+            break;
           }
         }
       }
@@ -411,17 +425,17 @@ export class DhaiPlatform {
       const endDurationPerTitle = Modul.endTime(durationPerTitle);
       const chart = { [element.title || 'Untitled']: endDurationPerTitle };
       EnvFile.writeJsonChart(chart, reportFilename, idTest);
-      console.log(`\n竢ｳ Total durasi Topik '${element.title || 'Untitled'}' : ${endDurationPerTitle}\n`);
+      log.info(`\n竢ｳ Total durasi Topik '${element.title || 'Untitled'}' : ${endDurationPerTitle}\n`);
     }
 
-    console.log('識 Topik Terakhir \n');
+    log.info('識 Topik Terakhir \n');
     
     // Write end time and total duration
     const endTime = new Date().toTimeString().split(' ')[0];
     const totalDuration = Modul.endTime(start);
     EnvFile.writeEndTimeSummary(endTime, totalDuration, reportFilename, idTest);
     
-    console.log(`✅ Test completed at: ${endTime}`);
-    console.log(`⏱️ Total test duration: ${totalDuration}`);
+    log.info(`✅ Test completed at: ${endTime}`);
+    log.info(`⏱️ Total test duration: ${totalDuration}`);
   }
 }

@@ -849,11 +849,12 @@ const WorkflowCanvas = {
     // Render nodes first so DOM elements exist for connection calculations
     this.renderNodes();
 
-    // Then render connections (needs node elements in DOM for port positions)
-    this.renderConnections();
-
-    // Toggle empty state visibility
-    this.toggleEmptyState();
+    // Use requestAnimationFrame to render connections AFTER nodes are painted in DOM
+    // This ensures offsetWidth/offsetHeight are available for port position calculations
+    requestAnimationFrame(() => {
+      this.renderConnections();
+      this.toggleEmptyState();
+    });
   },
 
   /**
@@ -1214,8 +1215,12 @@ const WorkflowCanvas = {
     
     // Get actual node element to find dimensions
     const el = document.querySelector(`.workflow-node[data-node-id="${node.id}"]`);
-    const nodeWidth = (el && el.offsetWidth > 0) ? el.offsetWidth : 200;
-    const nodeHeight = (el && el.offsetHeight > 0) ? el.offsetHeight : 100;
+    if (el && el.offsetWidth > 0) {
+      node._cachedWidth = el.offsetWidth;
+      node._cachedHeight = el.offsetHeight;
+    }
+    const nodeWidth = node._cachedWidth || 200;
+    const nodeHeight = node._cachedHeight || 100;
     
     // Use the same offset as getPortPosition for hit detection
     const portOffset = -2;
@@ -1249,8 +1254,13 @@ const WorkflowCanvas = {
     const el = document.querySelector(`.workflow-node[data-node-id="${node.id}"]`);
     
     // Use actual dimensions from the DOM if available (fallback to default if element is hidden and offsetWidth is 0)
-    const nodeWidth = (el && el.offsetWidth > 0) ? el.offsetWidth : 200;
-    const nodeHeight = (el && el.offsetHeight > 0) ? el.offsetHeight : 100;
+    // Also cache dimensions to avoid layout thrashing during rapid re-renders (e.g. dragging)
+    if (el && el.offsetWidth > 0) {
+      node._cachedWidth = el.offsetWidth;
+      node._cachedHeight = el.offsetHeight;
+    }
+    const nodeWidth = node._cachedWidth || 200;
+    const nodeHeight = node._cachedHeight || 100;
     
     const spacing = nodeHeight / (ports.length + 1);
     const portY = node.y + spacing * (portIndex + 1);
@@ -1483,7 +1493,20 @@ const WorkflowCanvas = {
       }
     }
     
-    this.nodes = def?.nodes || [];
+    this.nodes = (def?.nodes || []).map(node => {
+      // Enrich node dengan data terbaru dari NodeLibrary berdasarkan type
+      const libraryDef = (typeof NodeLibrary !== 'undefined')
+        ? NodeLibrary.nodeTypes.find(n => n.name === node.type)
+        : null;
+      
+      return {
+        ...node,
+        // Pakai data library sebagai fallback jika node lama tidak punya icon/color
+        icon:  node.icon  || libraryDef?.icon  || 'fa-cube',
+        color: node.color || libraryDef?.color || '#6366f1',
+        label: node.label || libraryDef?.displayName || node.type,
+      };
+    });
     this.connections = def?.connections || [];
     this.selectedNode = null;
     this.selectedNodes = [];

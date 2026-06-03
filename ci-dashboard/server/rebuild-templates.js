@@ -5,7 +5,8 @@ async function rebuildTemplates() {
     { name: 'Webchat Testing', platformType: 'playwright-webchat', platformLabel: 'Webchat', icon: 'fa-comments', color: '#2b6cb0' },
     { name: 'Facebook Testing', platformType: 'playwright-facebook', platformLabel: 'Facebook DM', icon: 'fab fa-facebook', color: '#1877F2' },
     { name: 'Instagram Testing', platformType: 'playwright-instagram', platformLabel: 'Instagram DM', icon: 'fab fa-instagram', color: '#E1306C' },
-    { name: 'Telegram Testing', platformType: 'telegram', platformLabel: 'Telegram Client', icon: 'fa-paper-plane', color: '#0088cc' }
+    { name: 'Telegram Testing', platformType: 'telegram', platformLabel: 'Telegram Client', icon: 'fa-paper-plane', color: '#0088cc' },
+    { name: 'WhatsApp Testing', platformType: 'playwright-whatsapp', platformLabel: 'WhatsApp', icon: 'fab fa-whatsapp', color: '#25D366' }
   ];
 
   try {

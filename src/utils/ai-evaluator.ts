@@ -1,4 +1,5 @@
 import * as dotenv from 'dotenv';
+import { log } from './logger';
 
 dotenv.config();
 
@@ -48,7 +49,14 @@ KONTEKS PENGUJIAN:
 
     instructions: `
 INSTRUKSI EVALUASI:
-Lakukan analisa multi-dimensi langkah demi langkah. Analisis harus ketat terhadap 4 kriteria ini:
+
+LANGKAH 0 - CEK KECOCOKAN (WAJIB DILAKUKAN PERTAMA KALI):
+Bandingkan teks "Jawaban Chatbot" dengan "Referensi Kebenaran" secara seksama.
+- Jika kedua teks IDENTIK atau HAMPIR IDENTIK (hanya beda spasi, kapitalisasi, tanda baca minor), maka WAJIB berikan skor 1.00 dan langsung ke OUTPUT FINAL. JANGAN analisis lebih lanjut.
+- Jika teks memiliki substansi yang sama meskipun susunan kalimat sedikit berbeda, berikan skor minimal 0.90.
+
+LANGKAH 1 - ANALISIS MULTI-DIMENSI (Hanya jika jawaban BERBEDA secara substansi):
+Lakukan analisa langkah demi langkah. Analisis harus ketat terhadap 4 kriteria ini:
 
 1. Faktual (Factual Accuracy): Apakah jawaban chatbot akurat dan sepenuhnya selaras dengan referensi? Adakah klaim palsu?
 2. Relevansi (Relevance): Apakah jawaban benar-benar menjawab apa yang ditanyakan secara langsung?
@@ -56,11 +64,13 @@ Lakukan analisa multi-dimensi langkah demi langkah. Analisis harus ketat terhada
 4. Halusinasi (Hallucination): Apakah ada informasi karangan tambahan (fabricated) yang tidak ada di referensi? Jika ada, berikan penalti besar.
 
 PEDOMAN SKOR AKHIR (0.0 - 1.0):
-- 1.00: Sempurna, 100% akurat, sangat relevan, lengkap, tidak ada informasi tambahan/halusinasi.
+- 1.00: Sempurna. Jawaban identik/hampir identik dengan referensi, ATAU 100% akurat, sangat relevan, lengkap, tidak ada informasi tambahan/halusinasi.
 - 0.80 - 0.99: Baik, fakta benar tapi mungkin bahasa kurang rapi atau kurang sedikit detail.
 - 0.60 - 0.79: Cukup, menjawab sebagian besar inti tapi ada informasi penting yang terlewat.
 - 0.40 - 0.59: Kurang, melenceng sebagian, gagal menjawab inti, atau ada halusinasi minor.
-- 0.00 - 0.39: Buruk, halusinasi parah, informasi salah (kontradiktif), atau sama sekali tidak relevan.`,
+- 0.00 - 0.39: Buruk, halusinasi parah, informasi salah (kontradiktif), atau sama sekali tidak relevan.
+
+PERINGATAN KERAS: Memberikan skor rendah untuk jawaban yang IDENTIK dengan referensi adalah KESALAHAN FATAL. Selalu bandingkan teks secara literal terlebih dahulu.`,
 
     outputFormat: `
 OUTPUT FINAL (WAJIB MENGEMBALIKAN JSON VALID SAJA, TANPA FORMAT MARKDOWN ATAU TEKS LAIN):
@@ -94,18 +104,106 @@ OUTPUT FINAL (WAJIB MENGEMBALIKAN JSON VALID SAJA, TANPA FORMAT MARKDOWN ATAU TE
     timeoutMs: 35000,     // Maksimal nunggu 35 detik per request
     maxRetries: 2,        // Maksimal coba ulang jika gagal (Rate Limit/Network Error)
     retryDelayMs: 2000    // Delay awal sebelum coba ulang (akan dikali eksponensial)
+  },
+
+  // Error Handling Config (per pertanyaan)
+  errorHandling: {
+    maxQuestionRetries: 3,   // Maksimal coba ulang per pertanyaan sebelum stop test
+    retryDelayMs: 3000       // Delay antar retry pertanyaan
   }
 };
+
+// ============================================
+// 2b. SHARED SCORING FUNCTION
+// ============================================
+/**
+ * Hitung status pass/failed berdasarkan threshold evaluasi.
+ * Dipakai bersama oleh semua platform.
+ */
+export function calculateStatus(score: number): string {
+  return score >= EVAL_CONFIG.thresholds.good ? "pass" : "failed";
+}
+
 
 // ============================================
 // 3. COMMON UTILITIES
 // ============================================
 export class BaseEvaluator {
+  /**
+   * Normalisasi teks untuk perbandingan: lowercase, trim, collapse whitespace,
+   * hapus tanda baca non-esensial, dan collapse spasi ganda.
+   */
+  protected normalizeForComparison(text: string): string {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[\r\n]+/g, ' ')        // Newlines → spasi
+      .replace(/\s+/g, ' ')             // Collapse multi-spasi
+      .replace(/[^\w\s]/g, '')          // Hapus tanda baca
+      .trim();
+  }
+
+  /**
+   * Deteksi jawaban yang identik atau hampir identik.
+   * Return EvaluationResult jika exact/near-match, null jika tidak.
+   */
+  protected checkExactMatch(expectedAnswer: string, actualAnswer: string): EvaluationResult | null {
+    if (!actualAnswer || actualAnswer.trim() === '' || actualAnswer.includes('Error:')) {
+      return null;
+    }
+
+    const normExpected = this.normalizeForComparison(expectedAnswer);
+    const normActual = this.normalizeForComparison(actualAnswer);
+
+    // Exact match setelah normalisasi
+    if (normExpected === normActual) {
+      return {
+        score: 1.0,
+        explanation: '[Status: ✓] Jawaban chatbot identik dengan referensi Knowledge Base. Skor sempurna.',
+        success: true,
+        provider: 'Exact Match',
+        details: {
+          factual_analysis: 'Jawaban 100% identik dengan referensi setelah normalisasi teks.',
+          relevance_analysis: 'Jawaban sepenuhnya relevan karena identik dengan referensi.',
+          completeness_analysis: 'Jawaban lengkap, tidak ada bagian yang tertinggal.',
+          hallucination_check: 'Tidak ada halusinasi, jawaban identik dengan referensi.'
+        }
+      };
+    }
+
+    // Near-match menggunakan fuzzy ratio
+    const fuzz = require('fuzzball');
+    const fuzzyRatio = fuzz.token_sort_ratio(normExpected, normActual);
+    
+    if (fuzzyRatio >= 95) {
+      return {
+        score: 1.0,
+        explanation: `[Status: ✓] Jawaban chatbot hampir identik dengan referensi (kemiripan ${fuzzyRatio}%). Skor sempurna.`,
+        success: true,
+        provider: 'Near-Exact Match',
+        details: {
+          factual_analysis: `Jawaban memiliki kemiripan ${fuzzyRatio}% dengan referensi setelah normalisasi.`,
+          relevance_analysis: 'Jawaban sepenuhnya relevan karena hampir identik dengan referensi.',
+          completeness_analysis: 'Jawaban lengkap, perbedaan hanya pada format/tanda baca minor.',
+          hallucination_check: 'Tidak ada halusinasi terdeteksi.'
+        }
+      };
+    }
+
+    return null; // Bukan exact/near match, lanjut ke evaluasi AI
+  }
+
   protected simpleTextEvaluation(expectedAnswer: string, actualAnswer: string, reason: string): EvaluationResult {
     const fuzz = require('fuzzball');
     
     if (!actualAnswer || actualAnswer.trim() === '' || actualAnswer.includes('Error:')) {
       return { score: 0.0, explanation: EVAL_CONFIG.messages.noResponse, success: false, provider: 'Simple Matching' };
+    }
+
+    // Cek exact match terlebih dahulu
+    const exactMatch = this.checkExactMatch(expectedAnswer, actualAnswer);
+    if (exactMatch) {
+      return { ...exactMatch, provider: 'Simple Matching (Exact)' };
     }
 
     // 1. FUZZY MATCHING (Overall similarity)
@@ -201,10 +299,10 @@ export class BaseEvaluator {
         
         if (attempt < maxAttempts) {
           const delay = EVAL_CONFIG.api.retryDelayMs * Math.pow(2, attempt - 1); // Exponential backoff: 2s, 4s, 8s...
-          console.warn(`⏳ [${providerName}] Percobaan ${attempt} gagal: ${errorMsg}. Retrying in ${delay}ms...`);
+          log.warn(`⏳ [${providerName}] Percobaan ${attempt} gagal: ${errorMsg}. Retrying in ${delay}ms...`);
           await new Promise(res => setTimeout(res, delay));
         } else {
-          console.error(`❌ [${providerName}] Semua percobaan gagal (${maxAttempts}x). Error: ${errorMsg}`);
+          log.error(`❌ [${providerName}] Semua percobaan gagal (${maxAttempts}x). Error: ${errorMsg}`);
         }
       }
     }
@@ -220,6 +318,13 @@ export class GeminiEvaluator extends BaseEvaluator implements AIEvaluator {
   private model: string = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   async evaluateResponse(q: string, exp: string, act: string, t: string): Promise<EvaluationResult> {
+    // 🛡️ Early return: jawaban identik/hampir identik → skor sempurna tanpa panggil AI
+    const exactMatch = this.checkExactMatch(exp, act);
+    if (exactMatch) {
+      log.info('✅ [Gemini] Exact/near-match terdeteksi, skip AI evaluation.');
+      return exactMatch;
+    }
+
     if (process.env.ENABLE_GEMINI_EVALUATION !== 'true' || !this.apiKey) {
       return this.simpleTextEvaluation(exp, act, 'Gemini disabled or key missing');
     }
@@ -254,7 +359,7 @@ export class GeminiEvaluator extends BaseEvaluator implements AIEvaluator {
         details: result.reasoning
       };
     } catch (e: any) {
-      console.error('⚠️ Gemini API error:', e.message);
+      log.error('⚠️ Gemini API error:', e.message);
       return this.simpleTextEvaluation(exp, act, `Gemini Error: ${e.message}`);
     }
   }
@@ -268,6 +373,13 @@ export class GroqEvaluator extends BaseEvaluator implements AIEvaluator {
   private model: string = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 
   async evaluateResponse(q: string, exp: string, act: string, t: string): Promise<EvaluationResult> {
+    // 🛡️ Early return: jawaban identik/hampir identik → skor sempurna tanpa panggil AI
+    const exactMatch = this.checkExactMatch(exp, act);
+    if (exactMatch) {
+      log.info('✅ [Groq] Exact/near-match terdeteksi, skip AI evaluation.');
+      return exactMatch;
+    }
+
     if (process.env.ENABLE_GROQ_EVALUATION !== 'true' || !this.apiKey) {
       return this.simpleTextEvaluation(exp, act, 'Groq disabled or key missing');
     }
@@ -305,7 +417,7 @@ export class GroqEvaluator extends BaseEvaluator implements AIEvaluator {
         details: result.reasoning
       };
     } catch (e: any) {
-      console.error(`❌ Groq evaluation failed: ${e.message}`);
+      log.error(`❌ Groq evaluation failed: ${e.message}`);
       return this.simpleTextEvaluation(exp, act, `Groq Error: ${e.message}`);
     }
   }
@@ -319,6 +431,13 @@ export class CerebrasEvaluator extends BaseEvaluator implements AIEvaluator {
   private model: string = process.env.CEREBRAS_MODEL || 'llama-3.3-70b';
 
   async evaluateResponse(q: string, exp: string, act: string, t: string): Promise<EvaluationResult> {
+    // 🛡️ Early return: jawaban identik/hampir identik → skor sempurna tanpa panggil AI
+    const exactMatch = this.checkExactMatch(exp, act);
+    if (exactMatch) {
+      log.info('✅ [Cerebras] Exact/near-match terdeteksi, skip AI evaluation.');
+      return exactMatch;
+    }
+
     if (process.env.ENABLE_CEREBRAS_EVALUATION !== 'true' || !this.apiKey) {
       return this.simpleTextEvaluation(exp, act, 'Cerebras disabled or key missing');
     }
@@ -359,7 +478,7 @@ export class CerebrasEvaluator extends BaseEvaluator implements AIEvaluator {
         details: result.reasoning
       };
     } catch (e: any) {
-      console.error(`❌ Cerebras evaluation failed: ${e.message}`);
+      log.error(`❌ Cerebras evaluation failed: ${e.message}`);
       return this.simpleTextEvaluation(exp, act, `Cerebras Error: ${e.message}`);
     }
   }
@@ -380,7 +499,7 @@ export class MultiProviderEvaluator implements AIEvaluator {
       const providerName = this.providers[(this.startIndex + i) % this.providers.length];
       const evaluator = EvaluatorFactory.createSpecificEvaluator(providerName, true);
       
-      console.log(`📡 [Attempt ${i + 1}/${this.providers.length}] Mode Multi: Menggunakan ${providerName}`);
+      log.info(`📡 [Attempt ${i + 1}/${this.providers.length}] Mode Multi: Menggunakan ${providerName}`);
       const result = await evaluator.evaluateResponse(q, exp, act, t);
       
       if (result.success) {
@@ -388,13 +507,13 @@ export class MultiProviderEvaluator implements AIEvaluator {
       }
       
       lastResult = result;
-      console.warn(`⚠️ ${providerName} gagal: ${result.explanation.split('[Fallback')[0]}`);
+      log.warn(`⚠️ ${providerName} gagal: ${result.explanation.split('[Fallback')[0]}`);
       if (i < this.providers.length - 1) {
-        console.log(`🔄 Mencoba provider berikutnya...`);
+        log.info(`🔄 Mencoba provider berikutnya...`);
       }
     }
 
-    console.error(`❌ Semua provider (${this.providers.join(', ')}) gagal mengevaluasi.`);
+    log.error(`❌ Semua provider (${this.providers.join(', ')}) gagal mengevaluasi.`);
     return lastResult!;
   }
 }
@@ -414,19 +533,19 @@ export class EvaluatorFactory {
       return new MultiProviderEvaluator(currentIndex);
     }
     
-    console.log(`📡 Using AI Provider: ${provider}`);
+    log.info(`📡 Using AI Provider: ${provider}`);
     return this.createSpecificEvaluator(provider);
   }
 
   static createSpecificEvaluator(provider: string, silent: boolean = false): AIEvaluator {
     if (provider === 'groq') {
-      if (!silent) console.log(`🚀 Initializing Groq evaluator with model: ${process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'}`);
+      if (!silent) log.info(`🚀 Initializing Groq evaluator with model: ${process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'}`);
       return new GroqEvaluator();
     } else if (provider === 'cerebras') {
-      if (!silent) console.log(`🚀 Initializing Cerebras evaluator with model: ${process.env.CEREBRAS_MODEL || 'llama-3.3-70b'}`);
+      if (!silent) log.info(`🚀 Initializing Cerebras evaluator with model: ${process.env.CEREBRAS_MODEL || 'llama-3.3-70b'}`);
       return new CerebrasEvaluator();
     } else {
-      if (!silent) console.log(`🚀 Initializing Gemini evaluator with model: ${process.env.GEMINI_MODEL || 'gemini-1.5-flash'}`);
+      if (!silent) log.info(`🚀 Initializing Gemini evaluator with model: ${process.env.GEMINI_MODEL || 'gemini-1.5-flash'}`);
       return new GeminiEvaluator();
     }
   }

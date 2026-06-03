@@ -9,6 +9,7 @@ import { InstagramPlatform } from './platforms/instagram';
 import { FacebookPlatform } from './platforms/facebook';
 import { DhaiPlatform } from './platforms/dhai';
 import { WebchatV3Platform } from './platforms/webchat-v3';
+import { WhatsAppPlatform } from './platforms/whatsapp';
 
 import { log } from './utils/logger';
 import { TestTracker } from './utils/test-tracker';
@@ -285,6 +286,22 @@ async function main(): Promise<void> {
       const dhaiViewport = { width: 1280, height: 720 };
       const { browser, page, title, browserName } = await Modul.readBrowser(url, 'chromium', headlessMode, dhaiViewport);
       await DhaiPlatform.actions(page, greeting, greeting2, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder, testTracker);
+      await Modul.closeBrowser(browser);
+
+    } else if (platform === 'whatsapp') {
+      const targetNumber = process.env.WHATSAPP_TARGET_NUMBER;
+      if (!targetNumber) {
+        console.error("Error: WHATSAPP_TARGET_NUMBER tidak diatur untuk platform 'whatsapp'.");
+        console.error("Format: 628xxxxxxxxxx (tanpa + atau spasi)");
+        Modul.testDone('Test Failed!');
+        return;
+      }
+
+      console.log(`Target WhatsApp Number: ${targetNumber}\n`);
+      const { browser, page } = await Modul.readBrowser('https://web.whatsapp.com', 'chromium', headlessMode);
+      const whatsappPlatform = new WhatsAppPlatform();
+      await whatsappPlatform.initialize(page);
+      await whatsappPlatform.actions(targetNumber, greeting, greeting2, jsonData, reportFilename, idTest, timeStart, today, testerName, screenshotsFolder, testTracker);
       await Modul.closeBrowser(browser);
 
     }

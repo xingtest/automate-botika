@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       SELECTED_PLATFORM:
-        description: 'Platform to test'
+        description: 'Platform to test (webchat | webchat-v3 | dhai | instagram | facebook | telegram | whatsapp)'
         required: false
         default: ''
       RUN_NAME:
@@ -100,6 +100,10 @@ on:
         description: 'Cerebras API Key (if using Cerebras)'
         required: false
         default: ''
+      WHATSAPP_TARGET_NUMBER:
+        description: 'WhatsApp target number (format: 628xxxxxxxxxx)'
+        required: false
+        default: ''
 
 jobs:
   test-single-platform:
@@ -107,7 +111,7 @@ jobs:
 
     # =====================================================
     # 🔥 GANTI PLATFORM DI SINI SAJA (untuk push/PR)
-    # pilihan: webchat | webchat-v3 | dhai | instagram | facebook | telegram
+    # pilihan: webchat | webchat-v3 | dhai | instagram | facebook | telegram | whatsapp
     # =====================================================
     env:
       SELECTED_PLATFORM: webchat
@@ -133,6 +137,11 @@ jobs:
       INSTAGRAM_USERNAME: "ahmadnurbrasta2.2"
       FACEBOOK_FANPAGE_ID: "114552848299710"
       TELEGRAM_BOT_USERNAME: "TestingNewIntegrasiBot"
+
+      # -----------------------------
+      # WHATSAPP CONFIG
+      # -----------------------------
+      WHATSAPP_TARGET_NUMBER: "628xxxxxxxxxx"
 
       # -----------------------------
       # AI EVALUATION CONFIG (Mengambil dari Secrets)
@@ -321,6 +330,11 @@ jobs:
               BOT="${{ github.event.inputs.TELEGRAM_BOT_USERNAME }}"
               [ -z "$BOT" ] && BOT="${TELEGRAM_BOT_USERNAME}"
               echo "TARGET_BOT_USERNAME=${BOT}" >> .env
+              ;;
+            whatsapp)
+              WA_NUM="${{ github.event.inputs.WHATSAPP_TARGET_NUMBER }}"
+              [ -z "$WA_NUM" ] && WA_NUM="${WHATSAPP_TARGET_NUMBER}"
+              echo "WHATSAPP_TARGET_NUMBER=${WA_NUM}" >> .env
               ;;
             *)
               echo "❌ Unknown platform: ${PLATFORM}"
