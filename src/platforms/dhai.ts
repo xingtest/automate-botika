@@ -4,8 +4,6 @@ import { EnvFile } from '../utils/envfile';
 import { EvaluatorFactory } from '../utils/ai-evaluator';
 import { TestData, BotData, SummaryData } from '../main';
 import { TestTracker } from '../utils/test-tracker';
-import { log } from '../utils/logger';
-import { calculateStatus, EVAL_CONFIG } from '../utils/ai-evaluator';
 import { runTestLoop } from '../utils/test-runner';
 
 export class DhaiPlatform {
@@ -14,19 +12,19 @@ export class DhaiPlatform {
       // Click "Tap to Start" button
       const tapToStartButton = page.locator('button:has-text("Tap to Start")');
       await tapToStartButton.click();
-      log.info('Tombol "Tap to Start" diklik.');
+      console.log('Tombol "Tap to Start" diklik.');
       await Modul.waitTime(2);
 
       // Click second interaction button
       const interactionButton = page.locator('#button-action-chat');
       await interactionButton.click();
-      log.info('Tombol interaksi kedua diklik.');
+      console.log('Tombol interaksi kedua diklik.');
 
       // Wait for textarea to appear
       await page.locator('textarea').waitFor({ state: 'visible', timeout: 30000 });
-      log.info('Antarmuka obrolan DHAI (Luna) siap.');
+      console.log('Antarmuka obrolan DHAI (Luna) siap.');
     } catch (error) {
-      log.error('Error saat memulai obrolan DHAI (Luna):', error);
+      console.error('Error saat memulai obrolan DHAI (Luna):', error);
       throw error;
     }
   }
@@ -38,9 +36,9 @@ export class DhaiPlatform {
       await textarea.fill(message);
       await Modul.waitTime(1);
       await page.keyboard.press('Enter');
-      log.info(`Pesan terkirim: ${message}`);
+      console.log(`Pesan terkirim: ${message}`);
     } catch (error) {
-      log.error('Error saat mengirim pesan di DHAI:', error);
+      console.error('Error saat mengirim pesan di DHAI:', error);
       throw error;
     }
   }
@@ -53,7 +51,7 @@ export class DhaiPlatform {
         const waitTime = attempt === 1 ? 5 : attempt * 3; // 5s, 6s, 9s
         await Modul.waitTime(waitTime);
 
-        log.info(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
+        console.log(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
 
         const responses = await this.extractBotResponse(page, userMessage);
 
@@ -62,10 +60,10 @@ export class DhaiPlatform {
         }
 
         if (attempt < maxRetries) {
-          log.info(`⏳ No response yet, retrying in ${(attempt + 1) * 3}s...`);
+          console.log(`⏳ No response yet, retrying in ${(attempt + 1) * 3}s...`);
         }
       } catch (error) {
-        log.error(`Error on attempt ${attempt}:`, error);
+        console.error(`Error on attempt ${attempt}:`, error);
         if (attempt === maxRetries) {
           return [];
         }
@@ -93,13 +91,13 @@ export class DhaiPlatform {
           const found = await page.locator(selector).all();
           if (found.length > 0) {
             chatMessages = found;
-            log.info(`📊 Found ${found.length} messages with selector: ${selector}`);
+            console.log(`📊 Found ${found.length} messages with selector: ${selector}`);
             break;
           }
         } catch { }
       }
 
-      log.info(`📊 Total messages: ${chatMessages.length}`);
+      console.log(`📊 Total messages: ${chatMessages.length}`);
 
       if (chatMessages.length > 0) {
         // Find ALL occurrences of the question
@@ -112,7 +110,7 @@ export class DhaiPlatform {
         }
 
         if (questionIndices.length === 0) {
-          log.info('⚠️ Question not found');
+          console.log('⚠️ Question not found');
 
           // Fallback: return last 3 messages
           const recentMessages: string[] = [];
@@ -124,7 +122,7 @@ export class DhaiPlatform {
           }
 
           if (recentMessages.length > 0) {
-            log.info(`📊 Using ${recentMessages.length} recent messages as fallback`);
+            console.log(`📊 Using ${recentMessages.length} recent messages as fallback`);
             return recentMessages;
           }
 
@@ -133,18 +131,18 @@ export class DhaiPlatform {
 
         // Use the LAST occurrence (most recent)
         const questionIndex = questionIndices[questionIndices.length - 1];
-        log.info(`✅ Found ${questionIndices.length} occurrence(s) of question`);
-        log.info(`✅ Using LAST occurrence at index ${questionIndex}`);
+        console.log(`✅ Found ${questionIndices.length} occurrence(s) of question`);
+        console.log(`✅ Using LAST occurrence at index ${questionIndex}`);
 
         // Collect bot responses after the question
         const botResponses: string[] = [];
         const startIndex = questionIndex + 1;
 
-        log.info(`📝 Capturing from index ${startIndex} to ${chatMessages.length}...`);
+        console.log(`📝 Capturing from index ${startIndex} to ${chatMessages.length}...`);
 
         // Check if there are messages after the question
         if (startIndex >= chatMessages.length) {
-          log.info('⚠️ No messages after question, question is at the end');
+          console.log('⚠️ No messages after question, question is at the end');
           return [];
         }
 
@@ -165,35 +163,35 @@ export class DhaiPlatform {
 
           // Skip if it's the user's message
           if (cleanText.includes(userMessage)) {
-            log.info(`  ⏭️ Skipping user message at ${i}`);
+            console.log(`  ⏭️ Skipping user message at ${i}`);
             continue;
           }
 
           // Check if ENTIRE text is just UI noise
           const isExactNoise = uiNoisePatterns.some(pattern => pattern.test(cleanText));
           if (isExactNoise) {
-            log.info(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
+            console.log(`  ⏭️ Skipping UI noise at ${i}: "${cleanText}"`);
             continue;
           }
 
           // Skip if this is a duplicate of the last message
           if (botResponses.length > 0 && botResponses[botResponses.length - 1] === cleanText) {
-            log.info(`  ⏭️ Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
+            console.log(`  ⏭️ Skipping duplicate at ${i}: "${cleanText.substring(0, 40)}..."`);
             continue;
           }
 
           botResponses.push(cleanText);
-          log.info(`  ✅ Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
+          console.log(`  ✅ Bot message ${botResponses.length}: "${cleanText.substring(0, 80)}..."`);
         }
 
         if (botResponses.length > 0) {
-          log.info(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
+          console.log(`📊 Captured ${botResponses.length} bot responses (after deduplication)`);
           return botResponses;
         }
       }
 
       // Fallback: try to get all visible text
-      log.info('💡 Trying fallback: get all visible text');
+      console.log('💡 Trying fallback: get all visible text');
       try {
         // Try bubble-msg first
         const bubbleMsg = await page.locator('#bubble-msg').textContent();
@@ -204,7 +202,7 @@ export class DhaiPlatform {
           });
 
           if (lines.length > 0) {
-            log.info(`📊 Captured ${lines.length} lines from bubble-msg`);
+            console.log(`📊 Captured ${lines.length} lines from bubble-msg`);
             return lines.map(l => l.trim());
           }
         }
@@ -212,7 +210,7 @@ export class DhaiPlatform {
 
       // Last resort: get all text content from body
       try {
-        log.info('💡 Last resort: scanning all text in page');
+        console.log('💡 Last resort: scanning all text in page');
         const allText = await page.locator('body').allTextContents();
         if (allText.length > 0) {
           const fullText = allText.join('\n');
@@ -229,16 +227,16 @@ export class DhaiPlatform {
           if (lines.length > 0) {
             // Take last 3 lines as bot response
             const recentLines = lines.slice(-3);
-            log.info(`📊 Captured ${recentLines.length} lines from page scan`);
+            console.log(`📊 Captured ${recentLines.length} lines from page scan`);
             return recentLines.map(l => l.trim());
           }
         }
       } catch { }
 
-      log.info('⚠️ No bot responses captured');
+      console.log('⚠️ No bot responses captured');
       return [];
     } catch (error) {
-      log.error('❌ Error:', error);
+      console.error('❌ Error:', error);
       return [];
     }
   }
@@ -257,6 +255,10 @@ export class DhaiPlatform {
 
     await page.screenshot({ path: filepath, fullPage: true });
     return filename;
+  }
+
+  static calculateStatus(score: number): string {
+    return score >= 0.7 ? 'pass' : 'failed';
   }
 
   static async actions(
@@ -279,7 +281,7 @@ export class DhaiPlatform {
     
     const title = '当 Membaca pertanyaan dan mengirim ke DHAI';
     Modul.showLoading(title);
-    log.info('');
+    console.log();
 
     try {
       await this.startChat(page);
@@ -287,155 +289,37 @@ export class DhaiPlatform {
 
       // Send greetings
       if (greeting && greeting.trim() !== '') {
-        log.info(`📤 Sending greeting 1: "${greeting}"`);
+        console.log(`📤 Sending greeting 1: "${greeting}"`);
         await this.sendMessage(page, greeting);
         await Modul.waitTime(5);
       }
 
       if (greeting2 && greeting2.trim() !== '') {
-        log.info(`📤 Sending greeting 2: "${greeting2}"`);
+        console.log(`📤 Sending greeting 2: "${greeting2}"`);
         await this.sendMessage(page, greeting2);
         await Modul.waitTime(5);
       }
     } catch (error) {
-      log.error('Gagal memulai obrolan atau mengirim sapaan di DHAI:', error);
+      console.error('Gagal memulai obrolan atau mengirim sapaan di DHAI:', error);
       return;
     }
 
-    const countPerElementTitle = jsonData.length;
-    const questionCount = jsonData.reduce((sum, item) => {
-      return sum + Object.keys(item).filter(key => key.startsWith('pertanyaan')).length;
-    }, 0);
-
-    let testAborted = false;
-    for (const element of jsonData) {
-      if (testAborted) break;
-      const durationPerTitle = Modul.startTime();
-      Modul.showLoading(element.title || 'Untitled');
-      log.info('');
-
-      for (const [key, value] of Object.entries(element)) {
-        if (key.startsWith('pertanyaan') && value && value.trim() !== '') {
-          const durationPerQuestion = Modul.startTime();
-          let questionSuccess = false;
-          for (let _retry = 1; _retry <= EVAL_CONFIG.errorHandling.maxQuestionRetries; _retry++) {
-          try {
-          const question = value;
-
-            await this.sendMessage(page, question);
-            await Modul.waitTime(5);
-
-            // Get bot response first
-            const respondBotList = await this.getReply(page, question);
-            let respondBot = respondBotList.join('\n').trim();
-
-            if (!respondBot) {
-              respondBot = 'No response captured';
-            }
-
-            // Take screenshot AFTER bot responds
-            const imageCapture = await this.takeScreenshot(page, idTest, key, question, screenshotsFolder);
-
-            const titleLoading = `${key} : ${question}`;
-            Modul.showLoadingSampleText(titleLoading);
-
-            const respondCsv = (element.context || '').trim();
-            const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
-
-            // AI evaluation using selected provider
-            log.info(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
-            const aiEvaluator = EvaluatorFactory.getEvaluator();
-            const evaluationResult = await aiEvaluator.evaluateResponse(
-              question,
-              respondCsv,
-              respondBot,
-              element.title || 'Unknown Topic'
-            );
-
-            const skor = evaluationResult.score;
-            const explanation = evaluationResult.explanation;
-            const AI = evaluationResult.success ? `${evaluationResult.provider} + Playwright TypeScript` : `Playwright TypeScript (${evaluationResult.provider} fallback)`;
-
-            const status = calculateStatus(skor);
-
-            const dataBotData: BotData = {
-              no: element.no || '',
-              title: element.title || '',
-              question,
-              response_kb: respondCsv,
-              response_llm: respondBot,
-              status,
-              duration: endDurationPerSampleText,
-              image_capture: imageCapture,
-              skor,
-              explanation
-            };
-
-            EnvFile.writeJsonDataBot(dataBotData, reportFilename, idTest);
-
-            // Add result to tracker
-            testTracker.addResult({
-              no: element.no || '',
-              title: element.title || '',
-              question,
-              response_kb: respondCsv,
-              response_llm: respondBot,
-              score: skor,
-              status: status as 'pass' | 'failed',
-              duration: endDurationPerSampleText,
-              image_capture: imageCapture,
-              explanation: explanation
-            });
-
-            const trackerSummary = testTracker.getSummary();
-
-            const dataSummary: SummaryData = {
-              id_test: idTest,
-              tester_name: testerName,
-              ai_evaluation: AI,
-              url,
-              page_name: titlePage,
-              browser_name: browserName,
-              date_test: today,
-              start_time_test: timeStart,
-              total_title: countPerElementTitle,
-              total_question: questionCount,
-              success: trackerSummary.passed,
-              failed: trackerSummary.failed
-            };
-
-            EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
-          questionSuccess = true;
-          break;
-          } catch (error) {
-            log.error(`Percobaan ${_retry}/${EVAL_CONFIG.errorHandling.maxQuestionRetries} gagal`, error);
-            if (_retry < EVAL_CONFIG.errorHandling.maxQuestionRetries) {
-              await Modul.waitTime(EVAL_CONFIG.errorHandling.retryDelayMs / 1000);
-            }
-          }
-          }
-          if (!questionSuccess) {
-            log.error(`Test dihentikan: pertanyaan gagal setelah ${EVAL_CONFIG.errorHandling.maxQuestionRetries} percobaan`);
-            testAborted = true;
-            break;
-          }
-        }
-      }
-
-      const endDurationPerTitle = Modul.endTime(durationPerTitle);
-      const chart = { [element.title || 'Untitled']: endDurationPerTitle };
-      EnvFile.writeJsonChart(chart, reportFilename, idTest);
-      log.info(`\n竢ｳ Total durasi Topik '${element.title || 'Untitled'}' : ${endDurationPerTitle}\n`);
-    }
-
-    log.info('識 Topik Terakhir \n');
-    
-    // Write end time and total duration
-    const endTime = new Date().toTimeString().split(' ')[0];
-    const totalDuration = Modul.endTime(start);
-    EnvFile.writeEndTimeSummary(endTime, totalDuration, reportFilename, idTest);
-    
-    log.info(`✅ Test completed at: ${endTime}`);
-    log.info(`⏱️ Total test duration: ${totalDuration}`);
+    await runTestLoop({
+      sendMessage: (q) => this.sendMessage(page, q),
+      getReply: (q) => this.getReply(page, q).then(res => res.join('\n').trim()),
+      takeScreenshot: (idTest, key, question, screenshotsFolder) => this.takeScreenshot(page, idTest, key, question, screenshotsFolder),
+      jsonData,
+      reportFilename,
+      idTest,
+      screenshotsFolder: screenshotsFolder || '',
+      testerName,
+      url,
+      pageName: titlePage,
+      browserName,
+      today,
+      timeStart,
+      platformLabel: 'Playwright TypeScript',
+      testTracker
+    });
   }
 }

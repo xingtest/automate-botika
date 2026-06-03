@@ -4,7 +4,6 @@ import { EnvFile } from '../utils/envfile';
 import { EvaluatorFactory } from '../utils/ai-evaluator';
 import { TestData, BotData, SummaryData } from '../main';
 import { log } from '../utils/logger';
-import { calculateStatus, EVAL_CONFIG } from '../utils/ai-evaluator';
 import { TestTracker } from '../utils/test-tracker';
 import { runTestLoop } from '../utils/test-runner';
 
@@ -381,7 +380,7 @@ export class WebchatPlatform {
 
       await Modul.waitTime(2);
     } catch (error) {
-      log.error('Error sending message:', error);
+      console.error('Error sending message:', error);
       throw error;
     }
   }
@@ -391,7 +390,7 @@ export class WebchatPlatform {
     let lastResponseCount = 0;
     let stableCount = 0;
 
-    log.info(`⏳ Waiting for bot reply to: "${question}" (max ${timeout / 1000}s)`);
+    console.log(`⏳ Waiting for bot reply to: "${question}" (max ${timeout / 1000}s)`);
 
     // Get initial message count
     try {
@@ -418,7 +417,7 @@ export class WebchatPlatform {
             content.trim() !== '' &&
             !content.includes('Ketik pesan')) {
 
-            log.info(`✅ Bot replied: "${content.substring(0, 50)}..."`);
+            console.log(`✅ Bot replied: "${content.substring(0, 50)}..."`);
 
             // Wait a short time for any additional messages
             await Modul.waitTime(1);
@@ -438,7 +437,7 @@ export class WebchatPlatform {
               content.trim() !== '' &&
               !content.includes('Ketik pesan')) {
 
-              log.info(`✅ Found stable response: "${content.substring(0, 50)}..."`);
+              console.log(`✅ Found stable response: "${content.substring(0, 50)}..."`);
               return;
             }
           }
@@ -448,7 +447,7 @@ export class WebchatPlatform {
       await Modul.waitTime(0.5); // Check more frequently
     }
 
-    log.info(`⚠️ Timeout (${timeout / 1000}s) waiting for reply to: "${question}"`);
+    console.log(`⚠️ Timeout (${timeout / 1000}s) waiting for reply to: "${question}"`);
   }
 
   static async getReplyChat(page: Page, question: string): Promise<string[]> {
@@ -481,6 +480,10 @@ export class WebchatPlatform {
     return filename;
   }
 
+  static calculateStatus(score: number): string {
+    return score >= 0.7 ? 'pass' : 'failed';
+  }
+
   static async actions(
     page: Page,
     jsonData: TestData[],
@@ -498,163 +501,31 @@ export class WebchatPlatform {
     const start = Modul.startTime();
     const title = '当 Membaca pertanyaan dan mengirim ke webchat';
     Modul.showLoading(title);
-    log.info('');
+    console.log();
 
-    const countPerElementTitle = jsonData.length;
-    const questionCount = jsonData.reduce((sum, item) => {
-      return sum + Object.keys(item).filter(key => key.startsWith('pertanyaan')).length;
-    }, 0);
-
-    let testAborted = false;
-    for (const element of jsonData) {
-      if (testAborted) break;
-      const durationPerTitle = Modul.startTime();
-      Modul.showLoading(element.title || 'Untitled');
-      log.info('');
-
-      let count = 0;
-      for (const [key, value] of Object.entries(element)) {
-        if (key.startsWith('pertanyaan') && value && value.trim() !== '') {
-          count++;
-          const durationPerQuestion = Modul.startTime();
-          let questionSuccess = false;
-          for (let _retry = 1; _retry <= EVAL_CONFIG.errorHandling.maxQuestionRetries; _retry++) {
-          try {
-          const question = value;
-
-          log.info(`📤 Sending: "${question}"`);
-          await this.sendMessage(page, question);
-
-          log.info(`⏳ Waiting for response...`);
-          await this.waitReply(page, question);
-
-          // Wait a bit more to ensure all content is loaded
+    await runTestLoop({
+      sendMessage: (q) => this.sendMessage(page, q),
+      getReply: (q) => this.getReplyChat(page, q).then(res => res.join('\n').trim()),
+      takeScreenshot: (idTest, key, question, screenshotsFolder) => this.takeScreenshot(page, idTest, key, question, screenshotsFolder),
+      jsonData,
+      reportFilename,
+      idTest,
+      screenshotsFolder: screenshotsFolder || '',
+      testerName,
+      url,
+      pageName: titlePage,
+      browserName,
+      today,
+      timeStart,
+      platformLabel: 'Playwright TypeScript',
+      testTracker,
+      onBeforeQuestion: async (count) => {
+        if (count % 5 === 0) {
+          log.info('🔄 Reloading page in Webchat to prevent memory issues...');
+          await page.reload();
           await Modul.waitTime(2);
-
-          // Take screenshot first while page is stable
-          const imageCapture = await this.takeScreenshot(page, idTest, key, question, screenshotsFolder);
-          log.info(`📸 Screenshot saved: ${imageCapture}`);
-
-          // Then capture response using new strategy pattern
-          const respondBotArray = await this.getReplyChat(page, question);
-          let respondBot = respondBotArray.join('\n').trim();
-
-          log.info(`📝 Final response: "${respondBot ? respondBot.substring(0, 80) + '...' : 'NO RESPONSE'}"`);
-
-          if (!respondBot) {
-            log.info('⚠️ No bot response captured');
-            respondBot = 'No response captured';
-          }
-
-          // Reload page every 5 questions to prevent memory issues
-          if (count % 5 === 0) {
-            log.info('🔄 Reloading page...');
-            await page.reload();
-            await Modul.waitTime(2);
-          }
-
-          const titleLoading = `${key} : ${question}`;
-          Modul.showLoadingSampleText(titleLoading);
-
-          const respondCsv = (element.context || '').trim();
-          const endDurationPerSampleText = Modul.endTime(durationPerQuestion);
-
-          // AI evaluation using selected provider
-          log.info(`🤖 Evaluating response with ${process.env.AI_PROVIDER || 'Gemini'} AI...`);
-          const aiEvaluator = EvaluatorFactory.getEvaluator();
-          const evaluationResult = await aiEvaluator.evaluateResponse(
-            question,
-            respondCsv,
-            respondBot,
-            element.title || 'Unknown Topic'
-          );
-
-          const skor = evaluationResult.score;
-          const explanation = evaluationResult.explanation;
-          const AI = evaluationResult.success 
-            ? `${evaluationResult.provider} + Playwright TypeScript` 
-            : `Playwright TypeScript (${evaluationResult.provider} fallback)`;
-
-          const status = calculateStatus(skor);
-
-          const dataBotData: BotData = {
-            no: element.no || '',
-            title: element.title || '',
-            question,
-            response_kb: respondCsv,
-            response_llm: respondBot,
-            status,
-            duration: endDurationPerSampleText,
-            image_capture: imageCapture,
-            skor,
-            explanation
-          };
-
-          EnvFile.writeJsonDataBot(dataBotData, reportFilename, idTest);
-
-          // Add result to tracker
-          testTracker.addResult({
-            no: element.no || '',
-            title: element.title || '',
-            question,
-            response_kb: respondCsv,
-            response_llm: respondBot,
-            score: skor,
-            status: status as 'pass' | 'failed',
-            duration: endDurationPerSampleText,
-            image_capture: imageCapture,
-            explanation: explanation
-          });
-
-          const trackerSummary = testTracker.getSummary();
-
-          const dataSummary: SummaryData = {
-            id_test: idTest,
-            tester_name: testerName,
-            ai_evaluation: AI,
-            url,
-            page_name: titlePage,
-            browser_name: browserName,
-            date_test: today,
-            start_time_test: timeStart,
-            total_title: countPerElementTitle,
-            total_question: questionCount,
-            success: trackerSummary.passed,
-            failed: trackerSummary.failed
-          };
-
-          EnvFile.writeJsonDataSummary(dataSummary, reportFilename, idTest);
-          questionSuccess = true;
-          break;
-          } catch (error) {
-            log.error(`Percobaan ${_retry}/${EVAL_CONFIG.errorHandling.maxQuestionRetries} gagal`, error);
-            if (_retry < EVAL_CONFIG.errorHandling.maxQuestionRetries) {
-              await Modul.waitTime(EVAL_CONFIG.errorHandling.retryDelayMs / 1000);
-            }
-          }
-          }
-          if (!questionSuccess) {
-            log.error(`Test dihentikan: pertanyaan gagal setelah ${EVAL_CONFIG.errorHandling.maxQuestionRetries} percobaan`);
-            testAborted = true;
-            break;
-          }
         }
       }
-
-      const endDurationPerTitle = Modul.endTime(durationPerTitle);
-      const chart = { [element.title || 'Untitled']: endDurationPerTitle };
-      EnvFile.writeJsonChart(chart, reportFilename, idTest);
-      log.info(`\n竢ｳ Total durasi Topik '${element.title || 'Untitled'}' : ${endDurationPerTitle}\n`);
-    }
-
-    log.info('識 Topik Terakhir \n');
-    
-    // Write end time and total duration
-    const endTime = new Date().toTimeString().split(' ')[0];
-    const totalDuration = Modul.endTime(start);
-    EnvFile.writeEndTimeSummary(endTime, totalDuration, reportFilename, idTest);
-    
-    log.info(`✅ Test completed at: ${endTime}`);
-    log.info(`⏱️ Total test duration: ${totalDuration}`);
+    });
   }
 }

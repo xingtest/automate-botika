@@ -3,6 +3,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 
 // Gunakan DATABASE_URL (Supabase) jika tersedia, fallback ke config lokal
+const isLocal = process.env.DB_HOST === 'localhost' || !process.env.DB_HOST;
 const poolConfig = process.env.DATABASE_URL
     ? {
         connectionString: process.env.DATABASE_URL,
@@ -20,10 +21,11 @@ const poolConfig = process.env.DATABASE_URL
         max: 10,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 2000,
+        ssl: isLocal ? false : { rejectUnauthorized: false }
     };
 
 const pool = new Pool(poolConfig);
-console.log(process.env.DATABASE_URL ? '🌐 Using Supabase (DATABASE_URL)' : '🏠 Using local PostgreSQL');
+console.log(process.env.DATABASE_URL ? '🌐 Using Supabase (DATABASE_URL)' : '🏠 Using PostgreSQL');
 
 /**
  * Wrapper to mimic mysql2 query behavior for PostgreSQL
