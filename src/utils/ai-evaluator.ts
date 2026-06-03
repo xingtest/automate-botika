@@ -485,10 +485,71 @@ export class CerebrasEvaluator extends BaseEvaluator implements AIEvaluator {
 }
 
 // ============================================
+// 6b. OPENAI IMPLEMENTATION
+// ============================================
+export class OpenAIEvaluator extends BaseEvaluator implements AIEvaluator {
+  private apiKey: string = process.env.OPENAI_API_KEY || '';
+  private model: string = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+  async evaluateResponse(q: string, exp: string, act: string, t: string): Promise<EvaluationResult> {
+    // 🛡️ Early return: jawaban identik/hampir identik → skor sempurna tanpa panggil AI
+    const exactMatch = this.checkExactMatch(exp, act);
+    if (exactMatch) {
+      log.info('✅ [OpenAI] Exact/near-match terdeteksi, skip AI evaluation.');
+      return exactMatch;
+    }
+
+    if (process.env.ENABLE_OPENAI_EVALUATION !== 'true' || !this.apiKey) {
+      return this.simpleTextEvaluation(exp, act, 'OpenAI disabled or key missing');
+    }
+
+    try {
+      const prompt = this.createPrompt(q, exp, act, t);
+      const resp = await this.fetchWithRetry('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: EVAL_CONFIG.prompts.systemRole }, 
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.1,
+          response_format: { type: 'json_object' }
+        })
+      }, 'OpenAI');
+
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(`OpenAI API Error ${resp.status}: ${errorText}`);
+      }
+      
+      const data: any = await resp.json();
+      const text = data.choices[0].message.content;
+      const result = this.extractJSON(text);
+
+      return {
+        score: parseFloat(result.score),
+        explanation: result.explanation,
+        success: true,
+        provider: `OpenAI (${this.model})`,
+        details: result.reasoning
+      };
+    } catch (e: any) {
+      log.error(`❌ OpenAI evaluation failed: ${e.message}`);
+      return this.simpleTextEvaluation(exp, act, `OpenAI Error: ${e.message}`);
+    }
+  }
+}
+
+// ============================================
 // 7. MULTI-PROVIDER IMPLEMENTATION
 // ============================================
 export class MultiProviderEvaluator implements AIEvaluator {
-  private providers = ['gemini', 'groq', 'cerebras'];
+  private providers = ['gemini', 'groq', 'cerebras', 'openai'];
   
   constructor(private startIndex: number) {}
 
@@ -544,6 +605,9 @@ export class EvaluatorFactory {
     } else if (provider === 'cerebras') {
       if (!silent) log.info(`🚀 Initializing Cerebras evaluator with model: ${process.env.CEREBRAS_MODEL || 'llama-3.3-70b'}`);
       return new CerebrasEvaluator();
+    } else if (provider === 'openai') {
+      if (!silent) log.info(`🚀 Initializing OpenAI evaluator with model: ${process.env.OPENAI_MODEL || 'gpt-4o-mini'}`);
+      return new OpenAIEvaluator();
     } else {
       if (!silent) log.info(`🚀 Initializing Gemini evaluator with model: ${process.env.GEMINI_MODEL || 'gemini-1.5-flash'}`);
       return new GeminiEvaluator();

@@ -130,10 +130,12 @@ const NodeLibrary = {
             type: 'options',
             options: [
               { name: 'WebChat', value: 'webchat' },
+              { name: 'WebChat V3', value: 'webchat-v3' },
               { name: 'Telegram', value: 'telegram' },
               { name: 'Facebook', value: 'facebook' },
               { name: 'Instagram', value: 'instagram' },
-              { name: 'DHAI', value: 'dhai' }
+              { name: 'DHAI', value: 'dhai' },
+              { name: 'WhatsApp', value: 'whatsapp' }
             ],
             default: 'webchat'
           },
@@ -573,11 +575,13 @@ const NodeLibrary = {
             name: 'provider',
             type: 'options',
             options: [
-              { name: 'Groq', value: 'groq' },
               { name: 'Gemini', value: 'gemini' },
-              { name: 'OpenAI', value: 'openai' }
+              { name: 'Groq', value: 'groq' },
+              { name: 'Cerebras', value: 'cerebras' },
+              { name: 'OpenAI', value: 'openai' },
+              { name: 'Multi (Round-robin)', value: 'multi' }
             ],
-            default: 'groq'
+            default: 'gemini'
           },
           {
             displayName: 'API Key',
@@ -611,6 +615,19 @@ const NodeLibrary = {
               { name: 'Gemini 1.5 Pro', value: 'gemini-1.5-pro' }
             ],
             default: 'gemini-3.1-flash-lite-preview'
+          },
+          {
+            displayName: 'Model (OpenAI)',
+            name: 'model_openai',
+            type: 'options',
+            displayOptions: { show: { provider: ['openai'] } },
+            options: [
+              { name: 'GPT-4o Mini', value: 'gpt-4o-mini' },
+              { name: 'GPT-4o', value: 'gpt-4o' },
+              { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+              { name: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' }
+            ],
+            default: 'gpt-4o-mini'
           },
           {
             displayName: 'System Prompt',
@@ -735,6 +752,59 @@ FORMAT OUTPUT (Wajib JSON):
               { name: 'Gemini 1.0 Pro', value: 'gemini-1.0-pro' }
             ],
             default: 'gemini-3.1-flash-lite-preview'
+          },
+          {
+            displayName: 'System Prompt',
+            name: 'systemPrompt',
+            type: 'textarea',
+            default: `Anda adalah Senior QA Automation Judge. Tugas Anda adalah mengevaluasi kualitas jawaban Chatbot...`,
+          },
+          {
+            displayName: 'Temperature',
+            name: 'temperature',
+            type: 'number',
+            default: 0.3,
+            min: 0,
+            max: 1
+          },
+          {
+            displayName: 'Pass Threshold',
+            name: 'scoring_threshold',
+            type: 'number',
+            default: 0.7,
+            min: 0,
+            max: 1
+          }
+        ]
+      },
+      {
+        displayName: 'OpenAI',
+        name: 'openai-ai',
+        category: 'AI',
+        description: 'AI Evaluation using OpenAI GPT models with custom credentials',
+        icon: 'fa-robot',
+        color: '#10a37f',
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+          {
+            displayName: 'OpenAI API Key',
+            name: 'apiKey',
+            type: 'string',
+            default: '',
+            description: 'Custom API Key for OpenAI'
+          },
+          {
+            displayName: 'Model',
+            name: 'model',
+            type: 'options',
+            options: [
+              { name: 'GPT-4o Mini', value: 'gpt-4o-mini' },
+              { name: 'GPT-4o', value: 'gpt-4o' },
+              { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+              { name: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' }
+            ],
+            default: 'gpt-4o-mini'
           },
           {
             displayName: 'System Prompt',
