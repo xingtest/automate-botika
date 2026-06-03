@@ -30,18 +30,52 @@ class ExecutionContext {
       return null;
     }
     
-    // Find connection to this node's input port
-    const connection = this.connections.find(c => 
+    // Find all connections to this node's input port
+    const targetConnections = this.connections.filter(c => 
       c.target_node_id === targetNodeId && 
       c.target_port_id === portName
     );
     
-    if (!connection) {
+    if (targetConnections.length === 0) {
       return null;
     }
     
-    // Get output from source node
-    return this.node_outputs.get(connection.source_node_id);
+    if (targetConnections.length === 1) {
+      // Get output from source node
+      return this.node_outputs.get(targetConnections[0].source_node_id);
+    }
+    
+    // If multiple connections are found, merge their results
+    let mergedData = { results: [] };
+    let hasData = false;
+    
+    for (const conn of targetConnections) {
+      const output = this.node_outputs.get(conn.source_node_id);
+      if (output) {
+        hasData = true;
+        // Merge results array if exists, and inject platform origin into each item
+        if (Array.isArray(output.results)) {
+          const platformName = output.platform || 'unknown';
+          const taggedResults = output.results.map(item => ({
+            ...item,
+            platform: platformName
+          }));
+          mergedData.results = mergedData.results.concat(taggedResults);
+        }
+        // Merge other properties
+        Object.keys(output).forEach(key => {
+          if (key !== 'results' && key !== 'success' && key !== 'platform' && key !== 'total_tested') {
+            mergedData[key] = output[key];
+          }
+        });
+      }
+    }
+    
+    // Recalculate totals
+    mergedData.total_tested = mergedData.results.length;
+    mergedData.success = mergedData.results.length > 0;
+    
+    return hasData ? mergedData : null;
   }
   
   /**

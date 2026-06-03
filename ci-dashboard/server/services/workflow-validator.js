@@ -271,15 +271,7 @@ class WorkflowValidator {
         break;
         
       case 'generate-report':
-        if (!config.format && !config.report_format) {
-          errors.push({
-            code: 'MISSING_REQUIRED_PARAM',
-            message: `Node ${node.id}: format is required`,
-            severity: 'error',
-            node: node.id,
-            field: 'format'
-          });
-        }
+        // format and template have defaults, so no strict validation needed
         break;
         
       case 'send-notification':

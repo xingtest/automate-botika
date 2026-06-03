@@ -239,11 +239,12 @@ const Toast = {
         const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
         const t = document.createElement('div');
         t.className = `toast ${type}`;
-        t.innerHTML = `<i class="fas ${icons[type] || icons.info} toast-icon"></i><div class="toast-body"><div class="toast-title">${title}</div><div class="toast-message">${msg}</div></div><button class="toast-close" onclick="this.closest('.toast').remove()"><i class="fas fa-times"></i></button>`;
+        const htmlMsg = String(msg || '').replace(/\n/g, '<br>');
+        t.innerHTML = `<i class="fas ${icons[type] || icons.info} toast-icon"></i><div class="toast-body"><div class="toast-title">${title}</div><div class="toast-message">${htmlMsg}</div></div><button class="toast-close" onclick="this.closest('.toast').remove()"><i class="fas fa-times"></i></button>`;
         this.container.appendChild(t);
         setTimeout(() => { t.classList.add('removing'); setTimeout(() => t.remove(), 300); }, dur);
     },
-    success(t, m) { this.show(t, m, 'success'); }, error(t, m) { this.show(t, m, 'error', 6000); },
+    success(t, m) { this.show(t, m, 'success'); }, error(t, m) { this.show(t, m, 'error', 10000); },
     warning(t, m) { this.show(t, m, 'warning', 5000); }, info(t, m) { this.show(t, m, 'info'); }
 };
 

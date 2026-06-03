@@ -1006,6 +1006,117 @@ exports.facebookAuth = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Check if session file exists
+exports.checkSession = async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    const sessionFile = req.body.path || 'session/session-whatsapp.json';
+    const absolutePath = path.resolve(process.cwd(), sessionFile);
+    
+    if (fs.existsSync(absolutePath)) {
+      const stats = fs.statSync(absolutePath);
+      // Ensure file has content (>10 bytes)
+      if (stats.size > 10) {
+        res.json({ 
+          exists: true, 
+          stats: {
+            size: stats.size,
+            mtime: stats.mtime
+          }
+        });
+      } else {
+        res.json({ exists: false, error: 'File exists but is empty' });
+      }
+    } else {
+      res.json({ exists: false, error: 'File not found' });
+    }
+  } catch (error) {
+    console.error('Error checking session:', error);
+    res.status(500).json({ exists: false, error: error.message });
+  }
+};
+
+// WhatsApp Auto-Auth via Playwright
+exports.whatsappAuth = async (req, res) => {
+  try {
+    const { chromium } = require('playwright');
+    const path = require('path');
+    const fs = require('fs');
+    
+    // Default session path
+    const sessionFile = 'session/session-whatsapp.json';
+    const sessionPath = path.resolve(process.cwd(), sessionFile);
+    
+    // Ensure session directory exists
+    const sessionDir = path.dirname(sessionPath);
+    if (!fs.existsSync(sessionDir)) {
+      fs.mkdirSync(sessionDir, { recursive: true });
+    }
+
+    // Launch a visible browser
+    const browser = await chromium.launch({ 
+      headless: false,
+      args: ['--no-sandbox']
+    });
+    
+    const context = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    });
+    
+    const page = await context.newPage();
+    await page.goto('https://web.whatsapp.com/');
+    
+    let isSuccess = false;
+    let attempts = 0;
+    
+    // Wait for user to scan QR and login (check for #pane-side which is the chat list)
+    while (attempts < 120) { // 2 minutes timeout
+      await page.waitForTimeout(1000);
+      
+      try {
+        if (!browser.isConnected()) break;
+        
+        // Checking if chat pane exists (which means login is successful)
+        const paneSide = await page.$('#pane-side');
+        
+        if (paneSide) {
+          isSuccess = true;
+          
+          // Save the storage state
+          await context.storageState({ path: sessionPath });
+          
+          await page.evaluate(() => {
+            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#25D366;color:white;font-family:sans-serif;font-size:24px;text-align:center;padding:20px;">Login Berhasil!<br>Session WhatsApp berhasil disimpan.<br>Browser otomatis menutup dalam 2 detik...</div>';
+          });
+          await page.waitForTimeout(2000);
+          break;
+        }
+      } catch (e) {
+        if (e.message.includes('Target page, context or browser has been closed')) {
+          break;
+        }
+      }
+      
+      attempts++;
+    }
+    
+    if (browser.isConnected()) {
+      await browser.close();
+    }
+    
+    if (isSuccess) {
+      res.json({ success: true, path: sessionFile });
+    } else {
+      res.json({ success: false, error: 'Proses dibatalkan atau waktu tunggu habis (2 menit).' });
+    }
+  } catch (error) {
+    console.error('Error in WhatsApp Auth:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
 // --- Telegram Auth Methods ---
 const pendingTelegramClients = new Map();
 

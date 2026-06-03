@@ -78,7 +78,7 @@ FORMAT OUTPUT (Wajib JSON):
           key: 'scoring_threshold',
           label: 'Pass Threshold',
           type: 'number',
-          required: true,
+          required: false,
           default: 0.7
         }
       ]

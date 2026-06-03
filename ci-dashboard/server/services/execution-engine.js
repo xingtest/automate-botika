@@ -118,13 +118,14 @@ class ExecutionEngine {
           // Mark as running in tracking set
           runningNodes.set(nodeId, (async () => {
             try {
-              // Check if all dependencies completed successfully (double check)
+              // Check if AT LEAST ONE dependency completed successfully
+              // This allows Fan-In (multiple parallel branches merging into one node) to continue even if some branches fail
               const dependencies = this.getUpstreamNodes(nodeId, activeConnections);
-              const allSuccess = dependencies.every(depId => context.getNodeStatus(depId) === 'success');
+              const anySuccess = dependencies.length === 0 || dependencies.some(depId => context.getNodeStatus(depId) === 'success');
               
-              if (!allSuccess) {
+              if (!anySuccess) {
                 context.setNodeStatus(nodeId, 'skipped');
-                await this.logNodeExecution(executionId, node, 'skipped', null, null, 'Upstream dependency failed or skipped');
+                await this.logNodeExecution(executionId, node, 'skipped', null, null, 'All upstream dependencies failed or skipped');
                 return;
               }
 

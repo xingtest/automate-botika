@@ -30,6 +30,7 @@ const WorkflowBuilder = {
     
     // Setup auto-save
     this.setupAutoSave();
+    this.initAutoSaveSetting();
     
     // Load last workflow or create new
     await this.loadLastWorkflow();
@@ -255,11 +256,54 @@ const WorkflowBuilder = {
   },
   
   /**
+   * Initialize auto-save setting from localStorage
+   */
+  initAutoSaveSetting() {
+    const isAutoSave = localStorage.getItem('workflow_auto_save') === 'true';
+    const toggleInput = document.getElementById('settingWorkflowAutoSave');
+    if (toggleInput) toggleInput.checked = isAutoSave;
+    this.updateSaveButtonUI(isAutoSave);
+  },
+
+  /**
+   * Toggle auto-save setting
+   */
+  toggleAutoSaveSetting(enabled) {
+    localStorage.setItem('workflow_auto_save', enabled);
+    this.updateSaveButtonUI(enabled);
+    if (enabled) {
+      Toast.info('Auto Save', 'Workflow auto save is enabled');
+    } else {
+      Toast.info('Auto Save', 'Workflow auto save is disabled');
+    }
+  },
+
+  /**
+   * Update the Save button UI based on auto-save state
+   */
+  updateSaveButtonUI(enabled) {
+    const btn = document.getElementById('wfSaveBtn');
+    if (!btn) return;
+    if (enabled) {
+      btn.innerHTML = '<i class="fas fa-save"></i> Auto Save';
+      btn.disabled = true;
+      btn.style.opacity = '0.7';
+      btn.style.cursor = 'not-allowed';
+    } else {
+      btn.innerHTML = '<i class="fas fa-save"></i> Save';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = '';
+    }
+  },
+
+  /**
    * Setup auto-save
    */
   setupAutoSave() {
     this.autoSaveInterval = setInterval(() => {
-      if (WorkflowManager.isModified && WorkflowManager.currentWorkflow) {
+      const isAutoSave = localStorage.getItem('workflow_auto_save') === 'true';
+      if (isAutoSave && WorkflowManager.isModified && WorkflowManager.currentWorkflow) {
         console.log('[WorkflowBuilder] Auto-saving...');
         this.saveWorkflow(true);
       }
@@ -649,12 +693,24 @@ const WorkflowBuilder = {
    */
   async validateWorkflow(silent = false) {
     try {
+      // Clear previous statuses before validating
+      if (typeof WorkflowCanvas !== 'undefined') {
+        WorkflowCanvas.resetNodeStatuses();
+      }
+
       const definition = WorkflowCanvas.getWorkflowDefinition();
       const validation = await WorkflowValidator.validate(definition);
       
       if (validation.valid) {
         if (!silent) Toast.success('Valid', 'Workflow is valid');
       } else {
+        // Visually mark all nodes that have validation errors with a red cross (failed status)
+        validation.errors.forEach(err => {
+          if (err.nodeId) {
+            WorkflowCanvas.updateNodeStatus(err.nodeId, 'failed', { error: err.message || 'Validation failed for this node' });
+          }
+        });
+
         // Find first node with error and open its config
         const firstNodeError = validation.errors.find(e => e.nodeId);
         if (firstNodeError) {
@@ -674,15 +730,16 @@ const WorkflowBuilder = {
               if (typeof NodeConfigPanel !== 'undefined') {
                 NodeConfigPanel.showConfig(node, { highlightFields: errorFields });
               }
-            }, 250); // Slightly longer delay to ensure canvas selection finishes
+            }, 250);
           }
         }
 
-        if (!silent) {
-          const errorCount = validation.errors.length;
-          const warningCount = validation.warnings?.length || 0;
-          Toast.warning('Validation Issues', `${errorCount} errors, ${warningCount} warnings`);
-        }
+        // Build detailed error message for Toast
+        const errorDetails = validation.errors.map(e => `• ${e.message}`).join('\n');
+        console.warn('[WorkflowBuilder] Validation errors:\n', errorDetails);
+
+        // Always show error details (even in silent mode from Run button)
+        Toast.error('Validation Failed', errorDetails || `${validation.errors.length} errors found`);
       }
       
       return validation;

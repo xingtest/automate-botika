@@ -19,11 +19,11 @@ class GenerateReportNode extends BaseNode {
       ],
       config_schema: [
         {
-          key: 'report_format',
+          key: 'format',
           label: 'Report Format',
           type: 'select',
-          required: true,
-          description: 'Format file laporan yang akan dibuat',
+          required: false,
+          default: 'html',
           options: [
             { label: 'JSON', value: 'json' },
             { label: 'HTML', value: 'html' },
@@ -31,19 +31,11 @@ class GenerateReportNode extends BaseNode {
           ]
         },
         {
-          key: 'output_filename',
-          label: 'Output Filename',
+          key: 'template',
+          label: 'Template',
           type: 'text',
-          required: true,
-          default: 'report',
-          description: 'Nama file laporan tanpa ekstensi'
-        },
-        {
-          key: 'include_screenshots',
-          label: 'Include Screenshots',
-          type: 'boolean',
           required: false,
-          default: false
+          default: 'standard-report'
         }
       ]
     });
@@ -59,8 +51,8 @@ class GenerateReportNode extends BaseNode {
       throw new Error('Invalid input: test results are required to generate a report');
     }
 
-    const format = config.report_format || 'json';
-    const baseName = config.output_filename || `report-${Date.now()}`;
+    const format = config.format || config.report_format || 'html';
+    const baseName = config.template || config.output_filename || `report-${Date.now()}`;
     const filename = `${baseName}.${format}`;
     const outputDir = path.join(__dirname, '../../../../artifacts');
     const filePath = path.join(outputDir, filename);

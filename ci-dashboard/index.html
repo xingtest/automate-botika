@@ -1012,9 +1012,33 @@
                                 <i class="fas fa-robot"></i>
                                 <div class="settings-card-label">LLM Evaluation</div>
                             </div>
+                            <div class="settings-card" onclick="SettingsUI.showSection('workflow-config')">
+                                <i class="fas fa-project-diagram"></i>
+                                <div class="settings-card-label">Workflow Builder</div>
+                            </div>
                             <div class="settings-card" onclick="SettingsUI.showSection('data-config')">
                                 <i class="fas fa-database"></i>
                                 <div class="settings-card-label">Data Management</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Workflow Builder Settings -->
+                    <div id="settings-workflow-config" class="settings-view hidden">
+                        <div class="settings-back-btn" onclick="SettingsUI.showGrid()">
+                            <i class="fas fa-arrow-left"></i> Back to Settings
+                        </div>
+                        <div class="glass-card mb-6">
+                            <div class="card-title"><i class="fas fa-project-diagram"></i> Workflow Builder Configuration</div>
+                            <div class="form-group mb-4 flex items-center justify-between" style="padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius); background: var(--bg-secondary);">
+                                <div>
+                                    <label class="form-label" style="margin-bottom: 0; font-weight: bold;"><i class="fas fa-save" style="color:var(--accent); margin-right: 6px;"></i> Auto Save Workflow</label>
+                                    <p class="text-xs text-muted" style="margin-top: 4px;">Secara otomatis menyimpan workflow setiap 30 detik apabila terdapat perubahan.</p>
+                                </div>
+                                <label class="switch" style="margin: 0;">
+                                    <input type="checkbox" id="settingWorkflowAutoSave" onchange="if(typeof WorkflowBuilder !== 'undefined') WorkflowBuilder.toggleAutoSaveSetting(this.checked)">
+                                    <span class="slider round"></span>
+                                </label>
                             </div>
                         </div>
                     </div>

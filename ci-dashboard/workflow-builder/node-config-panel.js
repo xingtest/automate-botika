@@ -302,9 +302,14 @@ const NodeConfigPanel = {
     // Add custom button for Instagram session extraction
     if (prop.name === 'sessionid' && this.currentNode?.type === 'playwright-instagram') {
       fieldHtml += `
-        <button onclick="NodeConfigPanel.extractInstagramSession()" type="button" class="mt-2 w-full btn btn-sm" style="background-color: #E1306C; color: white;">
-          <i class="fas fa-magic mr-1"></i> Auto-Get Cookie dari Browser
-        </button>
+        <div class="flex gap-2 mt-2">
+          <button onclick="NodeConfigPanel.extractInstagramSession()" type="button" class="flex-1 btn btn-sm" style="background-color: #E1306C; color: white;">
+            <i class="fas fa-magic mr-1"></i> Auto-Get
+          </button>
+          <button onclick="NodeConfigPanel.checkStringSession('instagram', ['prop_sessionid'], 'ig_auth_status')" type="button" class="flex-1 btn btn-sm bg-gray-600 text-white hover:bg-gray-700">
+            <i class="fas fa-search mr-1"></i> Check Status
+          </button>
+        </div>
         <div id="ig_auth_status" class="text-xs mt-1 hidden"></div>
       `;
     }
@@ -313,12 +318,32 @@ const NodeConfigPanel = {
     if ((prop.name === 'c_user' || prop.name === 'xs') && this.currentNode?.type === 'playwright-facebook') {
       if (prop.name === 'c_user') {
         fieldHtml += `
-          <button onclick="NodeConfigPanel.extractFacebookSession()" type="button" class="mt-2 w-full btn btn-sm" style="background-color: #1877F2; color: white;">
-            <i class="fas fa-magic mr-1"></i> Auto-Get Cookie dari Browser
-          </button>
+          <div class="flex gap-2 mt-2">
+            <button onclick="NodeConfigPanel.extractFacebookSession()" type="button" class="flex-1 btn btn-sm" style="background-color: #1877F2; color: white;">
+              <i class="fas fa-magic mr-1"></i> Auto-Get
+            </button>
+            <button onclick="NodeConfigPanel.checkStringSession('facebook', ['prop_c_user', 'prop_xs'], 'fb_auth_status')" type="button" class="flex-1 btn btn-sm bg-gray-600 text-white hover:bg-gray-700">
+              <i class="fas fa-search mr-1"></i> Check Status
+            </button>
+          </div>
           <div id="fb_auth_status" class="text-xs mt-1 hidden"></div>
         `;
       }
+    }
+
+    // Add custom button for WhatsApp session extraction
+    if (prop.name === 'session_file' && this.currentNode?.type === 'playwright-whatsapp') {
+      fieldHtml += `
+        <div class="flex gap-2 mt-2">
+          <button onclick="NodeConfigPanel.extractWhatsAppSession()" type="button" class="flex-1 btn btn-sm" style="background-color: #25D366; color: white;">
+            <i class="fas fa-qrcode mr-1"></i> Auto-Get
+          </button>
+          <button onclick="NodeConfigPanel.checkWhatsAppSession()" type="button" class="flex-1 btn btn-sm bg-gray-600 text-white hover:bg-gray-700">
+            <i class="fas fa-search mr-1"></i> Check Status
+          </button>
+        </div>
+        <div id="wa_auth_status" class="text-xs mt-1 hidden"></div>
+      `;
     }
 
     // Add custom button for Excel/CSV upload
@@ -337,9 +362,14 @@ const NodeConfigPanel = {
     // Add custom button for Telegram session generation
     if (prop.name === 'session_string' && this.currentNode?.type === 'telegram-client') {
       fieldHtml += `
-        <button onclick="NodeConfigPanel.generateTelegramSession()" type="button" class="mt-2 w-full btn btn-sm" style="background-color: #0088cc; color: white;">
-          <i class="fas fa-key mr-1"></i> Generate Session via API
-        </button>
+        <div class="flex gap-2 mt-2">
+          <button onclick="NodeConfigPanel.generateTelegramSession()" type="button" class="flex-1 btn btn-sm" style="background-color: #0088cc; color: white;">
+            <i class="fas fa-key mr-1"></i> Auto-Get
+          </button>
+          <button onclick="NodeConfigPanel.checkStringSession('telegram', ['prop_session_string'], 'tg_auth_status')" type="button" class="flex-1 btn btn-sm bg-gray-600 text-white hover:bg-gray-700">
+            <i class="fas fa-search mr-1"></i> Check Status
+          </button>
+        </div>
         <div id="tg_auth_status" class="text-xs mt-1 hidden"></div>
       `;
     }
@@ -556,6 +586,81 @@ const NodeConfigPanel = {
       statusEl.classList.replace('text-blue-500', 'text-red-500');
       statusEl.innerText = 'Error: ' + e.message;
     }
+  },
+
+  async extractWhatsAppSession() {
+    const statusEl = document.getElementById('wa_auth_status');
+    statusEl.classList.remove('hidden', 'text-red-500', 'text-green-500', 'text-yellow-500');
+    statusEl.classList.add('text-blue-500');
+    statusEl.innerText = 'Membuka browser... silakan scan QR Code di jendela baru.';
+    
+    try {
+      const response = await BackendAPI.post('/workflows/whatsapp-auth', {});
+      if (response && response.success) {
+        document.getElementById('prop_session_file').value = response.path;
+        this.tempData.config.session_file = response.path;
+        statusEl.classList.replace('text-blue-500', 'text-green-500');
+        statusEl.innerText = 'Berhasil! Session file telah diisi otomatis.';
+        this.saveConfig();
+      } else {
+        statusEl.classList.replace('text-blue-500', 'text-red-500');
+        statusEl.innerText = response.error || 'Gagal mengambil session.';
+      }
+    } catch (e) {
+      statusEl.classList.replace('text-blue-500', 'text-red-500');
+      statusEl.innerText = 'Error: ' + e.message;
+    }
+  },
+
+  async checkWhatsAppSession() {
+    const statusEl = document.getElementById('wa_auth_status');
+    statusEl.classList.remove('hidden', 'text-red-500', 'text-green-500', 'text-blue-500');
+    statusEl.classList.add('text-yellow-500');
+    statusEl.innerText = 'Mengecek session...';
+    
+    const sessionFile = document.getElementById('prop_session_file').value || 'session/session-whatsapp.json';
+    
+    try {
+      const response = await BackendAPI.post('/workflows/check-session', { path: sessionFile });
+      if (response && response.exists) {
+        statusEl.classList.replace('text-yellow-500', 'text-green-500');
+        statusEl.innerHTML = `<strong>Session valid!</strong> Dibuat: ${new Date(response.stats.mtime).toLocaleString()}<br>Ukuran: ${(response.stats.size / 1024).toFixed(2)} KB`;
+      } else {
+        statusEl.classList.replace('text-yellow-500', 'text-red-500');
+        statusEl.innerText = 'Session tidak ditemukan atau kosong! Silakan klik Auto-Get.';
+      }
+    } catch (e) {
+      statusEl.classList.replace('text-yellow-500', 'text-red-500');
+      statusEl.innerText = 'Error checking session: ' + e.message;
+    }
+  },
+
+  checkStringSession(platform, inputIds, statusElementId) {
+    const statusEl = document.getElementById(statusElementId);
+    statusEl.classList.remove('hidden', 'text-red-500', 'text-green-500', 'text-blue-500');
+    statusEl.classList.add('text-yellow-500');
+    statusEl.innerText = 'Mengecek isi input...';
+    
+    let isValid = true;
+    let missingInputs = [];
+    
+    for (const id of inputIds) {
+      const val = document.getElementById(id)?.value || '';
+      if (!val || val.trim().length < 5) {
+        isValid = false;
+        missingInputs.push(id.replace('prop_', ''));
+      }
+    }
+    
+    setTimeout(() => {
+      if (isValid) {
+        statusEl.classList.replace('text-yellow-500', 'text-green-500');
+        statusEl.innerHTML = `<strong>Input valid!</strong> String session telah terisi untuk ${platform}.`;
+      } else {
+        statusEl.classList.replace('text-yellow-500', 'text-red-500');
+        statusEl.innerHTML = `<strong>Tidak valid!</strong> Input <code>${missingInputs.join(', ')}</code> masih kosong atau terlalu pendek. Silakan klik Auto-Get.`;
+      }
+    }, 500); // Simulate brief checking delay for UX
   },
 
   async handleExcelUpload(input) {
