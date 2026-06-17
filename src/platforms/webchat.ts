@@ -450,6 +450,54 @@ export class WebchatPlatform {
     console.log(`⚠️ Timeout (${timeout / 1000}s) waiting for reply to: "${question}"`);
   }
 
+  /**
+   * Wait for a user reply (a message element with user class) after bot response.
+   * Returns when a new user message is detected or when timeout elapses.
+   */
+  static async waitForUserResponse(page: Page, timeout: number = 120000): Promise<boolean> {
+    const start = Date.now();
+
+    try {
+      // Count initial user messages
+      let initialUserCount = 0;
+      try {
+        initialUserCount = await page.locator('.message.user, .message.user .content').count();
+      } catch { initialUserCount = 0; }
+
+      while (Date.now() - start < timeout) {
+        try {
+          const currentUserCount = await page.locator('.message.user, .message.user .content').count();
+          if (currentUserCount > initialUserCount) {
+            // New user message detected
+            log.info(`Detected user reply (new user messages: ${currentUserCount - initialUserCount})`);
+            return true;
+          }
+
+          // Also check last message wrapper if it belongs to user (some markup uses wrapper class)
+          const lastWrapper = page.locator('.message-content-wrapper').last();
+          const isUser = await lastWrapper.evaluate((el) => {
+            return el.classList.contains('user') || el.closest('.user') !== null || el.querySelector('.user') !== null;
+          }).catch(() => false);
+
+          if (isUser) {
+            log.info('Detected user reply via last message wrapper class');
+            return true;
+          }
+        } catch (e) {
+          // ignore intermittent errors and continue polling
+        }
+
+        await Modul.waitTime(1);
+      }
+
+      log.info(`No user reply detected within ${timeout / 1000}s, proceeding`);
+      return false;
+    } catch (error) {
+      log.warn('Error while waiting for user reply', error);
+      return false;
+    }
+  }
+
   static async getReplyChat(page: Page, question: string): Promise<string[]> {
     // Use internal capture method
     const result = await this.captureResponses(page, question);
@@ -505,7 +553,24 @@ export class WebchatPlatform {
 
     await runTestLoop({
       sendMessage: (q) => this.sendMessage(page, q),
-      getReply: (q) => this.getReplyChat(page, q).then(res => res.join('\n').trim()),
+      getReply: (q) => (async () => {
+        const raw = await this.getReplyChat(page, q);
+        const joined = raw.join('\n').trim();
+
+        try {
+          log.info('Menunggu user merespon (maks 120s) sebelum lanjut...');
+          const userReplied = await this.waitForUserResponse(page, 120000);
+          if (!userReplied) {
+            log.info('Tidak ada balasan user dalam 120s, melanjutkan.');
+          } else {
+            log.info('User merespon, melanjutkan.');
+          }
+        } catch (e) {
+          log.warn('Error saat menunggu balasan user', e);
+        }
+
+        return joined;
+      })(),
       takeScreenshot: (idTest, key, question, screenshotsFolder) => this.takeScreenshot(page, idTest, key, question, screenshotsFolder),
       jsonData,
       reportFilename,
