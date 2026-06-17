@@ -119,19 +119,19 @@ jobs:
     # =====================================================
     env:
       SELECTED_PLATFORM: webchat
-      DEFAULT_AI_PROVIDER: multi
+      DEFAULT_AI_PROVIDER: groq
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama3.1-8b
-      DEFAULT_FILENAME: Testing MRTJ 3.xlsx
-      DEFAULT_TESTER_NAME: Cik test LGI
+      DEFAULT_FILENAME: MRT add new 15062026.xlsx
+      DEFAULT_TESTER_NAME: Cik MRT add new 15062026
       DEFAULT_GREETING: Hai
       DEFAULT_GREETING_2: Alex
 
       # -----------------------------
       # TARGET URL / ID / USERNAME / KREDENSIAL
       # -----------------------------
-      WEBCHAT_URL: "https://chat.botika.online/rorNYCz"
+      WEBCHAT_URL: "https://chat.botika.online/0OOaBWX"
       WEBCHAT_V3_URL: "https://chat.botika.online/v3/mk6YoYD"
       DEFAULT_WEBCHAT_NAME: "Cik luna testing bot"
       DEFAULT_WEBCHAT_EMAIL: "tester@botika.online"
