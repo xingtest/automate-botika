@@ -123,16 +123,14 @@ async function main(): Promise<void> {
 
   // Declare reportFilename outside try block so it's accessible in finally
   let reportFilename = '';
+  let executionError: Error | null = null;
 
   try {
     // Prefer CLI argument (e.g. `node dist/main.js instagram`) over .env
     const cliPlatform = process.argv[2] || '';
     const platform = (cliPlatform || process.env.PLATFORM || '').toLowerCase();
     if (!platform) {
-      log.error("Environment variable 'PLATFORM' tidak diatur");
-      console.error("Error: Environment variable 'PLATFORM' tidak diatur.");
-      Modul.testDone('Test Failed!');
-      process.exit(1);
+      throw new Error("Environment variable 'PLATFORM' tidak diatur");
     }
 
     const filenameWithExt = process.env.FILENAME;
@@ -174,9 +172,7 @@ async function main(): Promise<void> {
     console.log();
 
     if (!filenameWithExt) {
-      console.error("Error: Nama file data uji tidak ditemukan.");
-      Modul.testDone('Test Failed!');
-      return;
+      throw new Error("Nama file data uji tidak ditemukan.");
     }
 
     console.log(`File Uji yang Digunakan: ${filenameWithExt}\n`);
@@ -184,18 +180,14 @@ async function main(): Promise<void> {
 
     const jsonData = loadTestData(filenameWithExt);
     if (!jsonData || jsonData.length === 0) {
-      console.error('Error: Tidak ada data yang dapat dibaca dari file.');
-      Modul.testDone('Test Failed!');
-      return;
+      throw new Error("Tidak ada data yang dapat dibaca dari file.");
     }
 
     // Execute based on platform
     if (platform === 'webchat') {
       const url = process.env.TARGET_URL;
       if (!url) {
-        console.error("Error: TARGET_URL tidak diatur untuk platform 'webchat'.");
-        Modul.testDone('Test Failed!');
-        return;
+        throw new Error("TARGET_URL tidak diatur untuk platform 'webchat'.");
       }
       console.log(`URL Pengujian: ${url}\n`);
 
@@ -311,11 +303,11 @@ async function main(): Promise<void> {
       return;
     }
 
-  } catch (error) {
+  } catch (error: any) {
     log.error('Error during execution', error);
     console.error('Error during execution:', error);
     Modul.testDone('Test Failed!');
-    process.exit(1);
+    executionError = error;
   } finally {
     const endDurationMeasurement = Modul.endTime(startDurationMeasurement);
     const { today: todayEnd, time: timeEnd } = Modul.todays();
@@ -360,11 +352,11 @@ async function main(): Promise<void> {
     Modul.testDone('Test Done!');
     console.log('Terima kasih, semoga harimu menyenangkan! 😎\n');
 
-    // Exit with appropriate code based on test results
-    const exitCode = testTracker.getExitCode();
+    // Exit with appropriate code based on test results or execution error
+    const exitCode = executionError ? 1 : testTracker.getExitCode();
     if (exitCode !== 0) {
-      log.warn(`Exiting with code ${exitCode} due to test failures`);
-      console.log(`\n⚠️ Some tests failed. Exit code: ${exitCode}\n`);
+      log.warn(`Exiting with code ${exitCode} due to failures/errors`);
+      console.log(`\n⚠️ Failure or error detected. Exit code: ${exitCode}\n`);
     }
     process.exit(exitCode);
   }
