@@ -43,7 +43,7 @@ Thumbs.db
 .DS_Store
 
 # Git
-.github/
+# .github/
 
 # Sessions
 session/*.json
