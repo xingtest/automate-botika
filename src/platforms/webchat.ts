@@ -554,6 +554,9 @@ export class WebchatPlatform {
     await runTestLoop({
       sendMessage: (q) => this.sendMessage(page, q),
       getReply: (q) => (async () => {
+        // Tunggu hingga bot selesai merespons sebelum mengambil chat
+        await this.waitReply(page, q, 120000);
+
         const raw = await this.getReplyChat(page, q);
         const joined = raw.join('\n').trim();
 
