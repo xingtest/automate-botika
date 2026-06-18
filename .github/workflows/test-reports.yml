@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testingg MRTJ Update full' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testingg MRTJ Update sisaan' }}
 
 on:
   push:
@@ -123,8 +123,8 @@ jobs:
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama-3.1-8b-instant
-      DEFAULT_FILENAME: MRT add new 15062026 full.xlsx
-      DEFAULT_TESTER_NAME: Cik MRT add new 15062026 full
+      DEFAULT_FILENAME: MRT add new 15062026 sisaan.xlsx
+      DEFAULT_TESTER_NAME: Cik MRT add new 15062026 sisaan
       DEFAULT_GREETING: Hai
       DEFAULT_GREETING_2: Alex
 
