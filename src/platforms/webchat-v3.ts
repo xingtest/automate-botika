@@ -388,7 +388,11 @@ export class WebchatV3Platform {
 
     await runTestLoop({
       sendMessage: (q) => this.sendMessage(page, q),
-      getReply: (q) => this.getReplyChat(page, q).then(res => res.join('\n').trim()),
+      getReply: async (q) => {
+        await this.waitReply(page, q, 120000);
+        const res = await this.getReplyChat(page, q);
+        return res.join('\n').trim();
+      },
       takeScreenshot: (idTest, key, question, screenshotsFolder) => this.takeScreenshot(page, idTest, key, question, screenshotsFolder),
       jsonData,
       reportFilename,

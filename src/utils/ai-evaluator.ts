@@ -298,7 +298,16 @@ export class BaseEvaluator {
         const errorMsg = isAbort ? `Timeout setelah ${EVAL_CONFIG.api.timeoutMs}ms` : error.message;
         
         if (attempt < maxAttempts) {
-          const delay = EVAL_CONFIG.api.retryDelayMs * Math.pow(2, attempt - 1); // Exponential backoff: 2s, 4s, 8s...
+          let delay = EVAL_CONFIG.api.retryDelayMs * Math.pow(2, attempt - 1); // Exponential backoff: 2s, 4s, 8s...
+          
+          // Parse dynamic retry-after from error message if available (e.g. "try again in 8.74s")
+          const rateLimitMatch = error.message.match(/try again in (\d+\.?\d*)s/i);
+          if (rateLimitMatch && rateLimitMatch[1]) {
+            const waitSeconds = parseFloat(rateLimitMatch[1]);
+            delay = Math.ceil(waitSeconds * 1000) + 1500; // wait duration + 1.5s buffer
+            log.info(`⏳ [${providerName}] Rate limit detected. Parsed dynamic wait delay: ${delay}ms`);
+          }
+          
           log.warn(`⏳ [${providerName}] Percobaan ${attempt} gagal: ${errorMsg}. Retrying in ${delay}ms...`);
           await new Promise(res => setTimeout(res, delay));
         } else {
