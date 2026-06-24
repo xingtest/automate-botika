@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testingg KB VOICEBOTIKA APP 2' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'KB_OMNIBOTIKA V2 }}
 
 on:
   push:
@@ -123,8 +123,8 @@ jobs:
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama-3.1-8b-instant
-      DEFAULT_FILENAME: KB VOICEBOTIKA APP 2.xlsx
-      DEFAULT_TESTER_NAME: Cik KB VOICEBOTIKA APP 2
+      DEFAULT_FILENAME: KB_OMNIBOTIKA V2.xlsx
+      DEFAULT_TESTER_NAME: Cik KB_OMNIBOTIKA V2
       DEFAULT_GREETING: Hai
       DEFAULT_GREETING_2: 
 
