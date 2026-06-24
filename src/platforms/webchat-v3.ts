@@ -198,43 +198,78 @@ export class WebchatV3Platform {
   ): Promise<void> {
     Modul.showLoading('Checking for available webchat V3 pre-chat form');
 
-    await Modul.waitTime(5);
-    let fieldsFound = 0;
+    try {
+      // Wait for either the chat input OR pre-chat form elements to appear
+      await Promise.race([
+        page.waitForSelector('textarea.v-field__input, textarea[placeholder="Message"]', { timeout: 10000 }),
+        page.waitForSelector('#registername, #registeremail, .v-input, button:has-text("Submit"), button:has-text("Mulai Obrolan")', { timeout: 10000 })
+      ]).catch(() => {
+        log.debug('No elements detected during initial page load race, continuing');
+      });
+    } catch (e) {
+      // Ignore wait errors
+    }
 
+    if (await page.locator('textarea.v-field__input, textarea[placeholder="Message"]').first().isVisible()) {
+      log.info('✅ Chat interface detected directly, skipping pre-chat form');
+      return;
+    }
+
+    let fieldsFound = 0;
     log.platform.action('Checking for pre-chat form fields in V3');
 
     try {
       // 1. Name
-      const nameSelectors = ['#registername', 'input[placeholder*="Name"]', 'input[label*="Name"]'];
+      const nameSelectors = [
+        '#registername', 
+        'input[placeholder*="Name"]', 
+        'input[label*="Name"]',
+        '.v-input:has-text("Name") input',
+        '.v-input:has-text("Nama") input'
+      ];
       for (const selector of nameSelectors) {
-        const input = page.locator(selector);
+        const input = page.locator(selector).first();
         if (await input.isVisible()) {
           await input.fill(name);
-          log.info('✅ Pre-chat form name field available');
+          log.info(`✅ Filled name field (${selector})`);
           fieldsFound++;
           break;
         }
       }
 
       // 2. Email
-      const emailSelectors = ['#registeremail', 'input[placeholder*="Email"]', 'input[label*="Email"]', 'input[type="email"]'];
+      const emailSelectors = [
+        '#registeremail', 
+        'input[placeholder*="Email"]', 
+        'input[label*="Email"]', 
+        'input[type="email"]',
+        '.v-input:has-text("Email") input'
+      ];
       for (const selector of emailSelectors) {
-        const input = page.locator(selector);
+        const input = page.locator(selector).first();
         if (await input.isVisible()) {
           await input.fill(email);
-          log.info('✅ Pre-chat form email field available');
+          log.info(`✅ Filled email field (${selector})`);
           fieldsFound++;
           break;
         }
       }
 
       // 3. Phone
-      const phoneSelectors = ['#registerphone', 'input[placeholder*="Phone"]', 'input[label*="Phone"]', 'input[type="tel"]'];
+      const phoneSelectors = [
+        '#registerphone', 
+        'input[placeholder*="Phone"]', 
+        'input[label*="Phone"]', 
+        'input[placeholder*="telp"]',
+        'input[type="tel"]',
+        '.v-input:has-text("Phone") input',
+        '.v-input:has-text("telp") input'
+      ];
       for (const selector of phoneSelectors) {
-        const input = page.locator(selector);
+        const input = page.locator(selector).first();
         if (await input.isVisible()) {
           await input.fill(phone);
-          log.info('✅ Pre-chat form phone field available');
+          log.info(`✅ Filled phone field (${selector})`);
           fieldsFound++;
           break;
         }
@@ -264,14 +299,28 @@ export class WebchatV3Platform {
         }
       }
 
+      // 5. Fallback brute-force fill for any other empty visible inputs
+      const allInputs = page.locator('input:visible, textarea:visible');
+      const inputCount = await allInputs.count();
+      for (let i = 0; i < inputCount; i++) {
+        const input = allInputs.nth(i);
+        const val = await input.inputValue();
+        if (!val) {
+          try {
+            await input.fill('Tester');
+            fieldsFound++;
+          } catch (e) {}
+        }
+      }
+
       if (fieldsFound > 0) {
         log.info(`✅ Pre-chat form detected with ${fieldsFound} fields in V3`);
 
-        const startChatButton = page.locator('button:has-text("Mulai Obrolan"), button:has-text("Start Chat"), button:has-text("Kirim"), #btn-submit-register, .btn-submit, button[type="submit"]').first();
+        const startChatButton = page.locator('button:has-text("Mulai Obrolan"), button:has-text("Start Chat"), button:has-text("Kirim"), button:has-text("Submit"), #btn-submit-register, .btn-submit, button[type="submit"]').first();
         if (await startChatButton.isVisible()) {
           await startChatButton.click();
-          log.info('✅ Clicked Start Chat button');
-          await Modul.waitTime(3);
+          log.info('✅ Clicked submit button, waiting for chat interface...');
+          await Modul.waitTime(4);
         }
       } else {
         log.debug('No pre-chat form detected in V3, proceeding directly');
