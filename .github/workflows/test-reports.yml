@@ -118,24 +118,24 @@ jobs:
     # pilihan: webchat | webchat-v3 | dhai | instagram | facebook | telegram | whatsapp
     # =====================================================
     env:
-      SELECTED_PLATFORM: webchat
+      SELECTED_PLATFORM: webchat-v3
       DEFAULT_AI_PROVIDER: groq
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama-3.1-8b-instant
-      DEFAULT_FILENAME: MRT add new 15062026 sisaan.xlsx
-      DEFAULT_TESTER_NAME: Cik MRT add new 15062026 sisaan
+      DEFAULT_FILENAME: KB-Business and Partnership-Botika.xlsx
+      DEFAULT_TESTER_NAME: Cik KB-Business and Partnership-Botika
       DEFAULT_GREETING: Hai
-      DEFAULT_GREETING_2: Alex
+      DEFAULT_GREETING_2: 
 
       # -----------------------------
       # TARGET URL / ID / USERNAME / KREDENSIAL
       # -----------------------------
       WEBCHAT_URL: "https://chat.botika.online/0OOaBWX"
       WEBCHAT_V3_URL: "https://chat.botika.online/v3/mk6YoYD"
-      DEFAULT_WEBCHAT_NAME: "Cik luna testing bot"
-      DEFAULT_WEBCHAT_EMAIL: "tester@botika.online"
-      DEFAULT_WEBCHAT_PHONE: "081234567890"
+      DEFAULT_WEBCHAT_NAME: "Cik KB-Business and Partnership-Botika"
+      DEFAULT_WEBCHAT_EMAIL: "tst@gmail.com"
+      DEFAULT_WEBCHAT_PHONE: "087871763969"
       DHAI_TARGET_URL: "https://client.botika.online/virtual-avatar-pln-icon/?mode=wake-word"
       DHAI_WAKE_WORD: "halo luna"
       INSTAGRAM_USERNAME: "ahmadnurbrasta2.2"
