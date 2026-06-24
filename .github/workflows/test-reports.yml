@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Testingg MRTJ Update sisaan' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Testingg KB-Business and Partnership-Botika' }}
 
 on:
   push:
