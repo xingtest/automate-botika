@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'KB_OMNIBOTIKA V2 }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'KB_OMNIBOTIKA V2' }}
 
 on:
   push:
