@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'KB-HRD-Botika' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Update ReTesting LunaCS 29062026' }}
 
 on:
   push:
@@ -123,8 +123,8 @@ jobs:
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama-3.1-8b-instant
-      DEFAULT_FILENAME: KB-HRD-Botika.xlsx
-      DEFAULT_TESTER_NAME: Cik KB-HRD-Botika
+      DEFAULT_FILENAME: Update ReTesting LunaCS 29062026.xlsx
+      DEFAULT_TESTER_NAME: Cik Update ReTesting LunaCS 29062026
       DEFAULT_GREETING: Hai
       DEFAULT_GREETING_2: 
 
