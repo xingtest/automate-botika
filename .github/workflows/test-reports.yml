@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Update ReTesting LunaCS 29062026' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'Update ReTesting LunaCS 2' }}
 
 on:
   push:
