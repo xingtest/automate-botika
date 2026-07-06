@@ -30,8 +30,8 @@ export const EVAL_CONFIG = {
   // 🎯 Threshold Skor Evaluasi (0.0 - 1.0)
   thresholds: {
     excellent: 0.90,  // Sempurna
-    good: 0.70,       // Baik (Pass)
-    fair: 0.60,       // Cukup
+    good: 0.60,       // Baik (Pass)
+    fair: 0.50,       // Cukup
     poor: 0.40,       // Kurang
     bad: 0.20         // Buruk
   },

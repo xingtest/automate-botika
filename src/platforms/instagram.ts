@@ -470,7 +470,7 @@ export class InstagramPlatform {
   }
 
   static calculateStatus(score: number): string {
-    return score >= 0.7 ? 'pass' : 'failed';
+    return score >= 0.6 ? 'pass' : 'failed';
   }
 
   async actions(
