@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'LGI 4' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'LGI 4 copy' }}
 
 on:
   push:
@@ -123,8 +123,8 @@ jobs:
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama-3.1-8b-instant
-      DEFAULT_FILENAME: LGI 4.xlsx
-      DEFAULT_TESTER_NAME: Cik LGI 4
+      DEFAULT_FILENAME: LGI 4 copy.xlsx
+      DEFAULT_TESTER_NAME: Cik LGI 4 copy
       DEFAULT_GREETING: B. indonesia
       DEFAULT_GREETING_2: menu
 
