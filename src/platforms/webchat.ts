@@ -18,9 +18,6 @@ export class WebchatPlatform {
     try {
       log.debug('[DirectMessage] Starting capture for question', { question });
 
-      // Wait for messages to stabilize
-      await page.waitForTimeout(2000);
-
       // Get all message wrappers
       const allMessages = await page.locator('.message-content-wrapper').all();
       log.debug(`[DirectMessage] Found ${allMessages.length} message wrappers`);
@@ -286,15 +283,12 @@ export class WebchatPlatform {
           await submitBtn.click();
           await Modul.waitTime(2);
           log.info('✅ Pre-chat form submitted successfully');
-          // Wait for bot response after form submission
-          await this.waitReply(page, greeting, 60000);
         } else {
           log.warn('⚠️ Submit button not found, trying alternative methods');
           // Try pressing Enter on the last field
           try {
             await page.keyboard.press('Enter');
             await Modul.waitTime(2);
-            await this.waitReply(page, greeting, 60000);
           } catch { }
         }
       } catch (error) {
@@ -302,58 +296,7 @@ export class WebchatPlatform {
       }
     } else {
       log.warn('❌ Pre-chat form not available or no fields found');
-      log.info('🔄 Using direct message input instead');
-
-      // Tunggu pesan sambutan bahasa muncul di layar (maksimal 20 detik)
-      // Default: disabled (hidden) unless explicitly configured via env var.
-      const welcomeText = process.env.WELCOME_MESSAGE_TEXT;
-      const isEnabled =
-        typeof welcomeText === 'string' &&
-        welcomeText.trim() !== '' &&
-        welcomeText.toLowerCase() !== 'false' &&
-        welcomeText.toLowerCase() !== 'none';
-
-      if (isEnabled) {
-        const welcomeRegex = new RegExp(welcomeText!, 'i');
-        log.info(`⏳ Waiting for bot welcome message ("${welcomeText}") to appear...`);
-        try {
-          const welcomeMessage = page.locator('.message-content-wrapper .content')
-                                     .filter({ hasText: welcomeRegex })
-                                     .first();
-          await welcomeMessage.waitFor({ state: 'visible', timeout: 20000 });
-          log.info('✅ Welcome message detected!');
-        } catch (error) {
-          log.warn('⚠️ Timeout waiting for welcome message, proceeding anyway');
-        }
-      } else {
-        log.info('Skip waiting for initial welcome message (WELCOME_MESSAGE_TEXT not set), proceeding directly.');
-      }
-
-      try {
-        await page.locator('#input-message').fill(greeting);
-        await page.keyboard.press('Enter');
-        await Modul.waitTime(2);
-        log.info('✅ Greeting 1 sent via direct input');
-        // Wait for bot response after greeting
-        await this.waitReply(page, greeting, 60000);
-      } catch (error) {
-        log.error('Error sending greeting 1', error);
-      }
-    }
-
-    // Send second greeting if provided
-    if (greeting2 && greeting2.trim() !== '') {
-      log.info(`🔄 Sending second greeting: "${greeting2}"`);
-      try {
-        await page.locator('#input-message').fill(greeting2);
-        await page.keyboard.press('Enter');
-        await Modul.waitTime(2);
-        log.info('✅ Greeting 2 sent');
-        // Wait for bot response after second greeting
-        await this.waitReply(page, greeting2, 60000);
-      } catch (error) {
-        log.error('Error sending second greeting', error);
-      }
+      log.info('🔄 Proceeding directly to chat');
     }
   }
 
@@ -385,116 +328,46 @@ export class WebchatPlatform {
     }
   }
 
-  static async waitReply(page: Page, question: string, timeout: number = 60000): Promise<void> {
+  static async waitReply(page: Page, question: string, timeout: number = 300000): Promise<void> {
+    console.log(`⏳ Waiting for bot reply to: "${question}" (with stabilization)`);
     const startTime = Date.now();
-    let lastResponseCount = 0;
-    let stableCount = 0;
+    let lastTextLength = 0;
+    let stableStartTime = 0;
+    const requiredStabilityMs = 3500; // Harus stabil selama 3.5 detik
 
-    console.log(`⏳ Waiting for bot reply to: "${question}" (max ${timeout / 1000}s)`);
-
-    // Get initial message count
-    try {
-      lastResponseCount = await page.locator('.message-content-wrapper').count();
-    } catch { }
+    // Tunggu awal agar bot mulai memproses
+    await page.waitForTimeout(2000);
 
     while (Date.now() - startTime < timeout) {
-      try {
-        // Count all messages to detect new responses
-        const currentMessages = await page.locator('.message-content-wrapper').count();
-
-        if (currentMessages > lastResponseCount) {
-          // New message detected
-          lastResponseCount = currentMessages;
-          stableCount = 0;
-
-          // Get the latest message
-          const lastMessage = page.locator('.message-content-wrapper').last();
-          const content = await lastMessage.locator('.content').textContent();
-
-          // Check if it's a bot response (not our question)
-          if (content &&
-            content.trim().toLowerCase() !== question.trim().toLowerCase() &&
-            content.trim() !== '' &&
-            !content.includes('Ketik pesan')) {
-
-            console.log(`✅ Bot replied: "${content.substring(0, 50)}..."`);
-
-            // Wait a short time for any additional messages
-            await Modul.waitTime(1);
+      const result = await this.captureResponses(page, question);
+      const currentText = result.responses.join('\n');
+      
+      if (result.success && currentText.length > 0) {
+        if (currentText.length > lastTextLength) {
+          // Teks bertambah, bot masih mengetik atau bubble baru muncul
+          if (lastTextLength > 0) {
+            log.debug(`[Webchat] Response still growing: ${lastTextLength} -> ${currentText.length}`);
+          }
+          lastTextLength = currentText.length;
+          stableStartTime = Date.now();
+        } else {
+          // Panjang teks sama, cek sudah berapa lama stabil
+          const elapsedStable = Date.now() - stableStartTime;
+          if (elapsedStable >= requiredStabilityMs) {
+            console.log(`✅ Response stabilized after ${elapsedStable}ms`);
             return;
           }
-        } else {
-          // No new messages, increment stable count
-          stableCount++;
-
-          // If we have messages and they've been stable for a while, check if we have a response
-          if (currentMessages > 1 && stableCount > 3) {
-            const lastMessage = page.locator('.message-content-wrapper').last();
-            const content = await lastMessage.locator('.content').textContent();
-
-            if (content &&
-              content.trim().toLowerCase() !== question.trim().toLowerCase() &&
-              content.trim() !== '' &&
-              !content.includes('Ketik pesan')) {
-
-              console.log(`✅ Found stable response: "${content.substring(0, 50)}..."`);
-              return;
-            }
-          }
         }
-      } catch { }
-
-      await Modul.waitTime(0.5); // Check more frequently
-    }
-
-    console.log(`⚠️ Timeout (${timeout / 1000}s) waiting for reply to: "${question}"`);
-  }
-
-  /**
-   * Wait for a user reply (a message element with user class) after bot response.
-   * Returns when a new user message is detected or when timeout elapses.
-   */
-  static async waitForUserResponse(page: Page, timeout: number = 120000): Promise<boolean> {
-    const start = Date.now();
-
-    try {
-      // Count initial user messages
-      let initialUserCount = 0;
-      try {
-        initialUserCount = await page.locator('.message.user, .message.user .content').count();
-      } catch { initialUserCount = 0; }
-
-      while (Date.now() - start < timeout) {
-        try {
-          const currentUserCount = await page.locator('.message.user, .message.user .content').count();
-          if (currentUserCount > initialUserCount) {
-            // New user message detected
-            log.info(`Detected user reply (new user messages: ${currentUserCount - initialUserCount})`);
-            return true;
-          }
-
-          // Also check last message wrapper if it belongs to user (some markup uses wrapper class)
-          const lastWrapper = page.locator('.message-content-wrapper').last();
-          const isUser = await lastWrapper.evaluate((el) => {
-            return el.classList.contains('user') || el.closest('.user') !== null || el.querySelector('.user') !== null;
-          }).catch(() => false);
-
-          if (isUser) {
-            log.info('Detected user reply via last message wrapper class');
-            return true;
-          }
-        } catch (e) {
-          // ignore intermittent errors and continue polling
-        }
-
-        await Modul.waitTime(1);
       }
-
-      log.info(`No user reply detected within ${timeout / 1000}s, proceeding`);
-      return false;
-    } catch (error) {
-      log.warn('Error while waiting for user reply', error);
-      return false;
+      
+      // Cek lebih sering agar responsif (setiap 1 detik)
+      await page.waitForTimeout(1000);
+    }
+    
+    if (lastTextLength > 0) {
+      console.log(`⚠️ Stability timeout reached, but we have some response (${lastTextLength} chars)`);
+    } else {
+      console.log(`⚠️ Timeout: No reply found for: "${question}"`);
     }
   }
 
@@ -534,6 +407,8 @@ export class WebchatPlatform {
 
   static async actions(
     page: Page,
+    greeting: string,
+    greeting2: string,
     jsonData: TestData[],
     reportFilename: string,
     idTest: string,
@@ -549,31 +424,53 @@ export class WebchatPlatform {
     const start = Modul.startTime();
     const title = '当 Membaca pertanyaan dan mengirim ke webchat';
     Modul.showLoading(title);
-    console.log();
+    console.log('\n🚀 Starting Webchat Actions');
+
+    // Tunggu pesan sambutan bahasa muncul di layar (maksimal 20 detik)
+    // Default: disabled (hidden) unless explicitly configured via env var.
+    const welcomeText = process.env.WELCOME_MESSAGE_TEXT;
+    const isEnabled =
+      typeof welcomeText === 'string' &&
+      welcomeText.trim() !== '' &&
+      welcomeText.toLowerCase() !== 'false' &&
+      welcomeText.toLowerCase() !== 'none';
+
+    if (isEnabled) {
+      const welcomeRegex = new RegExp(welcomeText!, 'i');
+      console.log(`⏳ Waiting for welcome message ("${welcomeText}") to appear...`);
+      try {
+        const welcomeMessage = page.locator('.message-content-wrapper .content')
+                                   .filter({ hasText: welcomeRegex })
+                                   .first();
+        await welcomeMessage.waitFor({ state: 'visible', timeout: 20000 });
+        console.log('✅ Welcome message detected!');
+      } catch (error) {
+        console.log('⚠️ Timeout waiting for welcome message, proceeding anyway');
+      }
+    } else {
+      console.log('Skip waiting for initial welcome message (WELCOME_MESSAGE_TEXT not set), proceeding directly.');
+    }
+
+    // Handle initial greetings
+    if (greeting) {
+        console.log(`📤 Sending Greeting 1: ${greeting}`);
+        await this.sendMessage(page, greeting);
+        await this.waitReply(page, greeting);
+    }
+    if (greeting2) {
+        console.log(`📤 Sending Greeting 2: ${greeting2}`);
+        await this.sendMessage(page, greeting2);
+        await this.waitReply(page, greeting2);
+    }
 
     await runTestLoop({
       sendMessage: (q) => this.sendMessage(page, q),
-      getReply: (q) => (async () => {
+      getReply: async (q) => {
         // Tunggu hingga bot selesai merespons sebelum mengambil chat
         await this.waitReply(page, q, 120000);
-
         const raw = await this.getReplyChat(page, q);
-        const joined = raw.join('\n').trim();
-
-        try {
-          log.info('Menunggu user merespon (maks 120s) sebelum lanjut...');
-          const userReplied = await this.waitForUserResponse(page, 120000);
-          if (!userReplied) {
-            log.info('Tidak ada balasan user dalam 120s, melanjutkan.');
-          } else {
-            log.info('User merespon, melanjutkan.');
-          }
-        } catch (e) {
-          log.warn('Error saat menunggu balasan user', e);
-        }
-
-        return joined;
-      })(),
+        return raw.join('\n').trim();
+      },
       takeScreenshot: (idTest, key, question, screenshotsFolder) => this.takeScreenshot(page, idTest, key, question, screenshotsFolder),
       jsonData,
       reportFilename,

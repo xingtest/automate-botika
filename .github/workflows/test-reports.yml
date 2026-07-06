@@ -1,5 +1,5 @@
 name: Automation Testing Judges
-run-name: ${{ github.event.inputs.RUN_NAME || 'Update ReTesting LunaCS 2' }}
+run-name: ${{ github.event.inputs.RUN_NAME || 'LGI 1' }}
 
 on:
   push:
@@ -32,10 +32,10 @@ on:
         description: 'Second greeting message (optional)'
         required: false
         default: ''
-      # WELCOME_MESSAGE_TEXT:
-      #   description: 'Welcome message keywords/wording to wait for (use | to separate multiple keywords)'
-      #   required: false
-      #   default: 'Silakan pilih bahasa|Please choose the language'
+      WELCOME_MESSAGE_TEXT:
+        description: 'Welcome message keywords/wording to wait for (use | to separate multiple keywords)'
+        required: false
+        default: 'Silakan pilih bahasa|Please choose the language'
       WEBCHAT_URL:
         description: 'WebChat URL (V2)'
         required: false
@@ -118,20 +118,20 @@ jobs:
     # pilihan: webchat | webchat-v3 | dhai | instagram | facebook | telegram | whatsapp
     # =====================================================
     env:
-      SELECTED_PLATFORM: webchat-v3
+      SELECTED_PLATFORM: webchat
       DEFAULT_AI_PROVIDER: groq
       GEMINI_MODEL: gemini-3.1-flash-lite-preview
       GROQ_MODEL: llama-3.1-8b-instant
       CEREBRAS_MODEL: llama-3.1-8b-instant
-      DEFAULT_FILENAME: Update ReTesting LunaCS 29062026.xlsx
-      DEFAULT_TESTER_NAME: Cik Update ReTesting LunaCS 29062026
-      DEFAULT_GREETING: Hai
-      DEFAULT_GREETING_2: 
+      DEFAULT_FILENAME: LGI 1.xlsx
+      DEFAULT_TESTER_NAME: Cik LGI 1
+      DEFAULT_GREETING: B. indonesia
+      DEFAULT_GREETING_2: menu
 
       # -----------------------------
       # TARGET URL / ID / USERNAME / KREDENSIAL
       # -----------------------------
-      WEBCHAT_URL: "https://chat.botika.online/0OOaBWX"
+      WEBCHAT_URL: "https://chat.botika.online/IpTW41B?newMessage=chat%20started&attachment=false&auth=JiQSg8PEZ%2FLCT964dTazyOuehjLUbzKxJUmXjMk9AJgB2tKyrbEy2IfktoPYa4BpTDryrmQb%2BtVE9sX0NleUUzNI98P6rBv50w%3D%3D&header=hidden&history=false"
       WEBCHAT_V3_URL: "https://chat.botika.online/v3/mk6YoYD"
       DEFAULT_WEBCHAT_NAME: "Cik KB-Business and Partnership-Botika"
       DEFAULT_WEBCHAT_EMAIL: "tst@gmail.com"

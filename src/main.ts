@@ -196,7 +196,7 @@ async function main(): Promise<void> {
       const webchatEmail = process.env.WEBCHAT_EMAIL || 'tester@example.com';
       const webchatPhone = process.env.WEBCHAT_PHONE || '081234567890';
       await WebchatPlatform.prechatForm(page, greeting, greeting2, webchatName, webchatEmail, webchatPhone);
-      await WebchatPlatform.actions(page, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder, testTracker);
+      await WebchatPlatform.actions(page, greeting, greeting2, jsonData, reportFilename, idTest, timeStart, today, testerName, url, title, browserName, screenshotsFolder, testTracker);
       await Modul.closeBrowser(browser);
 
     } else if (platform === 'webchat-v3') {
