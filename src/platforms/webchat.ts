@@ -483,7 +483,14 @@ export class WebchatPlatform {
       today,
       timeStart,
       platformLabel: 'Playwright TypeScript',
-      testTracker
+      testTracker,
+      // onBeforeQuestion: async (count) => {
+      //   if (count % 5 === 0) {
+      //     log.info('🔄 Reloading page in Webchat to prevent memory issues...');
+      //     await page.reload();
+      //     await Modul.waitTime(2);
+      //   }
+      // }
     });
   }
 }
