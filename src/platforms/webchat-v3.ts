@@ -38,7 +38,11 @@ export class WebchatV3Platform {
                              row.querySelector('.justify-end') !== null ||
                              row.innerHTML.includes('bg-primary');
                 if (isUser) {
-                    questionIndex = i;
+                    const text = row.textContent || '';
+                    const qSnippet = q.substring(0, Math.min(5, q.length)).toLowerCase();
+                    if (text.toLowerCase().includes(qSnippet)) {
+                        questionIndex = i;
+                    }
                     break;
                 }
             }

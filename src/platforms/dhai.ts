@@ -53,7 +53,8 @@ export class DhaiPlatform {
 
         console.log(`🔍 Capturing bot responses for: "${userMessage}" (attempt ${attempt}/${maxRetries})`);
 
-        const responses = await this.extractBotResponse(page, userMessage);
+        const isLastAttempt = attempt === maxRetries;
+        const responses = await this.extractBotResponse(page, userMessage, isLastAttempt);
 
         if (responses.length > 0) {
           return responses;
@@ -73,7 +74,7 @@ export class DhaiPlatform {
     return [];
   }
 
-  private static async extractBotResponse(page: Page, userMessage: string): Promise<string[]> {
+  private static async extractBotResponse(page: Page, userMessage: string, allowFallback: boolean = false): Promise<string[]> {
     try {
       // Try multiple selectors for DHAI messages - prioritize specific ones
       const messageSelectors = [
@@ -111,6 +112,10 @@ export class DhaiPlatform {
 
         if (questionIndices.length === 0) {
           console.log('⚠️ Question not found');
+
+          if (!allowFallback) {
+            return [];
+          }
 
           // Fallback: return last 3 messages
           const recentMessages: string[] = [];

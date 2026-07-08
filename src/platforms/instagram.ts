@@ -209,7 +209,8 @@ export class InstagramPlatform {
 
       console.log(`🔍 Checking for responses (attempt ${attempt}/${maxAttempts})...`);
 
-      const response = await this.extractBotResponse(username, userMessage, afterTimestamp);
+      const isLastAttempt = attempt === maxAttempts;
+      const response = await this.extractBotResponse(username, userMessage, afterTimestamp, isLastAttempt);
 
       // Count number of response bubbles (split by newline)
       const currentResponseCount = response && response !== 'No response captured'
@@ -255,7 +256,7 @@ export class InstagramPlatform {
     return 'No response captured';
   }
 
-  private async extractBotResponse(username: string, userMessage: string, afterTimestamp: number): Promise<string> {
+  private async extractBotResponse(username: string, userMessage: string, afterTimestamp: number, allowFallback: boolean = false): Promise<string> {
     if (!this.page) {
       return 'Error: Page not initialized';
     }
@@ -301,6 +302,10 @@ export class InstagramPlatform {
       if (questionIndices.length === 0) {
         console.log('⚠️ Question not found in messages');
         console.log(`💡 Looking for: "${userMessage}"`);
+
+        if (!allowFallback) {
+          return 'No response captured';
+        }
 
         // Fallback: return last 3 messages
         const recentMessages: string[] = [];

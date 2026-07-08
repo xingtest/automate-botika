@@ -12,7 +12,7 @@ export class WebchatPlatform {
    * Capture responses using DirectMessage strategy
    * Primary method for capturing bot responses based on position after question
    */
-  private static async captureDirectMessage(page: Page, question: string): Promise<string[]> {
+  private static async captureDirectMessage(page: Page, question: string): Promise<{ foundQuestion: boolean; replies: string[] }> {
     const replies: string[] = [];
 
     try {
@@ -43,7 +43,7 @@ export class WebchatPlatform {
 
       if (questionIndex < 0) {
         log.warn('[DirectMessage] Question not found in message history');
-        return replies;
+        return { foundQuestion: false, replies };
       }
 
       // Capture ALL bot responses after our question until we hit another user message
@@ -84,11 +84,11 @@ export class WebchatPlatform {
       }
 
       log.capture.strategy('DirectMessage', replies.length > 0, replies.length);
-      return replies;
+      return { foundQuestion: true, replies };
 
     } catch (error: any) {
       log.error('[DirectMessage] Capture failed', error);
-      return replies;
+      return { foundQuestion: false, replies };
     }
   }
 
@@ -166,29 +166,29 @@ export class WebchatPlatform {
     // Try DirectMessage strategy first
     try {
       log.debug('Trying strategy: DirectMessage');
-      const responses = await this.captureDirectMessage(page, question);
+      const result = await this.captureDirectMessage(page, question);
 
-      if (responses.length > 0) {
+      if (result.foundQuestion) {
         // Remove duplicates and filter out the question itself
-        const uniqueResponses = [...new Set(responses)].filter(
+        const uniqueResponses = [...new Set(result.replies)].filter(
           r => r.toLowerCase() !== question.trim().toLowerCase()
         );
 
-        if (uniqueResponses.length > 0) {
-          log.info(`✅ Successfully captured ${uniqueResponses.length} responses using DirectMessage`);
-          return {
-            responses: uniqueResponses,
-            strategyUsed: 'DirectMessage',
-            success: true
-          };
-        }
+        // If the question was found in the DOM, we do NOT fall back to fallback strategy.
+        // Doing so would grab older messages when the bot is just slow to reply.
+        log.info(`[DirectMessage] Question found in chat log. Captured responses: ${uniqueResponses.length}`);
+        return {
+          responses: uniqueResponses,
+          strategyUsed: 'DirectMessage',
+          success: uniqueResponses.length > 0
+        };
       }
-      log.debug('Strategy DirectMessage returned no valid responses');
+      log.debug('Strategy DirectMessage did not find the question in chat history');
     } catch (error: any) {
       log.warn('Strategy DirectMessage failed', { error: error.message });
     }
 
-    // Try Fallback strategy
+    // Try Fallback strategy only if DirectMessage couldn't find the question
     try {
       log.debug('Trying strategy: Fallback');
       const responses = await this.captureFallback(page, question);
