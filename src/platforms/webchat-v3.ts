@@ -405,7 +405,14 @@ export class WebchatV3Platform {
       today,
       timeStart,
       platformLabel: 'V3',
-      testTracker
+      testTracker,
+      onBeforeQuestion: async (count) => {
+        if (count % 5 === 0) {
+          log.info('🔄 Reloading page in Webchat V3 to prevent memory issues...');
+          await page.reload();
+          await Modul.waitTime(2);
+        }
+      }
     });
   }
 }
