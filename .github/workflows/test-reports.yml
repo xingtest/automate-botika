@@ -120,9 +120,9 @@ jobs:
     env:
       SELECTED_PLATFORM: webchat
       DEFAULT_AI_PROVIDER: multi
-      GEMINI_MODEL: gemini-3.1-flash-lite-preview
+      GEMINI_MODEL: gemini-3.5-flash
       GROQ_MODEL: llama-3.1-8b-instant
-      CEREBRAS_MODEL: llama-3.1-8b-instant
+      CEREBRAS_MODEL: gemma-4-31b
       DEFAULT_FILENAME: MRT add new 08 07 2026.xlsx
       DEFAULT_TESTER_NAME: MRT add new 08 07 2026 All
       DEFAULT_GREETING: halo
