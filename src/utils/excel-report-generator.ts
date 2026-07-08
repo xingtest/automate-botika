@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 // @ts-ignore
 import * as XLSX from 'xlsx-js-style';
+import { EVAL_CONFIG } from './ai-evaluator';
 
 interface TestData {
   title: string;
@@ -32,7 +33,7 @@ interface SummaryData {
   duration: string;
 }
 
-const PASS_THRESHOLD = 0.6;
+const PASS_THRESHOLD = EVAL_CONFIG.thresholds.good;
 
 function findLatestTestFiles(): { jsonFile: string | null; summaryFile: string | null } {
   const jsonDir = 'report/json';
@@ -84,7 +85,10 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
 
     // Calculate evaluation summary
     const totalTests = testData.length;
-    const passedTests = testData.filter(item => item.skor >= PASS_THRESHOLD).length;
+    const passedTests = testData.filter(item => {
+      const status = item.status?.toLowerCase() || (item.skor >= PASS_THRESHOLD ? 'pass' : 'failed');
+      return status === 'pass';
+    }).length;
     const failedTests = totalTests - passedTests;
     const avgScore = totalTests > 0 ? (testData.reduce((sum, item) => sum + item.skor, 0) / totalTests) : 0;
 
@@ -107,8 +111,8 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
       [],
       ['Evaluation Summary'],
       ['Total Questions', totalTests],
-      ['Passed (≥0.6)', passedTests],
-      ['Failed (<0.6)', failedTests],
+      [`Passed (≥${PASS_THRESHOLD})`, passedTests],
+      [`Failed (<${PASS_THRESHOLD})`, failedTests],
       ['Success Rate', `${((passedTests / totalTests) * 100).toFixed(2)}%`],
       ['Average Score', avgScore.toFixed(3)],
       ['Pass Threshold', PASS_THRESHOLD]
@@ -138,18 +142,21 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
     XLSX.utils.book_append_sheet(workbook, ws1, 'Summary');
 
     // Sheet 2: Test Results
-    const testResultsData = testData.map((item, index) => ({
-      'No': index + 1,
-      'Title': item.title,
-      'Question': item.question,
-      'Expected Response (KB)': item.response_kb,
-      'Actual Response (LLM)': item.response_llm,
-      'Explanation': item.explanation,
-      'Score': item.skor,
-      'Status': item.skor >= PASS_THRESHOLD ? 'pass' : 'failed',
-      'Duration': item.duration,
-      'Screenshot': item.image_capture || 'N/A'
-    }));
+    const testResultsData = testData.map((item, index) => {
+      const status = item.status?.toLowerCase() || (item.skor >= PASS_THRESHOLD ? 'pass' : 'failed');
+      return {
+        'No': index + 1,
+        'Title': item.title,
+        'Question': item.question,
+        'Expected Response (KB)': item.response_kb,
+        'Actual Response (LLM)': item.response_llm,
+        'Explanation': item.explanation,
+        'Score': item.skor,
+        'Status': status,
+        'Duration': item.duration,
+        'Screenshot': item.image_capture || 'N/A'
+      };
+    });
 
     const ws2 = XLSX.utils.json_to_sheet(testResultsData);
     ws2['!cols'] = [
@@ -205,8 +212,8 @@ export function generateExcelReportIncremental(reportFilename: string, idTest: s
 
     // Sheet 3: Statistics
     const statsData = [
-      { 'Status': 'PASS (≥0.6)', 'Count': passedTests, 'Percentage': `${((passedTests / totalTests) * 100).toFixed(2)}%` },
-      { 'Status': 'FAILED (<0.6)', 'Count': failedTests, 'Percentage': `${((failedTests / totalTests) * 100).toFixed(2)}%` },
+      { 'Status': `PASS (≥${PASS_THRESHOLD})`, 'Count': passedTests, 'Percentage': `${((passedTests / totalTests) * 100).toFixed(2)}%` },
+      { 'Status': `FAILED (<${PASS_THRESHOLD})`, 'Count': failedTests, 'Percentage': `${((failedTests / totalTests) * 100).toFixed(2)}%` },
       { 'Status': 'TOTAL', 'Count': totalTests, 'Percentage': '100%' }
     ];
 

@@ -805,7 +805,7 @@
                     <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider <%= (test_item.status === 'pass' || test_item.status === 'PASS') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' %>">
                       <%= test_item.status %>
                     </span>
-                    <div class="text-3xl font-black <%= parseFloat(test_item.skor) >= 0.7 ? 'text-green-600' : 'text-red-600' %>">
+                    <div class="text-3xl font-black <%= (test_item.status === 'pass' || test_item.status === 'PASS') ? 'text-green-600' : 'text-red-600' %>">
                       <%= parseFloat(test_item.skor).toFixed(2) %>
                     </div>
                   </div>
@@ -1508,7 +1508,7 @@
         const tableRowsHTML = dataToRender.map(row => {
           const isPass = (row.status === 'pass' || row.status === 'PASS');
           const scoreValue = parseFloat(row.skor).toFixed(2);
-          const scoreColor = parseFloat(row.skor) >= 0.7 ? 'text-green-600' : 'text-red-600';
+          const scoreColor = isPass ? 'text-green-600' : 'text-red-600';
           const statusBg = isPass ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
           
           return `

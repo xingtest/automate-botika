@@ -784,13 +784,13 @@
                 </td>
                 <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">
                   <span
-                    class="<% if (parseFloat(test_item.skor) >= 0.75) { %>text-green-600 dark:text-green-400<% } else { %>text-red-600 dark:text-red-400<% } %>">
+                    class="<% if (test_item.status === 'pass' || test_item.status === 'PASS') { %>text-green-600 dark:text-green-400<% } else { %>text-red-600 dark:text-red-400<% } %>">
                     <%= test_item.skor %>
                   </span>
                 </td>
                 <td class="py-4 px-2 w-[8%] text-center">
                   <span
-                    class="text-lg font-bold px-3 py-1 rounded-full text-xs <% if (parseFloat(test_item.skor) >= 0.75) { %>bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100<% } else { %>bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100<% } %>">
+                    class="text-lg font-bold px-3 py-1 rounded-full text-xs <% if (test_item.status === 'pass' || test_item.status === 'PASS') { %>bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100<% } else { %>bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100<% } %>">
                     <%= test_item.status %>
                   </span>
                 </td>
@@ -1476,7 +1476,7 @@
             <td class="py-4 px-2 w-[25%] text-content-primary-themed font-medium text-justify">${escapeHtml(row.actual || '-')}</td>
             <td class="py-4 px-2 w-[20%] text-content-primary-themed font-medium text-justify">${escapeHtml(row.explanation || '-')}</td>
             <td class="py-4 px-2 w-[5%] text-content-primary-themed font-semibold text-lg text-center">
-              <span class="${parseFloat(row.skor) >= 0.75 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+              <span class="${row.status === 'pass' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
                 ${escapeHtml(row.skor || '-')}
               </span>
             </td>
